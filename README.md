@@ -129,6 +129,7 @@ A gamepad works too (left stick walks, right stick looks, A uses, B goes back, X
 | `npx cubefarm --demo` | fake GitHub and fake agents |
 | `npx cubefarm --demo --floors 10 --agents 15` | a big demo company: 10 floors of 15 people, to see the office at scale |
 | `npx cubefarm --port 4400` | use another port (the default is 4317) |
+| `npx cubefarm --host 0.0.0.0` | listen on your network too, not just this computer (no sign-in: see below) |
 | `npx cubefarm --no-open` | don't open the browser |
 
 ## Updating
@@ -148,7 +149,7 @@ Running it from a clone of this repo (`npm start`)? Then the office updates itse
 - **It runs on your own subscriptions.** Each agent uses the login of the coding agent it runs, and agents on the same coding agent share its usage limits.
 - **Agents work like the coding agents you run yourself**: unsandboxed, with your skills, MCP servers and settings, each in its own copy of the repo. Nobody has to be there to approve a tool call, so the office approves them all: run it where you'd run your own coding agents. The office's rules are in the agents' instructions: push your own branch and open a pull request, never push to your main branch or merge. The office merges, after QA.
 - **Your office lives in `~/.cubefarm`**: settings, clones of your repos and one machine (a clone and a worktree) per agent. Set `SWARM_HOME` to use another folder. Machines and desks nobody uses any more are swept away every 30 minutes, and any unpushed work on them is kept as a patch in `~/.cubefarm/leftovers`.
-- **It's only open to your own computer.** The office listens on `127.0.0.1`. To reach it from your phone, put something that signs you in in front of it, like Tailscale Serve: see [Reach the office from your phone](docs/pocket.md#reach-the-office-from-your-phone).
+- **It's only open to your own computer.** The office listens on `127.0.0.1`. To reach it from your phone, put something that signs you in in front of it, like Tailscale Serve: see [Reach the office from your phone](docs/pocket.md#reach-the-office-from-your-phone). `--host 0.0.0.0` (or `SWARM_HOST`) opens it to your network as it is, say to run it on a Mac mini and watch from your laptop: the office has no sign-in, so anyone who can reach it can run your agents. Only do that on a network you trust.
 
 ## Learn more
 
