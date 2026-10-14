@@ -1,6 +1,6 @@
 // The kitchenette fridge on the floor you're on: its door, who is at it, and each floor's stock (client-side, kept per
 // floor for the visit, like the coffee machine's state). The player's E (Player.tsx) and the agents' snack breaks
-// (fridgeErrand.ts) both come through here; Fridge.tsx draws it and runs its clock (auto-close, the beep, restocks).
+// (fridgeErrand.ts) both come through here; FridgeModel.tsx draws it and runs its clock (auto-close, the beep, restocks).
 // window.__swarmFridge reports it and __swarmFridgeDo acts on it, for QA.
 
 import { useStore } from '../store';
@@ -10,7 +10,7 @@ import type { HandSnack } from './fridgeBreak';
 
 export const PLAYER = 'player';
 
-/** Where the fridge's door is in the world (Fridge.tsx fills it in once drawn), for sounds and who is near. */
+/** Where the fridge's door is in the world (FridgeModel.tsx fills it in once drawn), for sounds and who is near. */
 export const fridgeSpot: Vec3 = { x: 0, y: 1.2, z: 0 };
 
 const stocks = new Map<number, { stock: Stock; since: number }>();
@@ -35,7 +35,7 @@ export const fridge = {
 const listeners = new Set<() => void>();
 let version = 0;
 
-/** Fridge.tsx redraws when the door or the stock changes. */
+/** FridgeModel.tsx redraws when the door or the stock changes. */
 export function subscribeFridge(fn: () => void) {
   listeners.add(fn);
   return () => void listeners.delete(fn);

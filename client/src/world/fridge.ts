@@ -1,6 +1,6 @@
 // The kitchenette fridge, as pure rules: what's in it (a software team's fridge, no real brands), the stock per floor
 // (taking, sold out, one item back every few minutes), when the door closes by itself and starts beeping, and what
-// each agent fancies. fridgeState.ts keeps the live state, Fridge.tsx draws it, fridgeBreak.ts sends agents to it.
+// each agent fancies. fridgeState.ts keeps the live state, FridgeModel.tsx draws it, fridgeBreak.ts sends agents to it.
 
 export type SnackId = 'overclock' | 'fizz' | 'coldbrew' | 'mate' | 'pizza' | 'bar' | 'cheese' | 'choc';
 

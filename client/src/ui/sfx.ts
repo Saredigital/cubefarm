@@ -608,7 +608,7 @@ export function slurp(pos: Vec3) {
   noise({ ...o, at: 0.24, dur: 0.05, peak: 0.05, filter: 'bandpass', freq: 1800, q: 1.5, attack: 0.002 });
 }
 
-// ---------- the kitchenette fridge (world/Fridge.tsx) ----------
+// ---------- the kitchenette fridge (world/FridgeModel.tsx) ----------
 
 /** The fridge door coming open: the seal letting go with a soft suck and a pop. */
 export function fridgePop(pos: Vec3) {

@@ -5,7 +5,7 @@ import { glass, shade, toon } from './materials';
 import { Ball, Box, Cyl } from './Toon';
 import { MugDispenser } from './toys/mugLook';
 import { CoffeeMachine } from './CoffeeMachine';
-import { Fridge } from './Fridge';
+import { Fridge } from './FridgeModel';
 import { officeNow } from '../officeTime';
 
 type P = [number, number, number];
