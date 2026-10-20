@@ -4,6 +4,8 @@ import { PerformanceMonitor, type PerformanceMonitorApi } from '@react-three/dre
 import type * as THREE from 'three';
 import { coversView, useStore } from './store';
 import { gfxLabel } from './world/gfx/useGraphics';
+import { hitchFrame, hitchResume, hitchSummary, setHitchContext, startHitchRecorder, watchGl } from './hitches';
+import { statsLine } from './hitchLog';
 
 // Keeping the office cheap to leave open all day: the 3D view stops drawing while a panel hides it or
 // the tab is in the background, the resolution steps down when frames get slow (and Auto graphics, world/gfx,
@@ -103,6 +105,28 @@ export function FrameRateSampler({ paused, onSample, onPause }: { paused: boolea
   return null;
 }
 
+/**
+ * Lives inside the Canvas, always: the hitch recorder's frame clock (hitches.ts). Per frame it compares two numbers;
+ * a slow frame is written down with what was going on. `camera` and `events` come from the world, which this module
+ * doesn't import.
+ */
+export function HitchProbe({ paused, camera, events }: { paused: boolean; camera: () => string; events: () => string[] }) {
+  const gl = useThree((s) => s.gl);
+  useEffect(() => {
+    watchGl(gl.getContext());
+    startHitchRecorder();
+    setHitchContext({ camera, events, dpr: () => gl.getPixelRatio(), gfx: gfxLabel, textures: () => gl.info.memory.textures });
+    return () => setHitchContext(null);
+  }, [gl, camera, events]);
+  useEffect(() => {
+    if (paused) hitchResume();
+  }, [paused]);
+  useFrame(() => {
+    if (!paused) hitchFrame(); // FrameWhilePaused's one-off frames aren't the loop
+  });
+  return null;
+}
+
 // The probe inside the Canvas writes straight into this element, so the readout never re-renders React.
 let readoutEl: HTMLSpanElement | null = null;
 
@@ -157,7 +181,7 @@ export function StatsProbe({ paused }: { paused: boolean }) {
     const { calls, triangles } = gl.info.render;
     const fps = (a.frames * 1000) / elapsed;
     Object.assign(probe, { fps: Math.round(fps * 10) / 10, ms: Math.round((elapsed / a.frames) * 10) / 10, calls, triangles, geometries: gl.info.memory.geometries, textures: gl.info.memory.textures, programs: gl.info.programs?.length ?? 0 });
-    readoutEl.textContent = `${Math.round(fps)} fps · ${(elapsed / a.frames).toFixed(1)} ms · ${calls} calls · ${fmt(triangles)} tris · dpr ${gl.getPixelRatio().toFixed(2)} · gfx ${gfxLabel()}`;
+    readoutEl.textContent = `${Math.round(fps)} fps · ${(elapsed / a.frames).toFixed(1)} ms · ${calls} calls · ${fmt(triangles)} tris · dpr ${gl.getPixelRatio().toFixed(2)} · gfx ${gfxLabel()} · ${statsLine(hitchSummary())}`;
     a.start = now;
     a.frames = 0;
   });

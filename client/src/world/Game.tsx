@@ -1,13 +1,15 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { AdaptiveResolution, FrameWhilePaused, MAX_DPR, StatsProbe, statsEnabled, useRenderPaused } from '../perf';
+import { AdaptiveResolution, FrameWhilePaused, HitchProbe, MAX_DPR, StatsProbe, statsEnabled, usePageHidden, useRenderPaused } from '../perf';
+import { hitchNote, hitchPaused } from '../hitches';
 import { setOfficeCanvas, usePhotoGate } from '../photo/gate';
-import { repoOnFloor, useStore } from '../store';
+import { coversView, repoOnFloor, useStore } from '../store';
 import { useA11y } from '../ui/a11y';
 import { ding, whoosh } from '../ui/sfx';
 import { Batches } from './Batched';
 import { CameraRig } from './camera/CameraRig';
+import { cameraMode } from './camera/rig';
 import { Chatter } from './Chatter';
 import { CUT_PLANES } from './camera/rig';
 import { lobbyColliders, officeColliders, ROOF, roofColliders } from './layout';
@@ -30,12 +32,23 @@ import { decorColliders } from './themes/themes';
 import { TypingSounds } from './TypingSounds';
 import { Weather } from './weather/Weather';
 import { WorldEvents } from './events/WorldEvents';
+import { runningEvents } from './events/eventsState';
 
 // The roof is its own chunk: fetched as the elevator heads up there, never by a floor that doesn't go.
 const loadRoof = () => import('./roof/Roof');
 const Roof = lazy(loadRoof);
 // Photo mode's camera and drawing load the first time it's opened.
 const PhotoScene = lazy(() => import('../photo/PhotoScene'));
+
+const eventIds = () => runningEvents().map((r) => r.id);
+
+/** Tells the hitch recorder (hitches.ts) whenever the 3D view stops drawing, and why. */
+function usePauseLog(frozen: boolean) {
+  const overlay = useStore((s) => (coversView(s.overlay) ? s.overlay!.kind : null));
+  const hidden = usePageHidden();
+  const reason = hidden ? 'tab hidden' : overlay ? `${overlay} covers the view` : frozen ? 'photo mode frozen' : null;
+  useEffect(() => hitchPaused(reason), [reason]);
+}
 
 function Travel() {
   const travel = useStore((s) => s.travel);
@@ -97,6 +110,7 @@ export function Game() {
   // Photo mode's freeze stops the frame loop too: nothing in the office moves (the server and its events carry on).
   const photo = usePhotoGate((s) => s.active);
   const frozen = usePhotoGate((s) => s.frozen);
+  usePauseLog(frozen);
 
   return (
     <Canvas
@@ -135,8 +149,14 @@ export function Game() {
       <TypingSounds />
       <Chatter />
       <FrameWhilePaused paused={paused} />
-      <AdaptiveResolution onChange={setMaxDpr} />
+      <AdaptiveResolution
+        onChange={(dpr) => {
+          hitchNote('dpr', `max ${maxDpr} → ${dpr}`);
+          setMaxDpr(dpr);
+        }}
+      />
       <Graphics paused={paused || photo} />
+      <HitchProbe paused={paused || frozen} camera={cameraMode} events={eventIds} />
       {statsEnabled && <StatsProbe paused={paused} />}
       {photo && (
         <Suspense fallback={null}>

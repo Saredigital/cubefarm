@@ -34,6 +34,8 @@ import { arriveOnFloor, cameraMode, exitView, homeSpot, lookAllowed, playerAt, r
 import { leavePerch, perch, takePerchTurn, type Perch } from './perch';
 import { roofAction } from './roof/roofState';
 import { greet } from './Chatter';
+import { recordHitch } from '../hitches';
+import { newStuck, STUCK_MS, stuckStep } from '../hitchLog';
 import { joinPong, pongCamera, pongMouse, tickPaddle } from './toys/pongState';
 
 /** How fast the right stick moves the ping-pong paddle, full over (in mouse pixels a second). */
@@ -197,6 +199,15 @@ const PAD_TURN = 2.6;
 /** Whether `code` gets you up from a perch (a deck chair, the telescope): a walking key, or Space. */
 const gotUp = (b: ReturnType<typeof bindings>, code: string) => code === 'Space' || [...MOVES].some((a) => isBound(b, a, code));
 
+/** The movement keys among `keys`, for the hitch recorder ("KeyW, ShiftLeft"); empty when none is held. */
+const movementKeys = (keys: Set<string>) => {
+  const b = bindings();
+  return [...keys].filter((k) => [...MOVES, 'run' as const].some((a) => isBound(b, a, k))).join(', ');
+};
+
+/** Walking into a wall again and again would fill the recorder: one stall every few seconds at most. */
+const STUCK_EVERY_MS = 5000;
+
 const isTyping = (e: KeyboardEvent) => {
   const el = e.target as HTMLElement | null;
   return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
@@ -214,6 +225,21 @@ export function Player({ colliders, floor }: { colliders: Rect[]; floor: number 
   const padRun = useRef(false);
   useEffect(() => setHomeLook(() => look.current), []);
   const perched = useRef<Perch | null>(null);
+  const stuck = useMemo(newStuck, []);
+  const lastStuck = useRef(-Infinity);
+  const lastIgnored = useRef(-Infinity);
+
+  // For the benchmark's walking route (scripts/bench.mjs): where you stand, and turning to face a heading.
+  useEffect(() => {
+    (window as unknown as Record<string, unknown>).__swarmPlayer = {
+      get at() {
+        return { x: camera.position.x, z: camera.position.z, yaw: look.current.yaw, floor };
+      },
+      face(yaw: number, pitch = -0.08) {
+        look.current = { yaw, pitch };
+      },
+    };
+  }, [camera, floor]);
 
   // Arrive at the elevator whenever the floor changes; after a page reload, return to the remembered spot.
   const restored = useRef(false);
@@ -286,7 +312,15 @@ export function Player({ colliders, floor }: { colliders: Rect[]; floor: number 
     };
     // Every key goes through the player's bindings (Help → Controls; ui/keymap.ts), the defaults being the office's keys.
     const onKeyDown = (e: KeyboardEvent) => {
-      if (isTyping(e)) return;
+      if (isTyping(e)) {
+        // A box that kept the focus after its panel closed would leave the player unable to walk: say so.
+        const now = performance.now();
+        if (!useStore.getState().overlay && !isConfirmOpen() && movementKeys(new Set([e.code])) && now - lastIgnored.current > 2000) {
+          lastIgnored.current = now;
+          recordHitch('input', 0, `${e.code} ignored: typing in a ${(e.target as HTMLElement).tagName.toLowerCase()} with no panel open`);
+        }
+        return;
+      }
       const s = useStore.getState();
       const b = bindings();
       if (isBound(b, 'mute', e.code) && !e.repeat && !isConfirmOpen()) {
@@ -348,6 +382,8 @@ export function Player({ colliders, floor }: { colliders: Rect[]; floor: number 
       if (isBound(bindings(), 'throw', e.code) && !photoActive()) throwHeld(); // in photo mode F freezes and thaws
     };
     const onBlur = () => {
+      const held = movementKeys(keys.current);
+      if (held) recordHitch('input', 0, `${held} let go: the window lost focus${document.activeElement && document.activeElement !== document.body ? ` (to a ${document.activeElement.tagName.toLowerCase()})` : ''}`);
       keys.current.clear();
       useStore.getState().setCharge(null); // the button's release would be missed
     };
@@ -500,6 +536,8 @@ export function Player({ colliders, floor }: { colliders: Rect[]; floor: number 
     walk.x = 0;
     walk.z = 0;
     const tilt = Math.min(1, Math.hypot(fwd, strafe));
+    const fromX = camera.position.x;
+    const fromZ = camera.position.z;
     if (tilt > 0 && !s.travel && !p) {
       const len = Math.hypot(fwd, strafe);
       const sin = Math.sin(yaw);
@@ -516,6 +554,15 @@ export function Player({ colliders, floor }: { colliders: Rect[]; floor: number 
       camera.position.x = p.x;
       camera.position.z = p.z;
       moving = true;
+    }
+    // A movement key held where walking should move you, and you didn't: caught on something (the hitch recorder).
+    const keyed = !!(fwd || strafe) && !px && !py;
+    if (stuckStep(stuck, keyed && !s.travel && !p && dt > 0, Math.hypot(camera.position.x - fromX, camera.position.z - fromZ) > 0.0005, rawDt * 1000)) {
+      const now = performance.now();
+      if (now - lastStuck.current > STUCK_EVERY_MS) {
+        lastStuck.current = now;
+        recordHitch('stuck', STUCK_MS, `${movementKeys(k)} held but not moving at (${camera.position.x.toFixed(2)}, ${camera.position.z.toFixed(2)}) on floor ${floor}`);
+      }
     }
     bob.current += moving ? dt * speed * tilt * 2.2 : 0;
     // Head bob and the head tipping back for a sip can be turned off (Settings → Accessibility, motion comfort).

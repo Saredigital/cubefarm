@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { hitchNote } from '../../hitches';
 import { DEFAULT_PRESET, effectNames, GRAPHICS_PRESETS, governorSample, governorSettle, newGovernor, normalizePreset, type GovernorChange, type GraphicsPreset, type Tier } from './quality';
 
 // The viewer's graphics quality (Help → Graphics, saved per browser) and, on Auto, the tier the governor (quality.ts)
@@ -57,6 +58,7 @@ export function setGraphicsPreset(raw: GraphicsPreset) {
 function decide(change: GovernorChange | null) {
   if (!change) return;
   decisions.push({ at: Date.now(), ...change });
+  hitchNote('gfx', `${change.from} → ${change.to}`);
   if (decisions.length > 20) decisions.shift();
   useGfx.setState({ tier: governor.tier });
 }
@@ -82,7 +84,9 @@ export function gfxPaused() {
 /** Effects.tsx: this tier's post-processing is drawing now (or 'low': it stopped). */
 export function gfxShown(tier: Tier) {
   governorSettle(governor);
-  if (useGfx.getState().shown !== tier) useGfx.setState({ shown: tier });
+  if (useGfx.getState().shown === tier) return;
+  hitchNote('gfx', `${tier} effects on screen`);
+  useGfx.setState({ shown: tier });
 }
 
 /** The effects can't run here: draw as on Low for the rest of the session. */

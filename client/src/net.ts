@@ -2,6 +2,7 @@ import { useStore } from './store';
 import { restartExpected, shouldReload } from './officeUpdate';
 import type { ClientEvent, ServerEvent } from '../../shared/types';
 import { currentWatch } from './watch';
+import { hitchWs } from './hitches';
 
 let retry = 0;
 let socket: WebSocket | null = null;
@@ -81,9 +82,13 @@ export function connect() {
     sendWatch();
   };
   ws.onmessage = (e) => {
-    wsTraffic.in += typeof e.data === 'string' ? e.data.length : 0;
+    const bytes = typeof e.data === 'string' ? e.data.length : 0;
+    wsTraffic.in += bytes;
+    const from = performance.now();
+    let type = 'other';
     try {
       const ev = JSON.parse(e.data) as ServerEvent;
+      type = ev.type;
       if (ev.type.startsWith('visitor')) wsTraffic.presence += e.data.length;
       if (ev.type === 'snapshot' && ev.data.officeCommit && reloadForNewCommit(ev.data.officeCommit)) return;
       // While the time-lapse plays it owns the office; it asks for a fresh snapshot when it stops. What isn't part of
@@ -99,6 +104,7 @@ export function connect() {
     } catch (err) {
       console.error('bad server event', err);
     }
+    hitchWs(type, bytes, performance.now() - from); // the hitch recorder: what each message cost to apply
   };
   ws.onclose = () => {
     const s = useStore.getState();
