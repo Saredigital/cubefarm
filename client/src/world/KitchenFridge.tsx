@@ -26,7 +26,7 @@ const WHITE = '#f1f3f5';
 const LINER = '#dfe7ef';
 /** The hinge: the front's +z edge (the handle is on the -z side, where the old box had it). */
 const HINGE: V3 = [-W / 2, 0, W / 2];
-const RANGE = 2.6;
+const RANGE = 3;
 const TICK_MS = 250;
 
 const linerDim = toon(LINER);

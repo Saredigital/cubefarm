@@ -14,8 +14,9 @@ import { FIRST_PERSON } from './viewTags';
 // Where it sits in view (camera space, metres), and where it goes for a sip or a bite.
 const DRINK = { x: 0.15, y: -0.14, z: -0.4, tilt: 0.25, turn: -0.4 };
 const DRINK_MOUTH = { x: 0.02, y: -0.06, z: -0.25, turn: 0 };
-const FOOD = { x: 0.17, y: -0.15, z: -0.42, tilt: -0.5, turn: 0.7 };
-const FOOD_MOUTH = { x: 0.03, y: -0.07, z: -0.24, tilt: -0.15, turn: 1.35 };
+// food tips its far end up, so you see its top (a slice's cheese) rather than its edge
+const FOOD = { x: 0.15, y: -0.16, z: -0.4, tilt: 0.75, turn: 0.5 };
+const FOOD_MOUTH = { x: 0.03, y: -0.08, z: -0.24, tilt: 0.3, turn: 1.2 };
 const TAGS = { ...FIRST_PERSON, moving: true };
 
 export function HeldSnack() {
