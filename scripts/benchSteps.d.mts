@@ -3,7 +3,7 @@
 export interface FrameStats {
   frames: number;
   fps: number;
-  frameMs: { p50: number | null; p95: number | null; p99: number | null; max: number | null };
+  frameMs: { p50: number | null; p95: number | null; p99: number | null; max: number | null; over100?: number };
 }
 export interface WsFrame {
   bytes: number;
@@ -26,6 +26,7 @@ export interface BenchRun extends FrameStats {
   heapMB: number | null;
   audioNodes: number | null;
   ws: WsStats;
+  hitches?: { frames: number } | null;
 }
 export function portProblem(port: number): string | null;
 export function floorsToVisit(floors: number, wanted?: number[]): number[];
@@ -37,3 +38,10 @@ export function cpuStats(before: Record<string, number> | null, after: Record<st
 export function wsStats(frames: WsFrame[], seconds: number): WsStats;
 export function eventType(payload: string): string;
 export function medianRun(runs: BenchRun[]): Record<string, number | null>;
+export interface RouteSpot {
+  id: string;
+  x: number;
+  z: number;
+}
+export function routeTour(spots: RouteSpot[]): RouteSpot[];
+export function yawTo(p: { x: number; z: number }, to: { x: number; z: number }): number;

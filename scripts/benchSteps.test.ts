@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cpuStats, eventType, floorsToVisit, frameStats, medianRun, parseReadout, portProblem, wsStats, type BenchRun } from './benchSteps.mjs';
+import { cpuStats, eventType, floorsToVisit, frameStats, medianRun, parseReadout, portProblem, routeTour, wsStats, yawTo, type BenchRun } from './benchSteps.mjs';
 
 describe('the benchmark', () => {
   it('never uses the live office or the preview ports', () => {
@@ -66,5 +66,21 @@ describe('the benchmark', () => {
       ws: { bytesPerSecond: 1000, messagesPerSecond: 5, types: {} },
     });
     expect(medianRun([run(60, 300), run(20, 900), run(50, 320)])).toMatchObject({ fps: 50, drawCalls: 320, triangles: 32_000, heapMB: 50, wsBytesPerSecond: 1000 });
+  });
+
+  it('counts frames over 100 ms (the stalls p95 hides)', () => {
+    expect(frameStats([0, 16, 32, 250, 266]).frameMs.over100).toBe(1);
+  });
+
+  it('walks a floor from the board to the coffee, the windows and the desks, and back', () => {
+    const spots = ['elevator', 'desk-0', 'desk-1', 'desk-2', 'desk-3', 'window-w-0', 'coffee', 'board-0', 'gong'].map((id, i) => ({ id, x: i, z: 0 }));
+    expect(routeTour(spots).map((s) => s.id)).toEqual(['board-0', 'coffee', 'window-w-0', 'desk-0', 'desk-3', 'elevator', 'desk-3', 'desk-0', 'window-w-0', 'coffee']);
+    expect(routeTour([])).toEqual([]);
+  });
+
+  it('turns to face where it walks', () => {
+    // The office walks toward (-sin yaw, -cos yaw): north (-z) is yaw 0, west (-x) is a quarter turn left.
+    expect(yawTo({ x: 0, z: 0 }, { x: 0, z: -5 })).toBeCloseTo(0);
+    expect(yawTo({ x: 0, z: 0 }, { x: -5, z: 0 })).toBeCloseTo(Math.PI / 2);
   });
 });

@@ -38,7 +38,7 @@ export function frameStats(stamps) {
   return {
     frames: deltas.length,
     fps: span > 0 ? round((deltas.length * 1000) / span) : 0,
-    frameMs: { p50: round(percentile(deltas, 50)), p95: round(percentile(deltas, 95)), p99: round(percentile(deltas, 99)), max: round(deltas.length ? Math.max(...deltas) : null) },
+    frameMs: { p50: round(percentile(deltas, 50)), p95: round(percentile(deltas, 95)), p99: round(percentile(deltas, 99)), max: round(deltas.length ? Math.max(...deltas) : null), over100: deltas.filter((d) => d >= 100).length },
   };
 }
 
@@ -84,6 +84,23 @@ export function eventType(payload) {
   return m ? m[1] : 'other';
 }
 
+/**
+ * The walking route's stops from a floor's named spots: the board, the coffee corner, the windows, every third desk,
+ * the hoop, the ping-pong table, the jukebox and the elevator, in that order, then the same way back.
+ */
+export function routeTour(spots) {
+  const order = [/^board/, /coffee/, /^window/, /^desk/, /hoop|balls/, /pong/, /jukebox/, /elevator/];
+  const there = [];
+  for (const re of order) {
+    const group = spots.filter((s) => re.test(s.id) && !there.includes(s));
+    there.push(...(re.source === '^desk' ? group.filter((_, i) => i % 3 === 0) : group));
+  }
+  return there.length > 1 ? [...there, ...there.slice(1, -1).reverse()] : there;
+}
+
+/** The player's heading to face from `p` toward `to` (the office walks toward -sin(yaw), -cos(yaw)). */
+export const yawTo = (p, to) => Math.atan2(-(to.x - p.x), -(to.z - p.z));
+
 /** One number per metric across runs: the median of each (the machine may be busy, so single runs are noisy). */
 export function medianRun(runs) {
   const pick = (get) => median(runs.map(get));
@@ -91,6 +108,9 @@ export function medianRun(runs) {
     fps: round(pick((r) => r.fps)),
     frameMsP50: round(pick((r) => r.frameMs.p50)),
     frameMsP95: round(pick((r) => r.frameMs.p95)),
+    frameMsMax: round(pick((r) => r.frameMs.max)),
+    framesOver100: pick((r) => r.frameMs.over100),
+    hitches: pick((r) => r.hitches?.frames),
     mainMsPerFrame: round(pick((r) => r.cpu?.mainMsPerFrame), 2),
     scriptMsPerFrame: round(pick((r) => r.cpu?.scriptMsPerFrame), 2),
     drawCalls: pick((r) => r.renderer?.calls),

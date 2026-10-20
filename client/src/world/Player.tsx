@@ -34,6 +34,7 @@ import { arriveOnFloor, cameraMode, exitView, homeSpot, lookAllowed, playerAt, r
 import { leavePerch, perch, takePerchTurn, type Perch } from './perch';
 import { roofAction } from './roof/roofState';
 import { greet } from './Chatter';
+import { findPath, walkways } from './walkways';
 import { recordHitch } from '../hitches';
 import { newStuck, STUCK_MS, stuckStep } from '../hitchLog';
 import { joinPong, pongCamera, pongMouse, tickPaddle } from './toys/pongState';
@@ -238,6 +239,9 @@ export function Player({ colliders, floor }: { colliders: Rect[]; floor: number 
       face(yaw: number, pitch = -0.08) {
         look.current = { yaw, pitch };
       },
+      /** The floor's named spots (desks, the board, the coffee corner, the windows...) and a walkable path to a point. */
+      spots: () => (floor === ROOF ? [] : walkways(floor === 0 ? 'lobby' : 'office').spots.map(({ id, x, z }) => ({ id, x, z }))),
+      path: (x: number, z: number) => (floor === ROOF ? null : findPath(walkways(floor === 0 ? 'lobby' : 'office'), { x: camera.position.x, z: camera.position.z }, { x, z })),
     };
   }, [camera, floor]);
 
