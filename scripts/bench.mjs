@@ -27,6 +27,8 @@ const HELP = `
                                 the measuring time is the route's, and the report lists the hitches recorded
     --gpu                       the real GPU (ANGLE d3d11 / metal / gl) instead of SwiftShader; --angle <name> picks one
     --size 1280x720             the browser's viewport
+    --scale <n>                 the screen's pixel ratio (default 1; 1.5 or 2 to let the adaptive resolution work)
+    --throttle <n>              slow the page's CPU down n times (Chrome's CPU throttling), like a slower machine
     --gfx low|medium|high|auto  the graphics preset to measure with, where the office has one
     --visitors <n>              the demo's fake visitors walking about the floor you're on (shared presence)
     --browser <path>            a Chromium to use instead of Playwright's (or BENCH_CHROMIUM)
@@ -50,6 +52,8 @@ const { values } = parseArgs({
     gpu: { type: 'boolean' },
     angle: { type: 'string' },
     size: { type: 'string', default: '1280x720' },
+    scale: { type: 'string', default: '1' },
+    throttle: { type: 'string', default: '1' },
     gfx: { type: 'string' },
     visitors: { type: 'string', default: '0' },
     browser: { type: 'string', default: process.env.BENCH_CHROMIUM },
@@ -181,7 +185,7 @@ async function walkRoute(page, ms) {
 }
 
 async function visit(browser, floor) {
-  const context = await browser.newContext({ viewport: { width, height } });
+  const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: num(values.scale) });
   const page = await context.newPage();
   // Where the elevator lets you out, looking into the floor over the desks.
   const view = JSON.stringify({ floor, x: 0, z: 10.4, yaw: 0, pitch: -0.12 });
@@ -194,6 +198,7 @@ async function visit(browser, floor) {
   page.on('pageerror', (e) => errors.push(`page error: ${e.message.slice(0, 300)}`));
 
   const cdp = await context.newCDPSession(page);
+  if (num(values.throttle) > 1) await cdp.send('Emulation.setCPUThrottlingRate', { rate: num(values.throttle) });
   let audioNodes = 0;
   const audio = await cdp.send('WebAudio.enable').then(
     () => true,
@@ -347,7 +352,7 @@ const report = {
   at: new Date().toISOString(),
   commit: `${git('rev-parse', '--short', 'HEAD')}${git('status', '--porcelain') ? '+dirty' : ''}`,
   office: { floors, people: state.agents.length, scale: values.url ? 'attached' : values.standard ? 'standard' : `${values.floors}x${values.agents}` },
-  browser: { angle, gpu, viewport: `${width}x${height}`, gfx: values.gfx ?? null, visitors: num(values.visitors) },
+  browser: { angle, gpu, viewport: `${width}x${height}`, scale: num(values.scale), throttle: num(values.throttle), gfx: values.gfx ?? null, visitors: num(values.visitors) },
   machine: { platform: process.platform, cpus: os.cpus().length, cpu: os.cpus()[0]?.model ?? null, memoryGB: Math.round(os.totalmem() / 2 ** 30), loadavg: os.loadavg() },
   window: { seconds, warmup: num(values.warmup), runs: num(values.runs), route: route > 0 },
   locations,

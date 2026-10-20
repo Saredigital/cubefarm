@@ -151,7 +151,7 @@ export function Game() {
       <FrameWhilePaused paused={paused} />
       <AdaptiveResolution
         onChange={(dpr) => {
-          hitchNote('dpr', `max ${maxDpr} → ${dpr}`);
+          if (dpr !== maxDpr) hitchNote('dpr', `max ${maxDpr} → ${dpr}`);
           setMaxDpr(dpr);
         }}
       />
