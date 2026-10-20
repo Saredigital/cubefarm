@@ -136,6 +136,28 @@ The office is made to stay smooth with many floors and full teams: ten floors of
 - **Less traffic.** Each tab tells the office what it shows (its floor, an open terminal, the workers list) and gets every terminal line only for those agents, the latest line of everyone for the workers list, and none in the snapshot. Agents' and floors' changes go out at most four times a second, as patches of just what changed (`server/outbox.ts`). With ten floors of fifteen busy people a tab gets about a third of the traffic it did, and the snapshot no longer grows with every log line: `server/scale.test.ts` holds both to a budget.
 - **Measuring.** `node --import tsx server/index.ts --demo --floors 10 --agents 15` (or `npx cubefarm --demo --floors 10 --agents 15`) is a big company: 15 agents a floor, backlogs that refill, no usage pacing. `npm run bench` boots it headless and writes a JSON report of the lobby and three floors: frame rate, frame-time p95, main-thread CPU per frame, draw calls, triangles, JS heap, audio nodes and websocket traffic (`--gpu` for the real GPU, `--runs`, `--visit`, `--help`). In the office, `?stats` shows the frame rate, draw calls and triangles, and `window.__swarmStats.census()` lists what's drawn.
 
+### Diagnosing stutter
+
+The office records its own hitches, always (`client/src/hitches.ts`, rules in `hitchLog.ts`): every frame that took
+100 ms or more, every time the 3D view stopped drawing (a panel covering it, a hidden tab, photo mode frozen), and
+every time you stopped while a movement key was held (caught on something, or the keys let go of because the window
+lost focus or a text box kept it). Each is kept with what was going on: the floor, the camera, the open panel, the
+pixel ratio and graphics tier, resolution or tier changes, chunks loaded and focus changes in the second before,
+shader programs linked and texture uploads in the gap, the websocket messages handled in it (with what each cost to
+apply), the world events on, and, in Chrome, the slowest scripts of that frame. The last 50 are kept.
+
+- **`?stats`** ends its line with the count and the worst one: `3 hitches · worst 180 ms (shader compile)`.
+- **`window.__swarmHitches`** in the console: `list` (oldest first), `count`, `worst`, `summary` (by cause), `notes`
+  (what happened lately), `gl` (programs linked, texture uploads), `report()` and `clear()`.
+- **Settings → Graphics → Copy performance report** copies all of it, plus the browser, GPU, screen, office size and
+  Auto's decisions, as JSON to paste into an issue. A cause of `script: …` names the function the browser blamed;
+  `main thread busy (unknown)` means nothing recorded explains it (a garbage collection, another tab).
+
+`npm run bench -- --port <yours> --route 150` walks a floor for 150 s (desks, the board, the coffee corner, the windows,
+back and forth, with world events going off) and reports the worst frame, frames over 100 ms and the recorded hitches
+by cause beside fps and p95 (which hides rare stalls). `--scale 1.5` gives the page a hi-DPI screen, so the adaptive
+resolution has room to work; `--throttle 2` slows its CPU like a slower machine; `--profile` writes a CPU profile.
+
 ## Floor connections
 
 In the manager's console, each floor can **link** to other connected repos. Agents on that floor get read access to the linked repos' clones (for example, a frontend team that needs to read the API repo) and are told about them in their instructions.
