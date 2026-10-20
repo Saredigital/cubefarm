@@ -235,7 +235,10 @@ function syncGlowLayers(scene: THREE.Scene) {
 export interface Pipeline {
   render(delta: number): void;
   setSize(width: number, height: number): void;
+  /** Frees it and gives the renderer back its clearing and counters as they were when it was made. */
   dispose(): void;
+  /** Frees it, leaving the renderer as it is (someone else draws with it now). */
+  drop(): void;
   stats(): Record<string, unknown>;
 }
 
@@ -308,6 +311,9 @@ export function createPipeline(gl: THREE.WebGLRenderer, scene: THREE.Scene, came
       gl.autoClear = autoClear;
       gl.info.autoReset = autoReset;
       gl.setRenderTarget(null);
+    },
+    drop() {
+      composer.dispose();
     },
     stats() {
       return {
