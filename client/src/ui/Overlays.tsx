@@ -20,6 +20,7 @@ import type { DayMode } from '../world/sky/time';
 import { setDayMode, useDayTime } from '../world/sky/useDayTime';
 import { GRAPHICS_PRESETS, type GraphicsPreset } from '../world/gfx/quality';
 import { effectiveTier, setGraphicsPreset, useGfx } from '../world/gfx/useGraphics';
+import { hitchSummary, performanceReport } from '../hitches';
 import { setReplay, usePhotoGate } from '../photo/gate';
 
 export { closeOverlay, Panel } from './Panel';
@@ -141,7 +142,29 @@ function GraphicsSettings() {
       ) : (
         preset === 'auto' && <span className="muted small">now {GRAPHICS_LABELS[tier]}</span>
       )}
+      <PerformanceReportButton />
     </div>
+  );
+}
+
+/** Copies the hitch recorder's report (hitches.ts): what stalled lately and what was going on, to paste into an issue. */
+function PerformanceReportButton() {
+  const pushToast = useStore((s) => s.pushToast);
+  const copy = () => {
+    const text = performanceReport();
+    const n = hitchSummary().frames;
+    navigator.clipboard
+      .writeText(text)
+      .then(() => pushToast('success', `📋 Performance report copied (${n ? `${n} hitch${n > 1 ? 'es' : ''}` : 'no hitches'} lately)`))
+      .catch(() => {
+        console.info(text);
+        pushToast('error', "Couldn't reach the clipboard: the report is in the browser console");
+      });
+  };
+  return (
+    <button className="btn btn-small" onClick={copy} title="What stalled lately (slow frames, pauses, lost keys) and what was going on, to paste into an issue">
+      Copy performance report
+    </button>
   );
 }
 
