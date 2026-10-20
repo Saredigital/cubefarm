@@ -79,6 +79,8 @@ class Batch {
   outline: THREE.InstancedMesh | null = null;
   slots: Slot[] = [];
   private outlineGeometry: THREE.BufferGeometry | null = null;
+  /** Instances whose morph weights the GPU has (-1: a new mesh, not uploaded yet). */
+  private morphN = -1;
 
   constructor(
     readonly look: Look,
@@ -127,6 +129,7 @@ class Batch {
     this.mesh.removeFromParent();
     this.mesh.dispose();
     this.mesh = this.make(capacity * 2);
+    this.morphN = -1;
     if (this.outline) {
       this.outline.removeFromParent();
       this.outline.dispose();
@@ -152,6 +155,8 @@ class Batch {
     const relative = this.look.geometry.morphTargetsRelative;
     let n = 0;
     let k = 0;
+    // The weights only go up to the GPU (a texture upload) when one changed or the instances moved round.
+    let morphed = false;
     for (const s of this.slots) {
       if (!shown(s.obj)) continue;
       const e = s.obj.matrixWorld.elements;
@@ -165,6 +170,7 @@ class Batch {
         let sum = 0;
         for (let i = 1; i < len; i++) {
           const v = w?.[i - 1] ?? 0;
+          if (morph[n * len + i] !== v) morphed = true;
           morph[n * len + i] = v;
           sum += v;
         }
@@ -181,7 +187,8 @@ class Batch {
     m.count = n;
     m.instanceMatrix.needsUpdate = true;
     m.instanceColor!.needsUpdate = true;
-    if (m.morphTexture) m.morphTexture.needsUpdate = true;
+    if (m.morphTexture && (morphed || n !== this.morphN)) m.morphTexture.needsUpdate = true;
+    this.morphN = n;
     if (o) {
       o.count = k;
       o.instanceMatrix.needsUpdate = true;

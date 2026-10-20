@@ -1,8 +1,8 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { AdaptiveResolution, FrameWhilePaused, HitchProbe, MAX_DPR, StatsProbe, statsEnabled, usePageHidden, useRenderPaused } from '../perf';
-import { hitchNote, hitchPaused } from '../hitches';
+import { AdaptiveResolution, currentDpr, FrameWhilePaused, HitchProbe, ScenePrecompile, StatsProbe, statsEnabled, usePageHidden, useRenderPaused } from '../perf';
+import { hitchPaused } from '../hitches';
 import { setOfficeCanvas, usePhotoGate } from '../photo/gate';
 import { coversView, repoOnFloor, useStore } from '../store';
 import { useA11y } from '../ui/a11y';
@@ -50,6 +50,12 @@ function usePauseLog(frozen: boolean) {
   useEffect(() => hitchPaused(reason), [reason]);
 }
 
+/** The floor's room, re-rendered when its own repo changes (OfficeFloor is memoised on it), not Game. */
+function OfficeRoom({ repoId }: { repoId: string }) {
+  const repo = useStore((s) => s.repos.find((r) => r.id === repoId));
+  return repo ? <OfficeFloor repo={repo} /> : null;
+}
+
 function Travel() {
   const travel = useStore((s) => s.travel);
   const finish = useStore((s) => s.finishTravel);
@@ -86,12 +92,12 @@ function FieldOfView() {
 
 export function Game() {
   const floor = useStore((s) => s.floor);
-  const repos = useStore((s) => s.repos);
   const onRoof = floor === ROOF;
-  const repo = floor === 0 || onRoof ? null : repoOnFloor(repos, floor);
-  const isOffice = !!repo;
+  // Only this floor's id: a change to any floor (a websocket patch) re-rendering Game would re-render the whole scene.
+  const repoId = useStore((s) => (floor === 0 || onRoof ? null : (repoOnFloor(s.repos, floor)?.id ?? null)));
+  const isOffice = !!repoId;
   const top = useStore((s) => s.repos.reduce((m, r) => Math.max(m, r.floor), 0));
-  const placed = useStore((s) => (repo ? s.progress.floors[repo.id]?.placed : undefined));
+  const placed = useStore((s) => (repoId ? s.progress.floors[repoId]?.placed : undefined));
   const theme = useTheme((s) => s.id);
   const colliders = useMemo(
     () =>
@@ -106,7 +112,6 @@ export function Game() {
   }, [toRoof]);
   // Stop drawing while nobody can see the office; switching back to 'always' draws a fresh frame at once.
   const paused = useRenderPaused();
-  const [maxDpr, setMaxDpr] = useState(MAX_DPR);
   // Photo mode's freeze stops the frame loop too: nothing in the office moves (the server and its events carry on).
   const photo = usePhotoGate((s) => s.active);
   const frozen = usePhotoGate((s) => s.frozen);
@@ -116,7 +121,7 @@ export function Game() {
     <Canvas
       shadows
       frameloop={paused || frozen ? 'never' : 'always'}
-      dpr={[1, maxDpr]}
+      dpr={currentDpr()}
       camera={{ fov: 72, near: 0.05, far: 560, position: [0, 1.65, 10] }}
       gl={{ antialias: true, powerPreference: 'high-performance' }}
       onCreated={({ gl }) => {
@@ -134,27 +139,23 @@ export function Game() {
       <City />
       <WorldEvents kind={onRoof ? 'roof' : isOffice ? 'office' : 'lobby'} />
       {/* the floor's repeated parts (desks, chairs, props, people) are drawn as instanced batches (Batched.tsx) */}
-      <Batches key={onRoof ? 'roof' : (repo?.id ?? 'lobby')}>
-        <Suspense fallback={null}>{onRoof ? <Roof top={top} /> : repo ? <OfficeFloor key={repo.id} repo={repo} /> : <Lobby />}</Suspense>
+      <Batches key={onRoof ? 'roof' : (repoId ?? 'lobby')}>
+        <Suspense fallback={null}>{onRoof ? <Roof top={top} /> : repoId ? <OfficeRoom key={repoId} repoId={repoId} /> : <Lobby />}</Suspense>
       </Batches>
       {!onRoof && <Outside key={isOffice ? floor : 0} kind={isOffice ? 'office' : 'lobby'} floor={isOffice ? floor : 0} top={top} />}
-      <ThemeLayer key={onRoof ? ROOF : isOffice ? floor : 0} kind={onRoof ? 'roof' : isOffice ? 'office' : 'lobby'} floor={onRoof ? ROOF : isOffice ? floor : 0} top={top} repoId={repo?.id ?? null} />
+      <ThemeLayer key={onRoof ? ROOF : isOffice ? floor : 0} kind={onRoof ? 'roof' : isOffice ? 'office' : 'lobby'} floor={onRoof ? ROOF : isOffice ? floor : 0} top={top} repoId={repoId} />
       <Player colliders={colliders} floor={floor} />
       <Presence />
       <FieldOfView />
       <CameraRig />
       <Travel />
       <SoundListener />
-      <Soundscape kind={onRoof ? 'roof' : isOffice ? 'office' : 'lobby'} repoId={repo?.id ?? null} />
+      <Soundscape kind={onRoof ? 'roof' : isOffice ? 'office' : 'lobby'} repoId={repoId} />
       <TypingSounds />
       <Chatter />
       <FrameWhilePaused paused={paused} />
-      <AdaptiveResolution
-        onChange={(dpr) => {
-          if (dpr !== maxDpr) hitchNote('dpr', `max ${maxDpr} → ${dpr}`);
-          setMaxDpr(dpr);
-        }}
-      />
+      <AdaptiveResolution paused={paused || frozen} />
+      <ScenePrecompile paused={paused || frozen} watch={`${floor}:${theme}`} />
       <Graphics paused={paused || photo} />
       <HitchProbe paused={paused || frozen} camera={cameraMode} events={eventIds} />
       {statsEnabled && <StatsProbe paused={paused} />}
