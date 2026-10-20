@@ -75,8 +75,8 @@ describe('the cause', () => {
   });
 
   it('ignores small, quick messages and a texture upload or two', () => {
-    expect(guessCause(hitch({ ws: [{ type: 'agents', bytes: 2000, ms: 2 }], uploads: 2 }))).toBe('main thread busy (unknown)');
-    expect(guessCause(hitch({ uploads: 12 }))).toBe('texture uploads (12 uploads, 0 new)');
+    expect(guessCause(hitch({ ws: [{ type: 'agents', bytes: 2000, ms: 2 }], uploads: 6 }))).toBe('main thread busy (unknown)');
+    expect(guessCause(hitch({ uploads: 20 }))).toBe('texture uploads (20 uploads, 0 new)');
   });
 
   it('uses the browser attribution when nothing else explains it', () => {

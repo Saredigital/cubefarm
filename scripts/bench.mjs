@@ -32,6 +32,7 @@ const HELP = `
     --gfx low|medium|high|auto  the graphics preset to measure with, where the office has one
     --visitors <n>              the demo's fake visitors walking about the floor you're on (shared presence)
     --browser <path>            a Chromium to use instead of Playwright's (or BENCH_CHROMIUM)
+    --profile                   record a CPU profile of each measured window (.cpuprofile beside the report)
     --label <text>              a name for this run, kept in the report ("before", "after")
     --out <file>                where the JSON report goes (default a file in the temp folder)
 `;
@@ -58,6 +59,7 @@ const { values } = parseArgs({
     visitors: { type: 'string', default: '0' },
     browser: { type: 'string', default: process.env.BENCH_CHROMIUM },
     label: { type: 'string', default: '' },
+    profile: { type: 'boolean' },
     out: { type: 'string' },
     help: { type: 'boolean', short: 'h' },
   },
@@ -238,6 +240,7 @@ async function visit(browser, floor) {
     return { ...window.__swarmHitches?.gl, decisions: window.__swarmGfx?.decisions.length ?? 0 };
   });
   recording = true;
+  if (values.profile) await cdp.send('Profiler.enable').then(() => cdp.send('Profiler.start')).catch(() => undefined);
   await page.evaluate(() => {
     const b = { stamps: [], readouts: [], stop: false, timer: 0 };
     window.__bench = b;
@@ -273,6 +276,8 @@ async function visit(browser, floor) {
   });
   recording = false;
   const after = await metrics();
+  const profile = values.profile ? await cdp.send('Profiler.stop').then((r) => r.profile).catch(() => null) : null;
+  if (profile) fs.writeFileSync(`${out.replace(/\.json$/, '')}-floor${floor}.cpuprofile`, JSON.stringify(profile));
 
   await cdp.send('HeapProfiler.collectGarbage').catch(() => undefined);
   await sleep(300);
@@ -300,6 +305,7 @@ async function visit(browser, floor) {
 
 // ---------- the run ----------
 
+const out = values.out ?? path.join(os.tmpdir(), `cubefarm-bench-${Date.now()}.json`);
 let state = null;
 for (let i = 0; i < 240 && !state; i++) {
   if (server && server.exitCode !== null) throw new Error(`the office exited with code ${server.exitCode}`);
@@ -357,7 +363,6 @@ const report = {
   window: { seconds, warmup: num(values.warmup), runs: num(values.runs), route: route > 0 },
   locations,
 };
-const out = values.out ?? path.join(os.tmpdir(), `cubefarm-bench-${Date.now()}.json`);
 fs.writeFileSync(out, JSON.stringify(report, null, 2));
 console.log(`\n${'where'.padEnd(10)}${'fps'.padStart(7)}${'p95 ms'.padStart(9)}${'worst'.padStart(8)}${'>100ms'.padStart(8)}${'hitches'.padStart(9)}${'cpu ms'.padStart(8)}${'calls'.padStart(8)}${'tris'.padStart(10)}${'heap MB'.padStart(9)}${'audio'.padStart(7)}${'ws KB/s'.padStart(9)}`);
 for (const l of locations) {

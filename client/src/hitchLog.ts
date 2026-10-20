@@ -12,6 +12,8 @@ export const STUCK_MS = 400;
 /** A websocket message bigger than this, or slower than this to apply, is named as the cause. */
 export const BIG_WS_BYTES = 64 * 1024;
 export const SLOW_WS_MS = 30;
+/** More texture uploads than this in one gap is unusual (a few a frame are the batches' and the screens' own). */
+export const UPLOADS_MANY = 12;
 
 export type HitchKind = 'frame' | 'paused' | 'input' | 'stuck';
 
@@ -108,9 +110,9 @@ export function guessCause(h: Pick<Hitch, 'kind' | 'programs' | 'textures' | 'up
   if (chunk) return `chunk loaded (${chunk.detail})`;
   const ws = h.ws.reduce<WsNote | null>((worst, w) => (!worst || w.ms > worst.ms ? w : worst), null);
   if (ws && (ws.ms >= SLOW_WS_MS || ws.bytes >= BIG_WS_BYTES)) return `websocket ${ws.type} (${Math.round(ws.bytes / 1024)} KB, ${Math.round(ws.ms)} ms to apply)`;
-  if (h.textures > 0 || h.uploads > 4) return `texture uploads (${h.uploads} uploads, ${h.textures} new)`;
   const floor = note('floor');
   if (floor) return `floor change (${floor.detail})`;
+  if (h.textures > 0 || h.uploads > UPLOADS_MANY) return `texture uploads (${h.uploads} uploads, ${h.textures} new)`;
   if (h.scripts.length) return `script: ${h.scripts[0]}`;
   const focus = h.notes.findLast((n) => n.kind === 'focus' || n.kind === 'visibility' || n.kind === 'lock');
   if (focus) return `${focus.kind} (${focus.detail})`;
