@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { lostConversation, resumableSession } from './cliRunner.ts';
+import { acceptCodexCompletion, lostConversation, resumableSession } from './cliRunner.ts';
 
 describe('resumableSession', () => {
   const onDisk = (files: string[]) => (file: string) => files.includes(file);
@@ -26,5 +26,18 @@ describe('lostConversation', () => {
 
   it('ignores other screens', () => {
     expect(lostConversation('Claude Code v2.1.280\n❯ ')).toBe(false);
+  });
+});
+
+describe('Codex completion after reconnect', () => {
+  it('recognizes the first completion with prompts restored from keeper metadata', () => {
+    const prompts = JSON.parse(JSON.stringify(['Resuelve el issue de GitHub #1: revisa el SEO']));
+    expect(acceptCodexCompletion(null, 'main', prompts, prompts[0])).toBe(true);
+    expect(acceptCodexCompletion(null, 'title-thread', prompts, 'Generate a short title')).toBe(false);
+    expect(acceptCodexCompletion(null, 'unknown', [''], 'anything')).toBe(false);
+  });
+  it('accepts only the known thread, even for a follow-up typed in the terminal', () => {
+    expect(acceptCodexCompletion('main', 'main', [], 'otra pregunta')).toBe(true);
+    expect(acceptCodexCompletion('main', 'child', ['same'], 'same')).toBe(false);
   });
 });

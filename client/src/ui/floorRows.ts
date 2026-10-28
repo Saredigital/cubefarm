@@ -2,6 +2,7 @@
 // words and its shape, the coding agent they run, and what they're doing. Pure, so the wording is tested.
 
 import type { AgentCli, AgentStatus, CliView, SwarmSettings } from '../../../shared/types';
+import { ceoCli } from '../../../shared/models';
 import type { Agent } from '../store';
 import { KIND_ICON, STATUS_KIND, type StatusKind } from './statusLook';
 
@@ -32,9 +33,9 @@ const CLI_NAMES: Record<AgentCli, string> = { claude: 'Claude Code', codex: 'Cod
 
 type Runtime = Pick<SwarmSettings, 'runtime' | 'defaultCli'>;
 
-/** The coding agent someone runs: their own pick in Real terminals; the Agent SDK is Claude Code for everyone. */
+/** The coding agent someone runs: the CEO's own pick; a worker's in Real terminals; the Agent SDK is Claude Code. */
 export const workerCli = (a: Pick<Agent, 'cli' | 'role'>, settings: Runtime): AgentCli =>
-  a.role === 'ceo' || settings.runtime !== 'terminal' ? 'claude' : a.cli || settings.defaultCli;
+  a.role === 'ceo' ? ceoCli(a.cli) : settings.runtime !== 'terminal' ? 'claude' : a.cli || settings.defaultCli;
 
 /** What someone is, in a word or two: the CEO, or the coding agent they run. */
 export function agentLabel(a: Pick<Agent, 'cli' | 'role'>, settings: Runtime, clis: CliView[]): string {

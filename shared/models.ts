@@ -17,12 +17,24 @@ export function effectiveModel(own: string, cli: AgentCli, office: { defaultCli:
   return cli === 'claude' ? claudeDefault : '';
 }
 
+/** The coding agents the CEO can run: its office tools reach Claude Code and Codex. */
+export type CeoCli = 'claude' | 'codex';
+export const CEO_CLIS: CeoCli[] = ['codex', 'claude'];
+export const CEO_MODELS: Record<CeoCli, string> = { codex: 'gpt-6.1-sol', claude: 'claude-opus-5-5' };
+/** The CEO's coding agent: its own pick, Codex by default. */
+export const ceoCli = (cli: AgentCli | ''): CeoCli => (cli === 'claude' ? 'claude' : 'codex');
+/** The CEO's model on `cli`: its own if it suits that agent, else that agent's CEO default. */
+export function ceoModel(own: string, cli: CeoCli): string {
+  const m = own.trim();
+  return m && (cli === 'claude') === isClaudeModel(m) ? m : CEO_MODELS[cli];
+}
+
 /** Claude Code models offered as suggestions in the office's model fields. */
 export const CLAUDE_MODELS = ['claude-opus-5-5', 'claude-opus-5', 'claude-fable-5-1', 'claude-sonnet-5', 'claude-haiku-4-5'];
 
 /** Model suggestions for a coding agent; any other name can still be typed. OpenCode names are `provider/model`. */
 export function modelSuggestions(cli: AgentCli): string[] {
   if (cli === 'claude') return CLAUDE_MODELS;
-  if (cli === 'codex') return ['gpt-5.5-codex', 'gpt-5.5'];
+  if (cli === 'codex') return ['gpt-6.1-sol', 'gpt-5.5-codex', 'gpt-5.5'];
   return CLAUDE_MODELS.map((m) => `anthropic/${m}`);
 }

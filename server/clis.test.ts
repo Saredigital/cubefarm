@@ -1,8 +1,9 @@
+import vm from 'node:vm';
 import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { boxVersions, CODEX_HOOK_EVENTS, codexHookCommand, CROSS_TURN_TOOLS, hookReviewKey, interruptions, launchArgs, oneAtATime, signedOutScreen, trustKey, unwrapCmdShim, type LaunchContext } from './clis.ts';
+import { NOTIFY_SOURCE, boxVersions, CODEX_HOOK_EVENTS, codexHookCommand, CROSS_TURN_TOOLS, hookReviewKey, interruptions, launchArgs, oneAtATime, signedOutScreen, trustKey, unwrapCmdShim, type LaunchContext } from './clis.ts';
 import { describeOfficeTool, describeTool, newScreenshots, screenshotFile, summariseResult } from './agentRunner.ts';
 
 const dir = path.join(os.tmpdir(), 'npm-global');
@@ -107,6 +108,14 @@ describe('launchArgs', () => {
     browser: null,
     ...patch,
   });
+  it('connects the Codex CEO to the office on new and resumed sessions', () => {
+    for (const resumeId of [undefined, 'thread-1']) {
+      const { args } = launchArgs('codex', ctx({ role: 'ceo', officeUrl: 'http://127.0.0.1:4470/api/mcp/test', resumeId }));
+      expect(args).toContain('mcp_servers.office={url="http://127.0.0.1:4470/api/mcp/test"}');
+    }
+    expect(launchArgs('codex', ctx()).args.some((arg) => arg.startsWith('mcp_servers.office='))).toBe(false);
+  });
+
   it('starts Claude Code on a chosen session id, with the prompt after --', () => {
     const { args } = launchArgs('claude', ctx());
     expect(args.slice(0, 2)).toEqual(['--session-id', '11111111-1111-1111-1111-111111111111']);
@@ -240,5 +249,35 @@ describe('boxVersions', () => {
     expect(v.claude).toMatch(/^\d+\.\d+\.\d+/);
     expect(v.playwrightMcp).toMatch(/^\d+\.\d+\.\d+/);
     expect(v.codex).toMatch(/^\d+\.\d+\.\d+/);
+  });
+});
+
+describe('Codex completion delivery', () => {
+  it('keeps the complete report and allows the keeper to wait through a restart', async () => {
+    let timeout = 0;
+    let body = '';
+    const report = JSON.stringify({ verdict: 'fail', summary: 'Falta una prueba', checks: [] });
+    const pending = vm.runInNewContext(NOTIFY_SOURCE, {
+      process: { argv: ['node', 'notify', 'http://localhost/api/hooks/test', JSON.stringify({
+        type: 'agent-turn-complete', 'thread-id': 'main', 'last-assistant-message': report, 'input-messages': ['Haz QA de la PR'],
+      })] },
+      AbortSignal: { timeout: (ms: number) => { timeout = ms; return undefined; } },
+      fetch: async (_url: string, options: { body: string }) => { body = options.body; return { ok: true }; },
+      console,
+    });
+    await pending;
+    expect(timeout).toBeGreaterThan(110_000);
+    expect(JSON.parse(body)).toMatchObject({ session_id: 'main', last_assistant_message: report, input: 'Haz QA de la PR' });
+  });
+  it('reports a failed delivery instead of silently claiming success', async () => {
+    const proc = { argv: ['node', 'notify', 'http://localhost', '{"type":"agent-turn-complete"}'], exitCode: 0 };
+    const errors: unknown[] = [];
+    await vm.runInNewContext(NOTIFY_SOURCE, {
+      process: proc, AbortSignal: { timeout: () => undefined },
+      fetch: async () => ({ ok: false, status: 503 }),
+      console: { error: (...args: unknown[]) => errors.push(args) },
+    });
+    expect(proc.exitCode).toBe(1);
+    expect(errors).toHaveLength(1);
   });
 });

@@ -60,6 +60,8 @@ export const ONE_TURN = 'Tu sesión termina cuando termina tu turno: las tareas 
 export const LANGUAGE =
   'Idioma: trabajas en español de España. Escribe en español los títulos y cuerpos de los issues y las pull requests, los comentarios, los mensajes de commit, los informes de QA y los mensajes al responsable. Deja en inglés solo lo que GitHub o la oficina leen al pie de la letra: las palabras clave de cierre ("Closes #N", "Fixes #N"), las dependencias entre issues ("Depends on #N"), los marcadores que se te indiquen como literales, los nombres de campos y sus valores fijos, y los comandos.';
 
+export const VERIFICATION_POLICY = 'Comprobaciones proporcionales: clasifica el riesgo por el diff, no por el tamaño del issue. Para textos o documentación sin cambios de comportamiento, revisa el diff, ortografía, enlaces y sintaxis afectada; no ejecutes por defecto la suite completa, build, navegador ni capturas. Para lógica o interfaz, ejecuta tests del comportamiento afectado y tipos/lint pertinentes; usa build si cambia empaquetado, dependencias o integración. Para autenticación, permisos, pagos, reservas, concurrencia, migraciones o datos, comprueba casos límite y regresiones y amplía la batería según el riesgo. Respeta los requisitos explícitos del responsable y del repositorio. La guía general de QA del proyecto es contexto: aplica sus comprobaciones al cambio, sin repetir las ajenas salvo exigencia explícita. Lee solo las guías necesarias. Aprovecha los checks aprobados del mismo commit tras verificar qué cubren; un despliegue verde no equivale a tests aprobados. Reutiliza las dependencias preparadas si son válidas; no repitas npm ci sin motivo. No lances instalaciones, tests y builds simultáneos sobre el mismo checkout. Pon un tiempo límite a cada proceso; ante un timeout o fallo de infraestructura, diagnostica y permite como máximo un reintento con un cambio justificado. Si vuelve a fallar, detén tus procesos pendientes y documenta el bloqueo; no declares aprobadas pruebas que no terminaron. No repitas comprobaciones ya aprobadas sin cambios relevantes. Explica qué verificaste, qué omitiste y por qué; usa skip para comprobaciones de QA no ejecutadas. Si falta evidencia esencial, no apruebes la PR; un cambio de bajo riesgo no requiere pruebas ajenas para aprobarse.';
+
 export const devBranch = (issue: number | string, slug: string) => `swarm/issue-${issue}-${slug}`;
 export const qaBranch = (pr: number | string, slug: string) => `qa/pr-${pr}-${slug}`;
 
@@ -83,9 +85,9 @@ export function devSystemPrompt({ agent: a, repo, port, cwd, branch, linked, fix
     'Flujo de trabajo:',
     '1. Lee el issue y explora el código relevante antes de cambiar nada.',
     '2. Implementa el cambio con commits enfocados y mensajes claros.',
-    '3. Ejecuta los tests, linters y build que ya tenga el proyecto (si los hay) y arregla lo que hayas roto. Instala antes las dependencias si hace falta (p. ej. npm install si falta node_modules).',
+    '3. Elige y ejecuta las comprobaciones proporcionales al cambio según la política siguiente. Corrige las regresiones que hayas causado.',
     repo.browserTesting
-      ? `4. Si el proyecto tiene interfaz web, arranca su servidor de desarrollo en segundo plano en el puerto ${port} (reservado para ti, para no chocar con tus compañeros) y comprueba tu cambio con las herramientas de navegador de Playwright (mcp__playwright__browser_navigate, browser_snapshot, browser_click, browser_take_screenshot). Detén el servidor de desarrollo al terminar.`
+      ? `4. Solo si el cambio visual o de interacción requiere una comprobación real, arranca su servidor de desarrollo en segundo plano en el puerto ${port} (reservado para ti, para no chocar con tus compañeros) y comprueba tu cambio con las herramientas de navegador de Playwright (mcp__playwright__browser_navigate, browser_snapshot, browser_click, browser_take_screenshot). Detén el servidor de desarrollo al terminar.`
       : '4. Verifica el comportamiento que has cambiado de la forma más directa posible.',
     `5. Sube los cambios: ${push}`,
     fixing
@@ -94,6 +96,7 @@ export function devSystemPrompt({ agent: a, repo, port, cwd, branch, linked, fix
     fixing ? '' : '7. Termina tu mensaje final con la URL de la pull request en una línea aparte.',
     '',
     'Reglas: nunca hagas push a la rama por defecto, nunca hagas force-push, nunca fusiones pull requests tú (la oficina las fusiona cuando pasan QA y los checks) y nunca edites ficheros fuera de tu worktree. Si no puedes terminar, abre una PR en borrador (gh pr create --draft) explicando qué falta y por qué.',
+    VERIFICATION_POLICY,
     LANGUAGE,
     ONE_TURN,
   ]
@@ -118,14 +121,15 @@ export function qaSystemPrompt({ agent: a, repo, port, cwd, branch, pr, depsLine
     'Cómo probar:',
     '1. Lee la descripción de la PR y el issue enlazado, y deduce los criterios de aceptación.',
     `2. Revisa el código como lo haría un revisor cuidadoso: git diff origin/${repo.defaultBranch}...HEAD. Busca bugs, errores y casos límite sin tratar, problemas de seguridad, código de depuración olvidado y lógica nueva sin tests.`,
-    testStep ?? '3. Instala las dependencias si hace falta (p. ej. npm install si falta node_modules) y ejecuta la batería de tests, los linters, las comprobaciones de tipos y el build del proyecto (los que existan).',
+    testStep ?? '3. Sin checks de GitHub, nadie más ejecuta las pruebas antes del merge: instala las dependencias si hace falta y ejecuta la batería de tests, los linters, las comprobaciones de tipos y el build del proyecto (los que existan).',
     repo.browserTesting
-      ? `4. Si el proyecto tiene interfaz, arráncalo en segundo plano en el puerto ${port} (reservado para ti) y prueba el cambio en un navegador real con las herramientas de Playwright: navega, haz clic, escribe, redimensiona a tamaño de móvil, prueba casos límite y revisa la consola en busca de errores. Haz una captura con browser_take_screenshot (sin nombre de fichero) de cada estado importante: las capturas se adjuntan a la PR como prueba. Detén el servidor al terminar.`
+      ? `4. Solo si el cambio visual o de interacción requiere una comprobación real, arráncalo en segundo plano en el puerto ${port} (reservado para ti) y prueba el cambio en un navegador real con las herramientas de Playwright: navega, haz clic, escribe, redimensiona a tamaño de móvil, prueba casos límite y revisa la consola en busca de errores. Haz capturas con browser_take_screenshot (sin nombre de fichero) solo si aportan evidencia visual relevante: las capturas se adjuntan a la PR como prueba. Detén el servidor al terminar.`
       : '4. Prueba directamente el comportamiento que cambia (ejecuta el programa, llama a la API, escribe un script rápido).',
     '5. Puedes escribir scripts desechables para investigar el comportamiento, pero no los incluyas en ningún commit.',
     'Un conflicto de merge con la rama por defecto no es motivo de suspenso, ni tampoco un check en rojo ajeno a este cambio (un fallo intermitente o una caída: explica por qué): juzga el cambio en sí (sobre un merge desechable si necesitas trabajo más reciente) y apruébalo si está bien. La oficina devuelve las PRs con conflictos para que se resuelva el merge, y después vuelves a probar; y relanza un check fallido antes de que nadie lo corrija.',
     '',
     'Reglas: no modifiques el código que estás probando y no hagas commits, push, comentarios, revisiones ni merges en GitHub. La oficina publica tu informe en la pull request. Termina con el informe de QA estructurado: veredicto, resumen, las comprobaciones que has hecho, los comandos que has ejecutado y un pie de foto por cada captura. Escribe en español los textos del informe, pero deja tal cual los nombres de los campos y sus valores fijos: verdict es "pass" (aprobada) o "fail" (suspendida), y el result de cada comprobación es "pass", "fail" o "skip".',
+    VERIFICATION_POLICY,
     LANGUAGE,
     ONE_TURN,
   ].join('\n');

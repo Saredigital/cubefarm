@@ -7,7 +7,7 @@ import { upstashBoxes, type BoxApi } from './box.ts';
 import { run } from './exec.ts';
 import { localMachines, type MachineProvider } from './machines.ts';
 import { detectClis } from './clis.ts';
-import { installDesk, type DepsCallbacks, type DepsOutcome } from './deps.ts';
+import { prepareDeskDeps, type DepsCallbacks, type DepsOutcome } from './deps.ts';
 import { realPreviews, type PreviewBackend } from './previewRunner.ts';
 import { realOffice, type OfficeHost } from './officeUpdate.ts';
 import { elevenLabs } from './elevenlabs.ts';
@@ -184,7 +184,7 @@ export const realBackend: Backend = {
   deskDir: workspace.deskDir,
   deskExists: (dir) => existsSync(dir),
   prepareDesk: workspace.prepareDesk,
-  installDeps: (dir, cb) => installDesk(dir, cb),
+  installDeps: (dir, cb) => prepareDeskDeps(dir, cb),
   removeDesk: workspace.removeDesk,
   sweepDesks: workspace.sweepDesks,
   trimDesk: workspace.trimDesk,

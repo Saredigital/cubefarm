@@ -35,7 +35,7 @@ const THEME: ITheme = {
 export function LiveTerminal({ agentId, className }: { agentId: string; className?: string }) {
   const host = useRef<HTMLDivElement>(null);
   const [live, setLive] = useState(false);
-  const [connected, setConnected] = useState(true);
+  const [connected, setConnected] = useState(false);
   const [focused, setFocused] = useState(false);
 
   useEffect(() => {
@@ -44,6 +44,7 @@ export function LiveTerminal({ agentId, className }: { agentId: string; classNam
       fontFamily: "'JetBrains Mono', Consolas, monospace",
       fontSize: 13,
       cursorBlink: true,
+      disableStdin: true,
       cursorInactiveStyle: 'none',
       scrollback: 5000,
       allowProposedApi: true,
@@ -60,6 +61,10 @@ export function LiveTerminal({ agentId, className }: { agentId: string; classNam
     let ws: WebSocket | null = null;
     let closed = false;
     let ready = false; // the snapshot is on screen: sizes we send now describe what the viewer sees
+    let sessionLive = false;
+    const updateInput = () => {
+      term.options.disableStdin = !(ready && sessionLive && ws?.readyState === WebSocket.OPEN);
+    };
     let retry: number | undefined;
     let frame = 0;
     const send = (m: TermClientMessage) => {
@@ -77,27 +82,39 @@ export function LiveTerminal({ agentId, className }: { agentId: string; classNam
       const proto = location.protocol === 'https:' ? 'wss' : 'ws';
       const socket = new WebSocket(`${proto}://${location.host}/ws/term?agent=${encodeURIComponent(agentId)}`);
       ws = socket;
-      socket.onopen = () => setConnected(true);
+      ready = false;
+      updateInput();
       socket.onmessage = (e) => {
         const m = JSON.parse(String(e.data)) as TermServerMessage;
         if (m.t === 'snapshot') {
           // Replayed at the size it was drawn at, then fitted to this viewer (the CLI redraws for the new size).
           ready = false;
+          sessionLive = m.live;
+          updateInput();
           term.reset();
           term.resize(m.cols, m.rows);
           term.write(m.data, () => {
+            if (closed || ws !== socket) return;
             ready = true;
+            setConnected(true);
+            updateInput();
             fitAndTell();
             term.scrollToBottom();
           });
           setLive(m.live);
         } else if (m.t === 'data') term.write(m.data);
         else if (m.t === 'size' && (m.cols !== term.cols || m.rows !== term.rows)) term.resize(m.cols, m.rows);
-        else if (m.t === 'live') setLive(m.live);
+        else if (m.t === 'live') {
+          sessionLive = m.live;
+          setLive(m.live);
+          updateInput();
+        }
       };
       socket.onclose = (e) => {
         if (ws === socket) ws = null;
         if (closed) return;
+        ready = false;
+        updateInput();
         setConnected(false);
         if (e.code !== 4404) retry = window.setTimeout(connect, 1500);
       };

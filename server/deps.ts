@@ -56,12 +56,25 @@ export function deskDepsPlan(s: DepsState): 'none' | 'agent' | 'skip' | 'install
   return depsCurrent(s) ? 'skip' : 'install';
 }
 
-export type DepsOutcome = 'none' | 'agent' | 'skipped' | 'installed' | 'failed';
+export type DepsOutcome = 'none' | 'agent' | 'skipped' | 'installed' | 'failed' | 'deferred';
+
+/** Inspect a local desk without making every task wait for npm. Previews still install on demand. */
+export async function prepareDeskDeps(dir: string, cb: DepsCallbacks): Promise<DepsOutcome> {
+  const state = await readDeps(dir);
+  if (state.pkg === null) return 'none';
+  if (depsCurrent(state)) {
+    cb.log(['Dependencias disponibles; se reutiliza la instalación existente.']);
+    return 'skipped';
+  }
+  cb.log(['Instalación aplazada: el agente comprobará primero si la tarea necesita dependencias.']);
+  return 'deferred';
+}
 
 /** The line for the agent's instructions ('' when the office left the dependencies alone). */
 export function depsPromptLine(outcome: DepsOutcome | null | undefined): string {
-  if (outcome === 'installed' || outcome === 'skipped') return 'Las dependencias de este checkout ya están instaladas; ejecuta npm install solo si cambias package.json.';
-  if (outcome === 'failed') return "La oficina no ha podido instalar las dependencias de este checkout: ejecuta npm install antes de empezar.";
+  if (outcome === 'installed' || outcome === 'skipped') return 'Las dependencias de este checkout ya están instaladas; reutilízalas salvo que cambien package.json, el lockfile o el entorno de Node.';
+  if (outcome === 'deferred' || outcome === 'agent') return 'Revisa primero el diff y decide las comprobaciones necesarias. No instales dependencias para leer código, revisar textos o documentación. Comprueba si las herramientas necesarias ya están disponibles; instala solo si una comprobación pertinente lo requiere (npm ci si hay package-lock.json). No ejecutes instalaciones simultáneas en este checkout. Limita la instalación a 5 minutos; si falla, informa del bloqueo y no repitas sin una causa corregida. No marques como superadas comprobaciones que no has ejecutado.';
+  if (outcome === 'failed') return 'La instalación de dependencias ha fallado. Continúa las comprobaciones que no las necesitan e informa de las bloqueadas; no repitas la instalación sin identificar y corregir la causa.';
   return '';
 }
 
@@ -170,7 +183,7 @@ export async function installDesk(dir: string, cb: DepsCallbacks, install: (dir:
     log(['Dependencias instaladas.']);
     return 'installed';
   } catch (err) {
-    log([`⚠ No se han podido instalar las dependencias (${(err as Error).message.split(/\r?\n/)[0].slice(0, 300)}); el agente ejecutará npm install por su cuenta.`]);
+    log([`⚠ No se han podido instalar las dependencias (${(err as Error).message.split(/\r?\n/)[0].slice(0, 300)}); se informará del bloqueo al agente.`]);
     return 'failed';
   }
 }

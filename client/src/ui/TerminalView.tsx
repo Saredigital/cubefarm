@@ -5,7 +5,7 @@ import { isBusy, kanbanFor, agentsOnRepo, useStore } from '../store';
 import { AgentSetup } from './AgentSettings';
 import { confirmDialog } from './Confirm';
 import { LiveTerminal } from './LiveTerminal';
-import { effectiveModel } from '../../../shared/models';
+import { ceoCli, ceoModel, effectiveModel } from '../../../shared/models';
 import { assignChoices } from '../pocket/pocketData';
 import { agentLabel, signInFor, workerCli } from './floorRows';
 import { MessageBox } from './MessageBox';
@@ -116,9 +116,11 @@ export function TerminalView({ agentId }: { agentId: string }) {
   const signIn = signInFor(agent, settings);
   const send = (t: string) => {
     const body = t.trim();
-    if (!body) return;
-    setText('');
-    void run(() => api.message(agent.id, body));
+    if (!body || busy) return;
+    void run(async () => {
+      await api.message(agent.id, body);
+      setText((current) => current.trim() === body ? '' : current);
+    });
   };
 
   return (
@@ -193,7 +195,7 @@ export function TerminalView({ agentId }: { agentId: string }) {
         )}
         {agent.branch && <code>{agent.branch}</code>}
         <span className="muted">
-          {(agent.role === 'ceo' ? agent.model : effectiveModel(agent.model, cli, settings, 'claude-opus-5-5')) || 'modelo por defecto'} · esfuerzo{' '}
+          {(agent.role === 'ceo' ? ceoModel(agent.model, ceoCli(agent.cli)) : effectiveModel(agent.model, cli, settings, 'claude-opus-5-5')) || 'modelo por defecto'} · esfuerzo{' '}
           {agent.effort || settings.defaultEffort}
         </span>
         {agent.startedAt && <span className="muted">⏱ {elapsed(agent.startedAt, working ? null : agent.endedAt)}</span>}

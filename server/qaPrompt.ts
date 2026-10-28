@@ -43,7 +43,7 @@ function checksLine(i: QaPromptInput): string {
 function testStep(hasChecks: boolean): string {
   return hasChecks
     ? '3. Los checks de GitHub se ejecutan en esta PR, y solo se fusiona cuando están en verde. Lee .github/workflows para ver qué cubren y no lo vuelvas a ejecutar en local. Ejecuta solo lo que necesites para probar el cambio (por ejemplo, un build para arrancar la app), lo que los checks no cubran o un check que falle, para reproducirlo. Un check que falla es un hallazgo: nómbralo.'
-    : '3. Instala las dependencias si hace falta (p. ej. npm install si falta node_modules) y ejecuta la batería de tests, los linters, las comprobaciones de tipos y el build del proyecto (los que existan).';
+    : '3. Sin checks de GitHub, nadie más ejecuta las pruebas antes del merge: instala las dependencias si hace falta y ejecuta la batería de tests, los linters, las comprobaciones de tipos y el build del proyecto (los que existan).';
 }
 
 function retest(i: QaPromptInput): string {
@@ -58,10 +58,10 @@ function retest(i: QaPromptInput): string {
     return `\nQA ya la aprobó, pero desde entonces la rama se ha actualizado con ${i.defaultBranch} para resolver conflictos de merge. Revisa la resolución con git show --remerge-diff sobre los commits de merge${merges}, confirma que los checks de GitHub están en verde en el nuevo head y haz una prueba rápida de la funcionalidad de esta PR y de lo que toquen los ficheros en conflicto. No repitas el plan de pruebas completo.`;
   }
   if (i.fixReason === 'checks') {
-    return `\nQA ya la aprobó, pero desde entonces el desarrollador ha cambiado el código para arreglar checks de GitHub que fallaban. ${diff ? `Prueba lo que ha cambiado desde que QA la aprobó ${diff}` : 'Vuelve a comprobarlo todo.'}`;
+    return `\nQA ya la aprobó, pero desde entonces el desarrollador ha cambiado el código para arreglar checks de GitHub que fallaban. ${diff ? `Prueba lo que ha cambiado desde que QA la aprobó ${diff}` : 'Comprueba los criterios de aceptación con pruebas proporcionales al riesgo; reutiliza la evidencia válida del mismo commit.'}`;
   }
   if (i.round > 1 && i.summary) {
-    return `\nEs una nueva prueba tras correcciones. Hallazgos de la ronda anterior:\n${i.summary}\n${i.fixInstructions ?? ''}\nComprueba eso primero y después ${diff ? `prueba lo que ha cambiado desde la ronda anterior ${diff}` : 'vuelve a comprobar todo lo demás.'}`;
+    return `\nEs una nueva prueba tras correcciones. Hallazgos de la ronda anterior:\n${i.summary}\n${i.fixInstructions ?? ''}\nComprueba eso primero y después ${diff ? `prueba lo que ha cambiado desde la ronda anterior ${diff}` : 'revisa el resto según el riesgo del diff, sin repetir comprobaciones válidas del mismo commit.'}`;
   }
   return '';
 }

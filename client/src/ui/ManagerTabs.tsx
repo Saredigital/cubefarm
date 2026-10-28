@@ -280,7 +280,9 @@ export function CeoTab() {
             <NameInput agent={ceo} style={{ maxWidth: 140, fontWeight: 700 }} />
             <span className="muted small">CEO</span>
             <StatusPill status={ceo.status} />
-            <span className="spacer" />
+          </div>
+          <div className="row wrap">
+            <CliSelect agent={ceo} style={{ width: 'auto' }} />
             <ModelInput agent={ceo} style={{ maxWidth: 150 }} />
             <EffortSelect agent={ceo} style={{ width: 'auto' }} />
           </div>
@@ -640,7 +642,7 @@ export function SettingsTab() {
         </label>
         <p className="muted small">
           {terminal
-            ? 'Cada agente puede usar su propio agente de código, modelo y esfuerzo (pestaña Equipo); el CEO siempre usa Claude Code. Claude Code informa de cada paso; Codex y OpenCode son experimentales: la oficina ve su tarea, no cada paso.'
+            ? 'Cada agente puede usar su propio agente de código, modelo y esfuerzo (pestaña Equipo); el CEO elige entre Claude Code y Codex en su pestaña. Claude Code informa de cada paso; Codex y OpenCode son experimentales: la oficina ve su tarea, no cada paso.'
             : 'El Agent SDK ejecuta Claude Code. Cada agente puede usar su propio modelo y esfuerzo (pestaña Equipo).'}
         </p>
         <label className="field">
@@ -700,7 +702,7 @@ export function SettingsTab() {
           <span>Revisión de la empresa cada (minutos, 0 = desactivada)</span>
           <input type="number" min={0} max={1440} defaultValue={settings.ceoHeartbeatMin} onBlur={(e) => set({ ceoHeartbeatMin: Number(e.target.value) })} />
         </label>
-        <p className="muted small">Una revisión comprueba el tamaño de los equipos, las PRs atascadas y los perfiles de las plantas, y se salta si no ha cambiado nada desde la última. Nunca crea issues: el trabajo nuevo solo sale de ti. El modelo y el esfuerzo del propio CEO están en la pestaña CEO.</p>
+        <p className="muted small">Una revisión comprueba el tamaño de los equipos, las PRs atascadas y los perfiles de las plantas, y se salta si no ha cambiado nada desde la última. Nunca crea issues: el trabajo nuevo solo sale de ti. El agente de código, el modelo y el esfuerzo del propio CEO están en la pestaña CEO.</p>
       </div>
       <div className="card">
         <h3>⌨️ Cómo se ejecutan los agentes</h3>

@@ -2,7 +2,7 @@ import { Fragment, useEffect, useId, useState, type CSSProperties } from 'react'
 import { api } from '../api';
 import { isBusy, useStore, type Agent } from '../store';
 import type { AgentCli, AgentPromptView, CliView, CloudMachineState, EffortLevel, MachineHost } from '../../../shared/types';
-import { CLAUDE_MODELS, effectiveModel, modelSuggestions } from '../../../shared/models';
+import { CEO_CLIS, CEO_MODELS, CLAUDE_MODELS, ceoCli, effectiveModel, modelSuggestions } from '../../../shared/models';
 import { workerCli } from './floorRows';
 import { confirmDialog } from './Confirm';
 
@@ -62,6 +62,21 @@ export function NameInput({ agent, id, className = 'inline', style }: FieldProps
 export function CliSelect({ agent, id, style }: FieldProps) {
   const settings = useStore((s) => s.settings);
   const clis = useStore((s) => s.clis);
+  if (agent.role === 'ceo') {
+    return (
+      <select id={id} value={ceoCli(agent.cli)} title="El agente de código del CEO" aria-label={id ? undefined : 'Agente de código'} style={style} onChange={(e) => void save(agent.id, { cli: e.target.value as AgentCli })}>
+        {CEO_CLIS.map((c) => {
+          const missing = clis.some((v) => v.id === c && !v.installed);
+          return (
+            <option key={c} value={c} disabled={missing}>
+              {cliName(clis, c)}
+              {missing ? ' (no instalado)' : ''}
+            </option>
+          );
+        })}
+      </select>
+    );
+  }
   return (
     <select id={id} value={agent.cli} title="Su agente de código" aria-label={id ? undefined : 'Agente de código'} style={style} onChange={(e) => void save(agent.id, { cli: e.target.value as AgentCli | '' })}>
       <option value="">{cliName(clis, settings.defaultCli)} (predeterminado)</option>
@@ -119,7 +134,7 @@ export function ModelInput({ agent, id, className = 'inline', style }: FieldProp
         style={style}
         list={listId}
         defaultValue={agent.model}
-        placeholder={(agent.role === 'ceo' ? CLAUDE_MODELS[0] : effectiveModel('', cli, settings, CLAUDE_MODELS[0])) || 'predeterminado del agente'}
+        placeholder={(agent.role === 'ceo' ? CEO_MODELS[ceoCli(agent.cli)] : effectiveModel('', cli, settings, CLAUDE_MODELS[0])) || 'predeterminado del agente'}
         title={agent.role === 'ceo' ? 'El modelo del CEO' : "Su modelo ('' = el predeterminado de su agente de código)"}
         aria-label={id ? undefined : 'Modelo'}
         onBlur={(e) => e.target.value !== agent.model && void save(agent.id, { model: e.target.value })}
@@ -204,7 +219,7 @@ export function PromptPreview({ agent }: { agent: Agent }) {
   );
 }
 
-/** The ⚙️ Setup section of an agent's panel. The CEO always runs Claude Code, so they only get model and effort. */
+/** The ⚙️ Setup section of an agent's panel. The CEO picks Claude Code or Codex, a model and an effort. */
 export function AgentSetup({ agent }: { agent: Agent }) {
   const terminal = useStore((s) => s.settings.runtime === 'terminal');
   const id = useId();
@@ -226,7 +241,7 @@ export function AgentSetup({ agent }: { agent: Agent }) {
             <NameInput agent={agent} id={`${id}-name`} className="" />
           </label>
         )}
-        {!ceo && (terminal || agent.host === 'box') && (
+        {(ceo || terminal || agent.host === 'box') && (
           <label className="field" htmlFor={`${id}-cli`}>
             <span>Agente de código</span>
             <CliSelect agent={agent} id={`${id}-cli`} />

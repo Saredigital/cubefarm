@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it, vi } from 'vitest';
-import { createLimiter, depsCurrent, depsHash, depsPromptLine, deskDepsPlan, installDesk, MAX_DESK_INSTALLS, readDeps, writeMarker, type DepsState } from './deps.ts';
+import { createLimiter, depsCurrent, depsHash, depsPromptLine, deskDepsPlan, installDesk, prepareDeskDeps, MAX_DESK_INSTALLS, readDeps, writeMarker, type DepsState } from './deps.ts';
 
 const PKG = '{"name":"app","dependencies":{"left-pad":"^1.3.0"}}';
 const LOCK = '{"lockfileVersion":3}';
@@ -32,6 +32,26 @@ async function checkout(files: { pkg?: string | null; lock?: string | null }, in
 
 const quiet = { log: () => undefined, installing: () => undefined };
 const tick = () => new Promise((r) => setTimeout(r, 20));
+
+describe('prepareDeskDeps', () => {
+  it('starts without installing or creating dependencies, even with a lockfile', async () => {
+    const dir = await checkout({});
+    const installing = vi.fn();
+    expect(await prepareDeskDeps(dir, { ...quiet, installing })).toBe('deferred');
+    expect(installing).not.toHaveBeenCalled();
+    expect((await readDeps(dir)).nodeModules).toBe(false);
+    expect(await prepareDeskDeps(await checkout({ lock: null }), quiet)).toBe('deferred');
+    expect(await prepareDeskDeps(await checkout({ pkg: null, lock: null }), quiet)).toBe('none');
+  });
+
+  it('reuses a matching install and defers a stale one without deleting it', async () => {
+    const dir = await checkout({}, true);
+    expect(await prepareDeskDeps(dir, quiet)).toBe('skipped');
+    await fs.writeFile(path.join(dir, 'package-lock.json'), LOCK + '\n');
+    expect(await prepareDeskDeps(dir, quiet)).toBe('deferred');
+    expect((await readDeps(dir)).nodeModules).toBe(true);
+  });
+});
 
 describe('deskDepsPlan', () => {
   const hash = depsHash(PKG, LOCK);
@@ -113,7 +133,7 @@ describe('installDesk', () => {
     });
     expect(failed).toBe('failed');
     expect(lines.at(-1)).toMatch(/took longer than 15 minutes/);
-    expect(depsPromptLine(failed)).toMatch(/ejecuta npm install antes de empezar/);
+    expect(depsPromptLine(failed)).toMatch(/no repitas la instalación/);
   });
 
   it(`runs at most ${MAX_DESK_INSTALLS} installs at once; a third waits for a free slot`, async () => {
@@ -163,9 +183,10 @@ describe('createLimiter', () => {
 
 describe('depsPromptLine', () => {
   it('says the dependencies are installed after an install or a skip, and nothing when the office left them alone', () => {
-    expect(depsPromptLine('installed')).toBe('Las dependencias de este checkout ya están instaladas; ejecuta npm install solo si cambias package.json.');
+    expect(depsPromptLine('installed')).toMatch(/reutilízalas/);
     expect(depsPromptLine('skipped')).toBe(depsPromptLine('installed'));
-    expect(depsPromptLine('agent')).toBe('');
+    expect(depsPromptLine('agent')).toBe(depsPromptLine('deferred'));
+    expect(depsPromptLine('deferred')).toMatch(/instala solo si una comprobación pertinente lo requiere/);
     expect(depsPromptLine('none')).toBe('');
     expect(depsPromptLine(undefined)).toBe('');
   });

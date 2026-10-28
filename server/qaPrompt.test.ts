@@ -19,7 +19,7 @@ const input = (i: Partial<QaPromptInput> = {}): QaPromptInput => ({
   ...i,
 });
 
-const TODAYS_STEP = '3. Instala las dependencias si hace falta (p. ej. npm install si falta node_modules) y ejecuta la batería de tests, los linters, las comprobaciones de tipos y el build del proyecto (los que existan).';
+const TODAYS_STEP = '3. Sin checks de GitHub, nadie más ejecuta las pruebas antes del merge: instala las dependencias si hace falta y ejecuta la batería de tests, los linters, las comprobaciones de tipos y el build del proyecto (los que existan).';
 
 describe('qaInstructions: GitHub checks', () => {
   it('passing: names them and says not to re-run what they cover', () => {
@@ -71,16 +71,16 @@ describe('qaInstructions: re-tests', () => {
     expect(retest).not.toMatch(/vuelve a comprobar/i);
   });
 
-  it('round 2 without the last tested commit: keeps the full re-check', () => {
+  it('round 2 without the last tested commit: uses risk-based checks without a known diff', () => {
     expect(qaInstructions(input({ ...failedRound, lastTestedSha: null })).retest).toBe(
-      '\nEs una nueva prueba tras correcciones. Hallazgos de la ronda anterior:\nThe toolbar overflows on phones.\nLet it wrap.\nComprueba eso primero y después vuelve a comprobar todo lo demás.',
+      '\nEs una nueva prueba tras correcciones. Hallazgos de la ronda anterior:\nThe toolbar overflows on phones.\nLet it wrap.\nComprueba eso primero y después revisa el resto según el riesgo del diff, sin repetir comprobaciones válidas del mismo commit.',
     );
   });
 
-  it('a retried session whose head was already recorded: keeps the full re-check', () => {
+  it('a retried session whose head was already recorded: uses risk-based checks without a known diff', () => {
     const retest = qaInstructions(input({ ...failedRound, lastTestedSha: HEAD })).retest;
     expect(retest).not.toContain('git diff');
-    expect(retest).toContain('vuelve a comprobar todo lo demás');
+    expect(retest).toContain('revisa el resto según el riesgo del diff, sin repetir comprobaciones válidas del mismo commit');
   });
 
   it('a checks fix: tests what changed since QA passed it', () => {
@@ -90,9 +90,9 @@ describe('qaInstructions: re-tests', () => {
     expect(retest).not.toMatch(/vuelve a comprobar/i);
   });
 
-  it('a checks fix without the last tested commit: keeps the full re-check', () => {
+  it('a checks fix without the last tested commit: uses risk-based checks without a known diff', () => {
     expect(qaInstructions(input({ round: 3, fixReason: 'checks' })).retest).toBe(
-      '\nQA ya la aprobó, pero desde entonces el desarrollador ha cambiado el código para arreglar checks de GitHub que fallaban. Vuelve a comprobarlo todo.',
+      '\nQA ya la aprobó, pero desde entonces el desarrollador ha cambiado el código para arreglar checks de GitHub que fallaban. Comprueba los criterios de aceptación con pruebas proporcionales al riesgo; reutiliza la evidencia válida del mismo commit.',
     );
   });
 

@@ -147,6 +147,7 @@ export interface LaunchContext {
   notify: { script: string; url: string };
   /** Codex's hook program: forwards each hook to the office (notify.url). */
   codexHook: string;
+  officeUrl?: string;
   plugin: string; // file URL of the OpenCode plugin
   /** The Playwright MCP server, when the floor tests in a browser. Claude Code gets it through its MCP config file. */
   browser: { command: string; args: string[] } | null;
@@ -250,6 +251,7 @@ export function launchArgs(id: AgentCli, ctx: LaunchContext): Launch {
         ...(ctx.model ? ['-m', ctx.model] : []),
         ...(ctx.effort ? ['-c', `model_reasoning_effort=${toml(EFFORT_CODEX[ctx.effort])}`] : []),
         ...(ctx.browser ? ['-c', `mcp_servers.playwright={command=${toml(ctx.browser.command)},args=[${ctx.browser.args.map(toml).join(',')}]}`] : []),
+        ...(ctx.officeUrl ? ['-c', `mcp_servers.office={url=${toml(ctx.officeUrl)}}`] : []),
         ...CODEX_HOOK_EVENTS.flatMap((e) => ['-c', `hooks.${e}=[{hooks=[{type="command",command=${toml(codexHookCommand(ctx.node ?? process.execPath, ctx.codexHook, ctx.posix ? false : WIN))},timeout=10}]}]`]),
         // Like the manager's own Codex, but it can't stop to ask: no approvals and no sandbox (its sandbox can't reach
         // the credential store, so git and gh fail in it).
@@ -394,8 +396,13 @@ if (event.type === 'agent-turn-complete') {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ hook_event_name: 'TurnComplete', session_id: event['thread-id'] ?? null, last_assistant_message: event['last-assistant-message'] ?? '', input }),
-    signal: AbortSignal.timeout(3000),
-  }).catch(() => {});
+    signal: AbortSignal.timeout(120_000),
+  }).then((response) => {
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+  }).catch((error) => {
+    console.error('sareoffice: no se ha podido entregar el fin de turno de Codex:', error.message);
+    process.exitCode = 1;
+  });
 }
 `;
 

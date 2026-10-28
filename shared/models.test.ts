@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { effectiveModel, isClaudeModel, modelSuggestions } from './models.ts';
+import { CEO_MODELS, ceoCli, ceoModel, effectiveModel, isClaudeModel, modelSuggestions } from './models.ts';
 
 const claudeOffice = { defaultCli: 'claude' as const, defaultModel: 'claude-sonnet-5' };
 const codexOffice = { defaultCli: 'codex' as const, defaultModel: 'gpt-5.5-codex' };
@@ -26,6 +26,21 @@ describe('effectiveModel', () => {
   it("knows Claude Code's names and aliases", () => {
     expect(['claude-fable-5-1', 'Opus', 'sonnet', 'haiku', 'opusplan'].every(isClaudeModel)).toBe(true);
     expect(['gpt-5.5', 'opencode/big-pickle', 'o3', 'opencode/claude-sonnet-5'].some(isClaudeModel)).toBe(false);
+  });
+});
+
+describe('the CEO', () => {
+  it('runs Codex unless it picked Claude Code', () => {
+    expect(ceoCli('')).toBe('codex');
+    expect(ceoCli('opencode')).toBe('codex');
+    expect(ceoCli('claude')).toBe('claude');
+  });
+
+  it("keeps its own model only when it suits its agent, else that agent's CEO default", () => {
+    expect(ceoModel('', 'codex')).toBe(CEO_MODELS.codex);
+    expect(ceoModel('gpt-5.5', 'codex')).toBe('gpt-5.5');
+    expect(ceoModel('gpt-5.5', 'claude')).toBe(CEO_MODELS.claude);
+    expect(ceoModel('claude-sonnet-5', 'codex')).toBe(CEO_MODELS.codex);
   });
 });
 

@@ -2,13 +2,23 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "cubefarm-demo",
+      "name": "panel-demo-aislado",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--import", "tsx", "server/index.ts", "--demo"],
+      "env": {
+        "SWARM_HOME": ".swarm-home",
+        "SWARM_PORT": "4460"
+      },
+      "port": 4460
+    },
+    {
+      "name": "sareoffice-demo",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "demo"],
       "port": 5317
     },
     {
-      "name": "cubefarm",
+      "name": "sareoffice",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 5317

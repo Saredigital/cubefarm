@@ -57,7 +57,7 @@ import { agentActivity, lineActivity, sameActivity, type SeenActivity } from '..
 import { blockers, holdUps, waitsMessage } from '../shared/issues.ts';
 import { cleanStyle, HAIR_COLORS, SKIN_TONES, type AgentStyle } from '../shared/looks.ts';
 import { achievementDef, type ProgressView } from '../shared/progress.ts';
-import { effectiveModel } from '../shared/models.ts';
+import { ceoCli, ceoModel, effectiveModel, type CeoCli } from '../shared/models.ts';
 import { CEO_ID, DEFAULT_DOG_NAME, DEFAULT_MAX_AGENTS, FLOOR_SEATS, INSTALL_STEP } from '../shared/types.ts';
 import type {
   AgentActivity,
@@ -304,8 +304,7 @@ const LOOKS: AgentLook[] = ['feminine', 'masculine'];
 // Every agent runs Claude Opus 5.5 at medium effort unless the manager overrides it.
 const DEFAULT_MODEL = 'claude-opus-5-5';
 const EFFORTS: EffortLevel[] = ['low', 'medium', 'high', 'xhigh', 'max'];
-// The CEO thinks harder than the staff: Opus 5.5 at xhigh effort unless the manager changes it.
-const CEO_MODEL = 'claude-opus-5-5';
+// The CEO thinks harder than the staff: xhigh effort, on Codex unless the manager picks Claude Code (shared/models.ts).
 const CEO_EFFORT: EffortLevel = 'xhigh';
 const CEO_NAME = 'Morgan';
 // The CEO's own folder: its notes about the company live here. Repos are read through their clones.
@@ -2470,6 +2469,7 @@ export class Swarm {
   updateAgent(id: string, patch: { name?: string; model?: string; effort?: string; cli?: string; host?: string; look?: string; color?: string; hair?: string; style?: unknown }) {
     const a = this.agent(id);
     if (patch.host !== undefined && a.role !== 'ceo' && (patch.host === 'box' || patch.host === 'local')) this.moveAgent(a, patch.host);
+    if (patch.cli !== undefined && a.role === 'ceo') this.setCeoCli(a, patch.cli);
     if (patch.cli !== undefined && a.role !== 'ceo') {
       const cli = isCli(patch.cli) ? patch.cli : '';
       if (a.host === 'box' && (cli || this.state.settings.defaultCli) === 'opencode') throw new HttpError(400, `${a.name} trabaja en la nube, donde OpenCode todavía no puede ejecutarse: muévelo antes a este ordenador.`);
@@ -2491,6 +2491,22 @@ export class Swarm {
     if (patch.effort !== undefined) a.effort = EFFORTS.includes(patch.effort as EffortLevel) ? (patch.effort as EffortLevel) : '';
     this.save();
     this.emitAgent(a);
+  }
+
+  /** The CEO's coding agent. Its model follows the new agent's default; its next chat starts a new conversation. */
+  private setCeoCli(a: PersistedAgent, value: string) {
+    if (value !== 'claude' && value !== 'codex') throw new HttpError(400, 'El CEO solo puede usar Claude Code o Codex.');
+    if (!this.cliReady(value)) throw new HttpError(400, `${cliLabel(value)} no está instalado en este ordenador.`);
+    if (value === 'codex' && !this.backend.terminals) throw new HttpError(400, 'Codex necesita los terminales reales (node-pty), que no están disponibles en este ordenador.');
+    if (value === ceoCli(a.cli)) return;
+    a.cli = value;
+    a.model = '';
+  }
+
+  /** The CEO's coding agent for its next session: Codex only runs in a real terminal, so without one it's Claude Code. */
+  private ceoCliNow(a: PersistedAgent): CeoCli {
+    const cli = ceoCli(a.cli);
+    return cli === 'codex' && !this.backend.terminals ? 'claude' : cli;
   }
 
   fireAgent(id: string, force = false) {
@@ -2628,10 +2644,11 @@ export class Swarm {
    */
   private sessionRuntime(a: PersistedAgent, resume?: string): { terminal?: AgentTerminal; cli?: AgentCli; label?: string; resumeSessionId?: string } {
     // A cloud agent's CLI always runs in a terminal: their Box's, which needs nothing from this computer.
-    const inTerminal = a.host === 'box' || (this.state.settings.runtime === 'terminal' && this.backend.terminals);
-    let cli: AgentCli = a.role === 'ceo' ? 'claude' : a.cli || this.state.settings.defaultCli;
+    let cli: AgentCli = a.role === 'ceo' ? this.ceoCliNow(a) : a.cli || this.state.settings.defaultCli;
+    const inTerminal = (a.role === 'ceo' && cli === 'codex') || a.host === 'box' || (this.state.settings.runtime === 'terminal' && this.backend.terminals);
     if (resume && a.sessionCli && a.sessionCli !== cli) {
-      if (inTerminal) cli = a.sessionCli;
+      if (a.role === 'ceo') resume = undefined;
+      else if (inTerminal) cli = a.sessionCli;
       else if (a.sessionCli !== 'claude') resume = undefined;
     }
     if (!inTerminal) return { resumeSessionId: resume };
@@ -3635,8 +3652,14 @@ export class Swarm {
     if (!text.trim()) throw new HttpError(400, 'Mensaje vacío');
     const rt = this.agentRt.get(id)!;
     if (rt.session) {
+      if (!typed) {
+        try {
+          rt.session.send(text);
+        } catch {
+          throw new HttpError(409, `La sesión de ${a.name} todavía está arrancando; vuelve a enviar el mensaje en un momento.`);
+        }
+      }
       this.appendLog(a, [{ kind: 'manager', text: `▶ Responsable: ${text}` }]);
-      if (!typed) rt.session.send(text);
       return;
     }
     if (a.status === 'preparing') throw new HttpError(409, `${a.name} todavía se está preparando; vuelve a intentarlo en un momento`);
@@ -4146,9 +4169,9 @@ export class Swarm {
         hair: '#2b2118',
         skin: pick(SKIN),
         style: null,
-        model: CEO_MODEL,
+        model: '',
         effort: CEO_EFFORT,
-        cli: 'claude',
+        cli: 'codex',
         machine: null,
         status: 'idle',
         issueNumber: null,
@@ -4285,12 +4308,14 @@ export class Swarm {
     }
     // A chat carries on from the CEO's last session, so "why did you propose that?" has an answer.
     const how = this.sessionRuntime(a, job.kind === 'chat' ? (a.sessionId ?? undefined) : undefined);
+    const cli = this.ceoCliNow(a);
+    if (cli !== ceoCli(a.cli)) this.appendLog(a, [{ kind: 'system', text: '⚠ Codex necesita los terminales reales (node-pty), que no están disponibles: el CEO trabaja esta vez con Claude Code.' }]);
     rt.session = this.backend.startSession(
       {
         cwd: CEO_DIR,
         prompt: ceoJobPrompt(job, floor, triage),
         systemAppend: ceoSystemPrompt(this.ceoPromptInput(a)),
-        model: a.model || CEO_MODEL,
+        model: ceoModel(a.model, cli),
         effort: a.effort || CEO_EFFORT,
         browserTesting: false,
         additionalDirectories: this.state.repos.filter((r) => this.repoRt.get(r.id)?.cloneStatus === 'ready').map((r) => this.backend.mainDir(r.fullName)),
@@ -4307,7 +4332,7 @@ export class Swarm {
         },
         sessionId: (id) => {
           a.sessionId = id;
-          a.sessionCli = id ? 'claude' : null;
+          a.sessionCli = id ? (how.cli ?? 'claude') : null;
         },
         browserUrl: () => undefined,
         screenshot: () => undefined,
@@ -4360,10 +4385,16 @@ export class Swarm {
     this.postMessage('manager', t);
     const rt = this.agentRt.get(a.id)!;
     if (rt.session) {
+      try {
+        rt.session.send(`Mensaje del responsable (lee tu respuesta en el móvil, así que sé breve):\n${t}`);
+      } catch {
+        // Its CLI is still starting (or just ended): the message waits for the CEO's next chat.
+        this.enqueueCeo({ kind: 'chat', text: t, at: Date.now() });
+        return;
+      }
       this.appendLog(a, [{ kind: 'manager', text: `▶ Responsable: ${t}` }]);
       this.ceoIssues.managerMessage(); // a new request: the issue cap counts from here
       this.ceoAsked = true;
-      rt.session.send(`Mensaje del responsable (lee tu respuesta en el móvil, así que sé breve):\n${t}`);
       return;
     }
     this.enqueueCeo({ kind: 'chat', text: t, at: Date.now() });
@@ -5218,10 +5249,10 @@ export class Swarm {
   /** What an agent runs, defaults resolved, for the CEO. */
   private agentSetup(a: PersistedAgent) {
     const ceo = a.role === 'ceo';
-    const cli = ceo ? 'claude' : a.cli || this.state.settings.defaultCli;
+    const cli = ceo ? this.ceoCliNow(a) : a.cli || this.state.settings.defaultCli;
     return {
       codingAgent: cli,
-      model: ceo ? a.model || CEO_MODEL : this.modelFor(a, cli) || 'el predeterminado del agente de código',
+      model: ceo ? ceoModel(a.model, this.ceoCliNow(a)) : this.modelFor(a, cli) || 'el predeterminado del agente de código',
       effort: a.effort || (ceo ? CEO_EFFORT : this.state.settings.defaultEffort),
     };
   }

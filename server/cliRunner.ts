@@ -168,6 +168,7 @@ interface LiveCli {
   token: string;
   dir: string;
   resumeId: string | null; // the session a follow-up resumes
+  prompts?: string[]; // Identifies the main Codex thread before its first completion.
   statusLine: string;
   /** Browser screenshots already passed on (Codex and OpenCode: collected from the browser's output folder). */
   shots: Set<string>;
@@ -224,9 +225,10 @@ interface CliMeta {
   resumeId: string | null;
   /** An office session was driving it (not waiting at its prompt). */
   busy: boolean;
+  prompts?: string[];
 }
 
-const metaOf = (l: LiveCli): CliMeta => ({ agentId: l.agentId, cli: l.cli, token: l.token, dir: l.dir, resumeId: l.resumeId, busy: !!l.session });
+const metaOf = (l: LiveCli): CliMeta => ({ agentId: l.agentId, cli: l.cli, token: l.token, dir: l.dir, resumeId: l.resumeId, prompts: l.prompts, busy: !!l.session });
 const remember = (l: LiveCli) => l.proc?.setMeta(metaOf(l));
 
 /** A CLI is running in its terminal: its output, its keys and its hooks are connected. */
@@ -279,7 +281,7 @@ export async function reconnectClis(terminalFor: (agentId: string) => AgentTermi
       if (meta.cli === 'codex' && meta.resumeId) void codexThread('archive', meta.resumeId, h.exit === null ? new Promise((r) => setTimeout(r, 5000)) : undefined);
       continue;
     }
-    const l: LiveCli = { agentId: meta.agentId, cli: meta.cli, term, proc: adoptPty(h), token: meta.token, dir: meta.dir, resumeId: meta.resumeId ?? null, statusLine: '🏢 sareoffice', shots: new Set(), session: null };
+    const l: LiveCli = { agentId: meta.agentId, cli: meta.cli, term, proc: adoptPty(h), token: meta.token, dir: meta.dir, resumeId: meta.resumeId ?? null, prompts: meta.prompts, statusLine: '🏢 sareoffice', shots: new Set(), session: null };
     wire(l);
     waitAtPrompt(l);
     // Resizing makes the CLI draw its whole screen again, over whatever the saved copy of the terminal missed.
@@ -494,8 +496,8 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
   const statusLine = `🏢 sareoffice${opts.label ? ` · ${opts.label}` : ''}`;
   const toolNames = new Map<string, string>();
   const officePrompts: string[] = []; // prompts the office typed, so the ones the manager typed are told apart
-  const launched: string[] = []; // every prompt the CLI was given, as given (Codex: finds its main thread)
-  let mainThread: string | null = opts.resumeSessionId ?? null;
+  const launched: string[] = [...(live?.prompts ?? [])]; // every prompt the CLI was given, as given (Codex: finds its main thread)
+  let mainThread: string | null = live?.resumeId ?? opts.resumeSessionId ?? null;
   let kept: string | null = opts.resumeSessionId ?? null; // the Claude session the agent has saved to resume
   const usageResets = new Map<string, number | null>();
   const warned = new Set<string>();
@@ -725,7 +727,10 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
         if (cli === 'codex' && thread !== mainThread) {
           // Codex also runs side threads (it titles each task in one): the main thread is the one given our prompt.
           const input = String(b.input ?? '').trim();
-          if (mainThread || !launched.some((p) => input.startsWith(p.slice(0, 40)))) return {};
+          if (!acceptCodexCompletion(mainThread, thread, launched, input)) {
+            if (!mainThread) log([{ kind: 'error', text: 'No se ha podido identificar la conversación de Codex al recibir su fin de turno; el resultado no se ha aplicado.' }]);
+            return {};
+          }
           mainThread = thread;
         }
         if (thread) {
@@ -766,13 +771,14 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
   const handle: SessionHandle = {
     send(text) {
       const proc = live?.proc;
-      if (done || !proc) return;
+      if (done || !proc) throw new Error('La sesión todavía no está lista o ya ha terminado. Vuelve a enviar el mensaje.');
       busy();
       turnError = null;
       officePrompts.push(text.trim());
       // Pasted, so newlines stay in the message instead of sending it early; then Enter.
       const clean = text.replace(/\x1b\[20[01]~/g, '').replace(/\r\n?/g, '\n');
       launched.push(clean.trim());
+      if (live) { live.prompts = launched; remember(live); }
       quietly(() => proc.write(`\x1b[200~${clean}\x1b[201~`));
       setTimeout(() => quietly(() => live?.proc?.write('\r')), 150);
     },
@@ -879,6 +885,7 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
     codexHook: box ? `${BOX_BIN}/codex-hook.cjs` : path.join(BIN_DIR, 'codex-hook.cjs'),
     plugin: box ? '' : pathToFileURL(path.join(BIN_DIR, 'opencode-plugin.mjs')).href,
     browser,
+    officeUrl: opts.office && !box ? `${officeUrl}/api/mcp/${token}` : undefined,
     ...(box ? { node: 'node', posix: true } : {}),
   });
 
@@ -901,7 +908,7 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
   if (cli === 'claude' && opts.resumeSessionId) cb.sessionId(sessionId);
   term.note(`── ${label}${opts.label ? ` · ${opts.label}` : ''}${box ? ' · ☁ máquina en la nube' : ''} ──`);
   const resumeId = cli === 'claude' ? sessionId : (opts.resumeSessionId ?? null);
-  const l: LiveCli = { agentId: opts.agentId ?? '', cli, term, proc: null, token, dir, resumeId, statusLine, shots: new Set(), session: { hook, exited }, ...(box ? { box: { api: box.api, boxId: box.boxId } } : {}) };
+  const l: LiveCli = { agentId: opts.agentId ?? '', cli, term, proc: null, token, dir, resumeId, prompts: launched, statusLine, shots: new Set(), session: { hook, exited }, ...(box ? { box: { api: box.api, boxId: box.boxId } } : {}) };
 
   // Starting up: answer the folder-trust question for the office's own worktrees (the answer that trusts it), and say
   // so when a CLI is waiting on something only the manager can do (signing in).
@@ -912,6 +919,7 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
       const review = hookReviewKey(screen);
       const key = trustKeys < 12 && Date.now() - trustedAt > 3000 ? (trustKey(screen) ?? review) : null;
       if (key === 'down') {
+        trustedAt = Date.now(); // Wait for the selection to render before sending another key.
         trustKeys += 1;
         quietly(() => pty.write(term.appCursor ? '\x1bOB' : '\x1b[B'));
       } else if (key === 'enter') {
@@ -980,4 +988,11 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
   else begin();
 
   return handle;
+}
+
+/** Reject side-thread notifications, retaining prompt matching across keeper reconnects. */
+export function acceptCodexCompletion(mainThread: string | null, thread: string, prompts: string[], input: string): boolean {
+  if (!thread) return false;
+  if (mainThread) return thread === mainThread;
+  return prompts.some((p) => p.trim().length > 0 && input.trim().startsWith(p.trim().slice(0, 40)));
 }
