@@ -18,18 +18,18 @@ export interface CatalogueItem {
 }
 
 export const CATALOGUE: readonly CatalogueItem[] = [
-  { id: 'plant', name: 'Potted plant', icon: '🪴', kind: 'floor', price: 20, blurb: 'A cheerful leafy friend for a corner.' },
-  { id: 'beanbag', name: 'Bean bag', icon: '🛋️', kind: 'floor', price: 35, blurb: 'For thinking very hard, horizontally.' },
-  { id: 'fig', name: 'Fiddle-leaf fig', icon: '🌳', kind: 'floor', price: 45, blurb: 'Big, glossy and a little dramatic.' },
-  { id: 'poster-ship', name: '"Ship it" poster', icon: '🚀', kind: 'wall', price: 25, blurb: 'Framed motivation.' },
-  { id: 'poster-repo', name: 'Repo poster', icon: '🖼️', kind: 'wall', price: 30, blurb: "The floor's repo, framed." },
-  { id: 'poster-pr', name: 'First PR poster', icon: '📜', kind: 'wall', price: 40, blurb: "The floor's first merged PR, framed for posterity." },
-  { id: 'rug', name: 'Accent rug', icon: '🟧', kind: 'rug', price: 30, blurb: "A rug in the floor's colour." },
-  { id: 'lights', name: 'String lights', icon: '💡', kind: 'wall', price: 50, blurb: 'Warm little bulbs along a wall.' },
-  { id: 'neon', name: 'Neon sign', icon: '🌈', kind: 'wall', price: 80, blurb: "The floor's name in glowing tubes." },
-  { id: 'fishtank', name: 'Fish tank', icon: '🐠', kind: 'big', price: 120, blurb: 'A few toon fish doing laps.' },
-  { id: 'pingpong', name: 'Ping-pong table', icon: '🏓', kind: 'big', price: 150, blurb: "A spare one, just for show: the floor's own table is for playing." },
-  { id: 'arcade', name: 'Arcade cabinet', icon: '🕹️', kind: 'big', price: 200, blurb: "Press E on it to play the phone's games." },
+  { id: 'plant', name: 'Planta en maceta', icon: '🪴', kind: 'floor', price: 20, blurb: 'Un rincón más alegre con un poco de verde.' },
+  { id: 'beanbag', name: 'Puf', icon: '🛋️', kind: 'floor', price: 35, blurb: 'Para pensar mucho, en horizontal.' },
+  { id: 'fig', name: 'Ficus', icon: '🌳', kind: 'floor', price: 45, blurb: 'Grande, brillante y un poco teatral.' },
+  { id: 'poster-ship', name: 'Póster «¡Lánzalo!»', icon: '🚀', kind: 'wall', price: 25, blurb: 'Motivación enmarcada.' },
+  { id: 'poster-repo', name: 'Póster del repo', icon: '🖼️', kind: 'wall', price: 30, blurb: "El repo de la planta, enmarcado." },
+  { id: 'poster-pr', name: 'Póster de la primera PR', icon: '📜', kind: 'wall', price: 40, blurb: "La primera PR fusionada de la planta, enmarcada para la posteridad." },
+  { id: 'rug', name: 'Alfombra', icon: '🟧', kind: 'rug', price: 30, blurb: "Una alfombra del color de la planta." },
+  { id: 'lights', name: 'Guirnalda de luces', icon: '💡', kind: 'wall', price: 50, blurb: 'Pequeñas bombillas cálidas a lo largo de una pared.' },
+  { id: 'neon', name: 'Cartel de neón', icon: '🌈', kind: 'wall', price: 80, blurb: "El nombre de la planta en tubos luminosos." },
+  { id: 'fishtank', name: 'Pecera', icon: '🐠', kind: 'big', price: 120, blurb: 'Unos peces de dibujos dando vueltas.' },
+  { id: 'pingpong', name: 'Mesa de ping-pong', icon: '🏓', kind: 'big', price: 150, blurb: "Una mesa de decoración." },
+  { id: 'arcade', name: 'Máquina recreativa', icon: '🕹️', kind: 'big', price: 200, blurb: "Una máquina retro de decoración." },
 ];
 
 export const catalogueItem = (id: string): CatalogueItem | undefined => CATALOGUE.find((c) => c.id === id);
@@ -99,19 +99,19 @@ export interface AchievementDef {
 }
 
 export const ACHIEVEMENTS: readonly AchievementDef[] = [
-  { id: 'first-merge', name: 'First merge', icon: '🎉', blurb: 'The first PR merged since the trophy shelf went up' },
-  { id: 'hat-trick', name: 'Hat trick', icon: '⚡', blurb: 'Three merges on one floor within an hour' },
-  { id: 'ten-a-day', name: 'Ten in a day', icon: '🔟', blurb: 'Ten merges in one day' },
-  { id: 'clean-day', name: 'Spotless day', icon: '✨', blurb: 'Five or more merges in a day without one failed QA round' },
-  { id: 'night-owl', name: 'Night owl', icon: '🦉', blurb: 'A merge between midnight and 5 am' },
-  { id: 'full-house', name: 'Full house', icon: '🏠', blurb: 'Everyone on a floor busy at once (four or more people)' },
-  { id: 'comeback', name: 'Comeback', icon: '🔁', blurb: 'A PR that needed you was merged after all' },
-  { id: 'coffee-addict', name: 'Coffee addict', icon: '☕', blurb: 'You drank ten coffees' },
-  { id: 'perfect-five', name: 'Perfect five', icon: '💎', blurb: 'Five merges in a row without a failed QA round or check' },
-  { id: 'quarter-century', name: 'Quarter century', icon: '🥈', blurb: '25 PRs merged' },
-  { id: 'century', name: 'Century', icon: '🥇', blurb: '100 PRs merged' },
-  { id: 'interior-designer', name: 'Interior designer', icon: '🪴', blurb: 'The first decoration placed' },
-  { id: 'fully-furnished', name: 'Fully furnished', icon: '🛋️', blurb: 'Every decoration slot on a floor filled' },
+  { id: 'first-merge', name: 'Primer merge', icon: '🎉', blurb: 'La primera PR fusionada desde que se lleva la cuenta' },
+  { id: 'hat-trick', name: 'Triplete', icon: '⚡', blurb: 'Tres merges en una planta en una hora' },
+  { id: 'ten-a-day', name: 'Diez en un día', icon: '🔟', blurb: 'Diez merges en un día' },
+  { id: 'clean-day', name: 'Día impecable', icon: '✨', blurb: 'Cinco o más merges en un día sin suspender ninguna ronda de QA' },
+  { id: 'night-owl', name: 'Búho nocturno', icon: '🦉', blurb: 'Un merge entre medianoche y las cinco de la mañana' },
+  { id: 'full-house', name: 'Pleno', icon: '🏠', blurb: 'Toda una planta trabajando a la vez (cuatro o más personas)' },
+  { id: 'comeback', name: 'Remontada', icon: '🔁', blurb: 'Una PR que te necesitaba ha acabado fusionada' },
+  { id: 'coffee-addict', name: 'Cafetero', icon: '☕', blurb: 'Has bebido diez cafés' },
+  { id: 'perfect-five', name: 'Cinco perfectos', icon: '💎', blurb: 'Cinco merges seguidos sin suspender ninguna ronda de QA ni ningún check' },
+  { id: 'quarter-century', name: 'Un cuarto de siglo', icon: '🥈', blurb: '25 PRs fusionadas' },
+  { id: 'century', name: 'Centenario', icon: '🥇', blurb: '100 PRs fusionadas' },
+  { id: 'interior-designer', name: 'Interiorista', icon: '🪴', blurb: 'La primera decoración colocada' },
+  { id: 'fully-furnished', name: 'Totalmente amueblada', icon: '🛋️', blurb: 'Todos los huecos de decoración de una planta ocupados' },
 ];
 
 export const achievementDef = (id: string) => ACHIEVEMENTS.find((a) => a.id === id);

@@ -1,16 +1,20 @@
-// Which office this device gets: the 3D one, or pocket mode (2D, for phones and touch screens; docs/pocket.md).
-// ?pocket=1 / ?pocket=0 decide for one visit; a choice made in the app is remembered on this device.
+// Which view this device gets: the control panel (the default on a computer) or pocket mode (for phones and touch
+// screens; docs/pocket.md). ?view=panel|pocket (or the older ?pocket=1 / ?pocket=0) decides for one visit; a choice
+// made in the app is remembered on this device.
 import { create } from 'zustand';
 
-export type ViewMode = 'pocket' | 'office';
+export type ViewMode = 'panel' | 'pocket';
 
-const KEY = 'cubefarm:mode';
+const KEY = 'sareoffice:mode';
 
 /** The mode to start in: the URL's say, then this device's last choice, then pocket on narrow or touch-only screens. */
-export function pickMode(x: { param: string | null; saved: string | null; narrow: boolean; touch: boolean }): ViewMode {
-  if (x.param !== null) return x.param === '0' || x.param === 'false' ? 'office' : 'pocket';
-  if (x.saved === 'pocket' || x.saved === 'office') return x.saved;
-  return x.narrow || x.touch ? 'pocket' : 'office';
+export function pickMode(x: { view?: string | null; param: string | null; saved: string | null; narrow: boolean; touch: boolean }): ViewMode {
+  if (x.view === 'panel' || x.view === 'pocket') return x.view;
+  if (x.param !== null) return x.param === '0' || x.param === 'false' ? 'panel' : 'pocket';
+  // 'office' was the 3D office, now gone: the panel took its place.
+  if (x.saved === 'panel' || x.saved === 'office') return 'panel';
+  if (x.saved === 'pocket') return 'pocket';
+  return x.narrow || x.touch ? 'pocket' : 'panel';
 }
 
 function startMode(): ViewMode {
@@ -20,15 +24,17 @@ function startMode(): ViewMode {
   } catch {
     // no storage: decide from the screen
   }
+  const params = new URLSearchParams(location.search);
   return pickMode({
-    param: new URLSearchParams(location.search).get('pocket'),
+    view: params.get('view'),
+    param: params.get('pocket'),
     saved,
     narrow: matchMedia('(max-width: 760px)').matches,
     touch: matchMedia('(hover: none) and (pointer: coarse)').matches,
   });
 }
 
-export const useMode = create<{ mode: ViewMode }>(() => ({ mode: typeof window === 'undefined' ? 'office' : startMode() }));
+export const useMode = create<{ mode: ViewMode }>(() => ({ mode: typeof window === 'undefined' ? 'panel' : startMode() }));
 
 /** Switches this device to `mode` and remembers it. */
 export function setMode(mode: ViewMode) {

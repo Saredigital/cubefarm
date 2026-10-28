@@ -1,172 +1,177 @@
-# Voice messages
+# Mensajes de voz
 
-The office can read the CEO's phone messages aloud the moment they arrive, in a voice you pick, without opening the
-phone. Two voices are on offer:
+La oficina puede leer en voz alta los mensajes del CEO en el móvil en cuanto llegan, con la voz que elijas, sin abrir
+el móvil. Hay dos voces disponibles:
 
-- **Browser:** your browser's own text-to-speech. Free, offline, robotic.
-- **ElevenLabs:** natural voices from [ElevenLabs](https://elevenlabs.io), with your own API key. Costs a little per
-  message (below).
+- **Navegador:** la síntesis de voz propia de tu navegador. Gratis, sin conexión, robótica.
+- **ElevenLabs:** voces naturales de [ElevenLabs](https://elevenlabs.io), con tu propia clave de API. Cuesta un poco
+  por mensaje (ver más abajo).
 
-Office notes (merges, errors, decisions) are spoken too only if you turn on **Speak office notes**.
+Las notas de la oficina (merges, errores, decisiones) solo se leen si activas **Leer las notas de la oficina**.
 
-It listens too: you can talk to the CEO and the agents instead of typing ([Talking instead of typing](#talking-instead-of-typing)).
+También escucha: puedes hablar con el CEO y con los agentes en lugar de escribir ([Hablar en lugar de escribir](#hablar-en-lugar-de-escribir)).
 
-Facts about ElevenLabs below were checked against its docs and pricing pages in October 2026.
+Los datos sobre ElevenLabs de esta página se comprobaron en su documentación y su página de precios en octubre de 2026.
 
-## Getting an ElevenLabs key
+## Conseguir una clave de ElevenLabs
 
-1. Sign up at [elevenlabs.io](https://elevenlabs.io). Library voices, including the shortlist below, need a paid plan
-   to be used through the API ("Voice Library voices are not available via the API to free tier users").
-2. Open **Developers → API Keys** and create a key. If you restrict it, allow **Text to Speech** and **Voices (read)**.
-   You can also give it a credit quota there, as a spending cap for the office.
-3. Paste it into the office's voice settings. The office checks it with one call (listing one voice) before saving it.
+1. Regístrate en [elevenlabs.io](https://elevenlabs.io). Las voces de la biblioteca, incluida la lista de abajo,
+   necesitan un plan de pago para usarse por la API (las voces de la Voice Library no están disponibles por la API en
+   el plan gratuito).
+2. Abre **Developers → API Keys** y crea una clave. Si la restringes, permite **Text to Speech** y **Voices (read)**.
+   Ahí también puedes darle una cuota de créditos, como límite de gasto para la oficina.
+3. Pégala en los ajustes de voz de la oficina. La oficina la comprueba con una llamada (listando una voz) antes de guardarla.
 
-Where the key lives: `<SWARM_HOME>/secrets.json` (`~/.cubefarm/secrets.json` by default), readable only by you where the
-OS has file modes. It is never written to `state.json`, never sent to the browser (the settings show its last 4
-characters), never logged and never given to agents. A demo office keeps its own `demo-secrets.json`. Clear the key in
-the settings to delete it.
+Dónde se guarda la clave: `<SWARM_HOME>/secrets.json` (`~/.sareoffice/secrets.json` por defecto), legible solo por ti
+donde el sistema operativo tiene permisos de fichero. Nunca se escribe en `state.json`, nunca se envía al navegador
+(los ajustes muestran sus últimos 4 caracteres), nunca aparece en los registros y nunca se da a los agentes. Una
+oficina demo tiene su propio `demo-secrets.json`. Borra la clave en los ajustes para eliminarla.
 
-If ElevenLabs ever answers with 401 (the key was revoked or deleted), the office tells you once on the phone and stops
-calling ElevenLabs until you enter a new key.
+Si ElevenLabs responde alguna vez con 401 (la clave se revocó o se borró), la oficina te avisa una vez en el móvil y
+deja de llamar a ElevenLabs hasta que introduzcas una clave nueva.
 
-## Model and cost
+## Modelo y coste
 
-The default model is **`eleven_flash_v2_5`** (Flash v2.5): ElevenLabs' lowest-latency model (~75 ms before network
-time), 32 languages, and half the price per character of Multilingual v2. Other models you can set:
+El modelo por defecto es **`eleven_flash_v2_5`** (Flash v2.5): el modelo de menor latencia de ElevenLabs (~75 ms antes
+del tiempo de red), 32 idiomas y la mitad de precio por carácter que Multilingual v2. Otros modelos que puedes elegir:
 
-| Model | Why |
+| Modelo | Por qué |
 | --- | --- |
-| `eleven_flash_v2_5` (default) | fastest and cheapest; plenty for short updates |
-| `eleven_v4_turbo` | newer and more expressive, still real-time (~100 ms) |
-| `eleven_multilingual_v2`, `eleven_v4` | highest quality; slower and pricier |
+| `eleven_flash_v2_5` (por defecto) | el más rápido y barato; de sobra para avisos cortos |
+| `eleven_v4_turbo` | más nuevo y expresivo, todavía en tiempo real (~100 ms) |
+| `eleven_multilingual_v2`, `eleven_v4` | la mayor calidad; más lentos y más caros |
 
-What a message costs: on ElevenLabs' API pricing, Flash costs about **$0.04 per 1,000 characters** (Multilingual v2
-and v3: $0.08). A typical CEO update is 300–800 characters of speech once markdown, emoji and links are stripped,
-so about **1–3 cents**; the office never speaks more than about 1,500 characters of one message (about 6 cents). On a
-subscription plan the same text uses credits from your monthly allowance instead. Each message is synthesized once and
-cached (`<SWARM_HOME>/voice/`, at most 200 clips, kept 7 days by default), so replaying it is free. The settings' **Test** button
-speaks one short line (about 60 characters) and caches it too.
+Lo que cuesta un mensaje: con los precios de la API de ElevenLabs, Flash cuesta unos **0,04 $ por 1.000 caracteres**
+(Multilingual v2 y v3: 0,08 $). Una actualización típica del CEO son 300–800 caracteres de voz una vez quitados el
+markdown, los emojis y los enlaces, así que **1–3 céntimos**; la oficina nunca lee más de unos 1.500 caracteres de un
+mensaje (unos 6 céntimos). En un plan de suscripción, el mismo texto gasta créditos de tu cuota mensual. Cada mensaje
+se sintetiza una vez y se guarda en caché (`<SWARM_HOME>/voice/`, como mucho 200 clips, 7 días por defecto), así que
+volver a escucharlo es gratis. El botón **Probar** de los ajustes lee una frase corta (unos 60 caracteres) y también la guarda.
 
-## Shortlisted voices
+## Voces preseleccionadas
 
-ElevenLabs' old Default voices (Rachel, Sarah, George, …) **expire on 31 December 2026**, and accounts created after
-March 2026 never had them. The shortlist is therefore taken from the new voices ElevenLabs recommends as their
-replacements, which stay usable for good. They're in the Voice Library and can be used by id without saving them; save
-one to **My Voices** to see it on elevenlabs.io too. The office marks these `recommended` in the voice list and shows
-them first, followed by the voices on your account.
+Las antiguas voces Default de ElevenLabs (Rachel, Sarah, George, …) **caducan el 31 de diciembre de 2026**, y las
+cuentas creadas después de marzo de 2026 nunca las tuvieron. Por eso la lista sale de las voces nuevas que ElevenLabs
+recomienda como sustitutas, que se pueden usar para siempre. Están en la Voice Library y se pueden usar por id sin
+guardarlas; guarda una en **My Voices** para verla también en elevenlabs.io. La oficina las marca como `recommended`
+en la lista de voces y las muestra primero, seguidas de las voces de tu cuenta.
 
-| Voice | Id | Why it suits a calm, friendly CEO |
+| Voz | Id | Por qué le va a un CEO tranquilo y cercano |
 | --- | --- | --- |
-| Talia: Warm Soft Guide | `OZ0L6eISlOejga3XjDFt` | gentle and warm; good news and bad news both land softly. The default. |
-| Eddie: Helpful and Comforting | `l7kNoIfnJKPg7779LI2t` | reassuring, never pushy: right for "here's what's blocked and why". |
-| Caleb: Trusted Guide | `AaOhDHYJ1XLZk74lXhdE` | steady and credible; sounds like someone who has the plan in hand. |
-| Darian: Warm Grounded Storyteller | `gOupLcAkjEnguROwi4oS` | relaxed and grounded; makes a progress summary sound like a story. |
-| Alicia: Polished Global Anchor | `BFd5oBc2DDna33pSi4Gf` | clear newsreader delivery; easy to follow over music or office noise. |
-| Maisie: Friendly Casual Neighbor | `QtY3JBOUKEB5xzrRfOKc` | chatty and informal, for a startup that doesn't do corporate. |
-| Wyatt: Seasoned Mentor | `FrS6cKLB1wg4WYgPa9GW` | older, calm and unhurried; a CEO who has seen it all. |
-| Eldrin: Crisp British Baritone | `6WwXjDDEMyNmFG95zycZ` | deep and composed, with a British accent. |
+| Talia: Warm Soft Guide | `OZ0L6eISlOejga3XjDFt` | suave y cálida; las buenas y las malas noticias llegan con delicadeza. La de por defecto. |
+| Eddie: Helpful and Comforting | `l7kNoIfnJKPg7779LI2t` | tranquilizadora, nunca insistente: ideal para "esto es lo que está bloqueado y por qué". |
+| Caleb: Trusted Guide | `AaOhDHYJ1XLZk74lXhdE` | firme y creíble; suena a alguien que tiene el plan bajo control. |
+| Darian: Warm Grounded Storyteller | `gOupLcAkjEnguROwi4oS` | relajada y con los pies en el suelo; convierte un resumen de avances en una historia. |
+| Alicia: Polished Global Anchor | `BFd5oBc2DDna33pSi4Gf` | dicción clara de presentadora; fácil de seguir con música o ruido de oficina. |
+| Maisie: Friendly Casual Neighbor | `QtY3JBOUKEB5xzrRfOKc` | charlatana e informal, para una startup que no va de corporativa. |
+| Wyatt: Seasoned Mentor | `FrS6cKLB1wg4WYgPa9GW` | mayor, tranquila y sin prisas; un CEO que lo ha visto todo. |
+| Eldrin: Crisp British Baritone | `6WwXjDDEMyNmFG95zycZ` | grave y serena, con acento británico. |
 
-They replace Sarah, Eric, Chris, Roger, Alice, Matilda, Bill and George respectively. Listen to them (the Test button,
-or ElevenLabs' Voice Library) before you choose: tone matters more than the description.
+Sustituyen respectivamente a Sarah, Eric, Chris, Roger, Alice, Matilda, Bill y George. Escúchalas (el botón Probar, o
+la Voice Library de ElevenLabs) antes de elegir: el tono importa más que la descripción. Para mensajes en español,
+prueba especialmente cómo suenan con un modelo multilingüe.
 
-## What gets read
+## Qué se lee
 
-Before speaking, a message is tidied for the ear (`shared/speech.ts`, used by both voices): markdown and emoji are
-removed, `#123` becomes "number 123", a URL becomes "a link", and long messages are cut at a sentence end after about
-1,500 characters.
+Antes de hablar, el mensaje se adapta para el oído (`shared/speech.ts`, usado por las dos voces): se quitan el markdown
+y los emojis, `#123` pasa a "número 123", una URL pasa a "un enlace", y los mensajes largos se cortan al final de una
+frase pasados unos 1.500 caracteres.
 
-## In the office
+## En la oficina
 
-A message is spoken as it arrives, whether the phone is open or not, and also while the office tab is in the
-background. Browsers only allow sound after your first click or key in the tab, so anything that arrived before that,
-and anything already on the phone when the page loads, stays silent. Messages are read one at a time, in order; at
-most 3 wait their turn and anything older than 2 minutes is skipped. With several office tabs open, only one reads
-each message (the one you're looking at, if any).
+Un mensaje se lee al llegar, esté el móvil abierto o no, y también con la pestaña de la oficina en segundo plano. Los
+navegadores solo permiten sonido después de tu primer clic o tecla en la pestaña, así que lo que llegó antes de eso, y
+lo que ya estaba en el móvil al cargar la página, se queda en silencio. Los mensajes se leen de uno en uno, en orden;
+como mucho 3 esperan su turno y los de hace más de 2 minutos se saltan. Con varias pestañas de la oficina abiertas,
+solo una lee cada mensaje (la que estás mirando, si hay alguna).
 
-The **Voice** slider in the sound settings (help, **H**) sets its level under the master volume, and **M** mutes it
-like every other sound. Other office sounds dip by about 8 dB while a message is spoken. A 🔊 on the phone icon shows
-it's speaking; click it to stop. If the clip can't be fetched (no key, ElevenLabs down), you hear the usual message
-chirp instead. `window.__swarmVoice` lists the messages read aloud (`id`, `provider`, `start`, `end`, `volume`, and
-`replay: true` for a replay).
+El control **Voz** de los ajustes de sonido (Ayuda, **H**) fija su nivel por debajo del volumen general, y **M** la
+silencia como cualquier otro sonido. Los demás sonidos de la oficina bajan unos 8 dB mientras se lee un mensaje. Un 🔊
+en el icono del móvil indica que está hablando; haz clic en él para pararlo. Si el clip no se puede obtener (sin clave,
+ElevenLabs caído), oyes en su lugar el sonido habitual de mensaje. `window.__swarmVoice` lista los mensajes leídos
+(`id`, `provider`, `start`, `end`, `volume`, y `replay: true` en una repetición).
 
-## Replaying a message
+## Volver a escuchar un mensaje
 
-Every CEO message that was read aloud has a ▶ in the phone chat. It plays the clip saved when the message first
-arrived, never a new one: `clips.json` in the cache folder records which clips belong to which message, so a message
-keeps its clip after you pick another voice or model. A message read by the browser's voice is said again by the
-browser (free). While it plays the button shows ⏹; replaying stops whatever is being read, and a new message stops a
-replay. When a clip has been deleted, the ▶ is greyed out with "Audio no longer saved". Messages that arrived with the
-voice off have no button.
+Cada mensaje del CEO que se leyó en voz alta tiene un ▶ en el chat del móvil. Reproduce el clip guardado cuando llegó
+el mensaje, nunca uno nuevo: `clips.json`, en la carpeta de caché, registra qué clips son de qué mensaje, así que un
+mensaje conserva su clip aunque después elijas otra voz u otro modelo. Un mensaje leído con la voz del navegador lo
+vuelve a decir el navegador (gratis). Mientras suena, el botón muestra ⏹; repetir para lo que se esté leyendo, y un
+mensaje nuevo para una repetición. Cuando un clip se ha borrado, el ▶ aparece en gris con "El audio ya no está
+guardado". Los mensajes que llegaron con la voz desactivada no tienen botón.
 
-The cache is tidied when the office starts and on its housekeeping timer (every 15 minutes): clips older than
-**Keep voice clips for N days** (Settings → Voice, 1–90, default 7) go, then the oldest beyond 200, but the clips of the
-newest 20 CEO messages always stay. Settings → Voice also shows the cache's size and has **Clear saved clips**.
+La caché se ordena al arrancar la oficina y con su temporizador de mantenimiento (cada 15 minutos): primero se van los
+clips más antiguos que **Guardar los clips de voz N días** (Ajustes → Voz, 1–90, 7 por defecto), luego los más
+antiguos por encima de 200, pero los clips de los 20 mensajes más recientes del CEO se quedan siempre. Ajustes → Voz
+también muestra el tamaño de la caché y tiene **Borrar clips guardados**.
 
-## Talking instead of typing
+## Hablar en lugar de escribir
 
-Every message box has a 🎙️ next to Send: the phone's CEO chat, an agent's panel and the CEO tab of the manager's
-console. **Hold** it, or hold **V** while the caret is in the box (or anywhere on that phone or panel outside another
-field), and speak: the words fill the box as you go, and letting go leaves them there to edit before you send. A quick
-tap of V still types a "v"; only a press held for 0.3 s talks, and V never talks in other fields. A **tap** of the 🎙️
-listens until you stop talking (about 1.2 s of quiet), or until you tap it again; if nobody speaks it gives up after 8 s.
-**Esc** stops listening (without closing the phone or the panel), typing in the box takes over from the mic, and
-sending by hand stops it too. Typing works exactly as before.
+Cada cuadro de mensaje tiene un 🎙️ junto a Enviar: el chat del móvil con el CEO, el panel de un agente y la pestaña
+CEO de la consola del responsable. **Mantenlo pulsado**, o mantén **V** con el cursor en el cuadro (o en cualquier
+parte de ese móvil o panel fuera de otro campo), y habla: las palabras llenan el cuadro mientras hablas, y al soltar se
+quedan ahí para que las edites antes de enviar. Un toque rápido de V sigue escribiendo una "v"; solo una pulsación
+mantenida 0,3 s habla, y V nunca habla en otros campos. Un **toque** en el 🎙️ escucha hasta que dejas de hablar (unos
+1,2 s de silencio) o hasta que vuelves a tocarlo; si nadie habla, se rinde a los 8 s. **Esc** deja de escuchar (sin
+cerrar el móvil ni el panel), escribir en el cuadro toma el relevo al micrófono, y enviar a mano también lo para.
+Escribir funciona exactamente igual que antes.
 
-Settings → Voice → **Talk instead of type** picks who turns speech into text:
+Ajustes → Voz → **Hablar en lugar de escribir** elige quién convierte la voz en texto:
 
-- **Browser** (the default): the browser's own speech recognition (the Web Speech API's `SpeechRecognition`), free.
-  Chrome, Edge and Safari have it; where the browser doesn't (Firefox), the 🎙️ is dimmed and says so when pressed.
-  The live transcript appears as you speak. Chrome and Edge send the audio to their makers' speech services to
-  recognise it.
-- **ElevenLabs Speech to Text**: the browser records the clip (MediaRecorder, WebM/Opus in Chromium) and sends it to the
-  office, which sends it to ElevenLabs (`POST /v1/speech-to-text`, model `scribe_v2`, audio-event tags off) with the key
-  above; the text comes back when you let go. A clip is at most 60 seconds and 5 MB. ElevenLabs charges by the length
-  of the audio; a restricted key needs the **Speech to Text** permission. The key is handled exactly like the voice's:
-  it never reaches the browser, the logs or the snapshot.
-- **Off**: no 🎙️ anywhere.
+- **Navegador** (por defecto): el reconocimiento de voz del propio navegador (el `SpeechRecognition` de la Web Speech
+  API), gratis. Lo tienen Chrome, Edge y Safari; donde el navegador no lo tiene (Firefox), el 🎙️ aparece atenuado y lo
+  dice al pulsarlo. La transcripción en directo aparece mientras hablas. Chrome y Edge envían el audio a los servicios
+  de voz de sus fabricantes para reconocerlo.
+- **ElevenLabs Speech to Text**: el navegador graba el clip (MediaRecorder, WebM/Opus en Chromium) y lo envía a la
+  oficina, que lo envía a ElevenLabs (`POST /v1/speech-to-text`, modelo `scribe_v2`, etiquetas de eventos de audio
+  desactivadas) con la clave de arriba; el texto vuelve al soltar. Un clip dura como mucho 60 segundos y 5 MB.
+  ElevenLabs cobra por la duración del audio; una clave restringida necesita el permiso **Speech to Text**. La clave se
+  trata exactamente igual que la de la voz: nunca llega al navegador, a los registros ni al snapshot.
+- **Desactivado**: ningún 🎙️ en ninguna parte.
 
-**Send automatically when I stop talking** (off by default) sends what you said after about 1.2 s of quiet, instead of
-leaving it in the box; letting go of a hold sends it too.
+**Enviar automáticamente al dejar de hablar** (desactivado por defecto) envía lo que dijiste tras unos 1,2 s de
+silencio, en lugar de dejarlo en el cuadro; soltar una pulsación mantenida también lo envía.
 
-**Hands-free** (the 🎧 on the phone's chat, off by default; also in Settings → Voice) is a conversation without
-touching anything: when the CEO's reply has been read aloud, a soft chime plays and the phone listens for up to 8 s with
-a pulsing 🎙️. Say something and it's sent once you stop; say nothing and it closes (with a falling chime). **Esc** or
-**M** closes it straight away. It needs the CEO's voice on, the phone open on the chat in the tab you're looking at, and
-an empty message box; it never asks for the microphone on its own (turning it on asks, from that click).
+**Manos libres** (el 🎧 del chat del móvil, desactivado por defecto; también en Ajustes → Voz) es una conversación sin
+tocar nada: cuando la respuesta del CEO se ha leído en voz alta, suena un aviso suave y el móvil escucha hasta 8 s con
+un 🎙️ que palpita. Di algo y se envía cuando terminas; no digas nada y se cierra (con un aviso descendente). **Esc** o
+**M** lo cierran al momento. Necesita la voz del CEO activada, el móvil abierto en el chat en la pestaña que estás
+mirando y un cuadro de mensaje vacío; nunca pide el micrófono por su cuenta (al activarlo lo pide, desde ese clic).
 
-Manners: the browser asks for the microphone the first time you press the 🎙️ (or turn hands-free on), and a refusal
-is explained in one line. The mic is only ever on while you hold the button or V, or while the pulsing 🎙️ shows
-(a tap, hands-free). While it listens, the jukebox and other sounds dip, a message being read dips by about 15 dB (the
-browser's voice pauses), the office's cues (merge, QA, errors) wait until it closes, and the merge gong stays quiet.
+Buenas maneras: el navegador pide el micrófono la primera vez que pulsas el 🎙️ (o activas manos libres), y una
+negativa se explica en una línea. El micrófono solo está encendido mientras mantienes el botón o V, o mientras se ve el
+🎙️ palpitando (un toque, manos libres). Mientras escucha, la jukebox y los demás sonidos bajan, un mensaje que se está
+leyendo baja unos 15 dB (la voz del navegador se pausa), los sonidos de la oficina (merge, QA, errores) esperan a que
+se cierre, y el gong de merge no suena.
 
-`window.__swarmMic` shows the 🎙️'s `state` (`idle`, `listening`, `transcribing` or `error`), `mode` (`hold`, `tap`,
-`handsfree`), whether the mic is `live`, the last `transcript`, the `provider`, the last `error`, what this browser
-`supported`s, the hands-free state and a `history` of sessions with their outcome. Headless browsers have no mic:
-`__swarmMic.fake()` swaps the browser's recognition for a stand-in, and `__swarmMic.say(text, final = true)` is what it
-hears (with ElevenLabs, `say()` marks speech for the silence detector). The rules are pure and tested:
-`client/src/ui/micSilence.ts` (when you've stopped talking), `handsFree.ts`, `micKeys.ts`, `micText.ts` and
-`shared/clipLimits.ts`.
+`window.__swarmMic` muestra el `state` del 🎙️ (`idle`, `listening`, `transcribing` o `error`), el `mode` (`hold`,
+`tap`, `handsfree`), si el micrófono está `live`, el último `transcript`, el `provider`, el último `error`, lo que este
+navegador admite (`supported`), el estado de manos libres y un `history` de sesiones con su resultado. Los navegadores
+sin interfaz no tienen micrófono: `__swarmMic.fake()` cambia el reconocimiento del navegador por un sustituto, y
+`__swarmMic.say(text, final = true)` es lo que oye (con ElevenLabs, `say()` marca voz para el detector de silencio).
+Las reglas son puras y tienen tests: `client/src/ui/micSilence.ts` (cuándo has dejado de hablar), `handsFree.ts`,
+`micKeys.ts`, `micText.ts` y `shared/clipLimits.ts`.
 
 ## API
 
-| Route | What it does |
+| Ruta | Qué hace |
 | --- | --- |
-| `PUT /api/voice/key` `{ key }` | checks and saves the key; `""` removes it. 400 if ElevenLabs rejects it |
-| `GET /api/voice/voices` | `[{ id, name, category, labels: { accent, gender, age, description, use_case }, previewUrl, recommended }]`, cached 10 minutes; 409 without a key |
-| `GET /api/voice/messages/:id` | `audio/mpeg` for a CEO message (or an office note with Speak office notes on); 404 when the voice isn't ElevenLabs or there's no such message, 502 when ElevenLabs fails |
-| `GET /api/voice/messages/:id?cached=1&part=N` | the phone's ▶: part N of the message's saved clips (`X-Voice-Parts` says how many), or 404 when none is saved. Never calls ElevenLabs |
-| `DELETE /api/voice/cache` | deletes every saved clip |
-| `GET /api/voice/sample?voiceId=…` | the Test line in that voice (default: the chosen one) |
-| `POST /api/voice/transcribe` | the 🎙️ with ElevenLabs: the recorded clip as the body (`Content-Type` its audio type, `X-Clip-Ms` its length) → `{ text }`. 409 when ElevenLabs isn't the provider or there's no key, 413 over 60 s or 5 MB, 415 for anything but WebM, Ogg, MP4, MP3 or WAV, 502 when ElevenLabs fails |
-| `GET /api/voice/standup?n=3&part=morning` | the CEO's line at a stand-up in the 3D office ("Morning team, three new features today!"; `part` is `morning`, `afternoon` or `evening`), made once per wording and cached; 404 when the voice isn't ElevenLabs |
+| `PUT /api/voice/key` `{ key }` | comprueba y guarda la clave; `""` la quita. 400 si ElevenLabs la rechaza |
+| `GET /api/voice/voices` | `[{ id, name, category, labels: { accent, gender, age, description, use_case }, previewUrl, recommended }]`, en caché 10 minutos; 409 sin clave |
+| `GET /api/voice/messages/:id` | `audio/mpeg` de un mensaje del CEO (o de una nota de la oficina con Leer las notas de la oficina activado); 404 cuando la voz no es ElevenLabs o no existe ese mensaje, 502 cuando falla ElevenLabs |
+| `GET /api/voice/messages/:id?cached=1&part=N` | el ▶ del móvil: la parte N de los clips guardados del mensaje (`X-Voice-Parts` dice cuántas hay), o 404 si no hay ninguno guardado. Nunca llama a ElevenLabs |
+| `DELETE /api/voice/cache` | borra todos los clips guardados |
+| `GET /api/voice/sample?voiceId=…` | la frase de Probar con esa voz (por defecto, la elegida) |
+| `POST /api/voice/transcribe` | el 🎙️ con ElevenLabs: el clip grabado como cuerpo (`Content-Type` su tipo de audio, `X-Clip-Ms` su duración) → `{ text }`. 409 cuando ElevenLabs no es el proveedor o no hay clave, 413 por encima de 60 s o 5 MB, 415 para cualquier cosa que no sea WebM, Ogg, MP4, MP3 o WAV, 502 cuando falla ElevenLabs |
 
-Settings travel in `settings.voice` (`PATCH /api/settings`): `{ provider: 'off' | 'browser' | 'elevenlabs', voiceId,
-voiceName, model, speakOffice, keepDays }`, and listening in `settings.listen`: `{ provider: 'off' | 'browser' |
-'elevenlabs', autoSend, handsFree }`. The snapshot has `voiceKeySet`, `voiceKeyHint` and `voiceCache`
-(`{ clips, bytes, saved }`, `saved` being the message ids the ▶ can replay); a `voiceKey` event follows every key change
-and a `voiceCache` event every change to the cache. A phone message's `voice` says who read it when it arrived. One clip is made at a time (20 s timeout); requests for a clip that's being made share that call.
+Los ajustes viajan en `settings.voice` (`PATCH /api/settings`): `{ provider: 'off' | 'browser' | 'elevenlabs',
+voiceId, voiceName, model, speakOffice, keepDays }`, y la escucha en `settings.listen`: `{ provider: 'off' | 'browser'
+| 'elevenlabs', autoSend, handsFree }`. El snapshot tiene `voiceKeySet`, `voiceKeyHint` y `voiceCache` (`{ clips,
+bytes, saved }`, siendo `saved` los ids de mensaje que el ▶ puede repetir); un evento `voiceKey` sigue a cada cambio de
+clave y un evento `voiceCache` a cada cambio de la caché. El `voice` de un mensaje del móvil dice quién lo leyó al
+llegar. Se crea un clip cada vez (20 s de tiempo límite); las peticiones de un clip que se está creando comparten esa llamada.
 
-The demo office (`--demo`) fakes all of it with no network: any key except one containing "bad" is accepted, there are
-three voices, and every message is a short generated chime (a WAV), pitched by the voice, cached and replayed like a
-real clip. Its Speech to Text hears "What's everyone working on?" in any recording. The server logs `voice: made a new
-clip …` for every clip it makes and `voice: transcribed a 2.4 s clip (30 KB)` for every transcription (never the words).
+La oficina demo (`--demo`) lo simula todo sin red: acepta cualquier clave salvo una que contenga "bad", tiene tres
+voces, y cada mensaje es un sonido corto generado (un WAV), con el tono según la voz, guardado y repetido como un clip
+real. Su Speech to Text oye "¿En qué está trabajando todo el mundo?" en cualquier grabación. El servidor registra `voice: made a
+new clip …` por cada clip que crea y `voice: transcribed a 2.4 s clip (30 KB)` por cada transcripción (nunca las palabras).

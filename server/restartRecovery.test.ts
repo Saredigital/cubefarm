@@ -49,25 +49,25 @@ describe('followKeptCli', () => {
 describe('resumeNote', () => {
   it('restates a QA fix: the PR, the round and how to push', () => {
     const note = resumeNote(fixing, { round: 2, fixReason: 'qa' });
-    expect(note).toContain('fixing PR #45 after QA round 2');
+    expect(note).toContain('corrigiendo la PR #45 tras la ronda 2 de QA');
     expect(note).toContain('git push origin HEAD:swarm/issue-12-ada');
-    expect(note).toContain('Uncommitted changes in your worktree are yours to finish.');
+    expect(note).toContain('Los cambios sin commit de tu worktree son tuyos: termínalos.');
   });
 
   it('names a merge fix for what it is', () => {
-    expect(resumeNote(fixing, { round: 2, fixReason: 'conflict' })).toContain('resolving the merge conflicts on PR #45');
-    expect(resumeNote(fixing, { round: 2, fixReason: 'checks' })).toContain('fixing the failing checks on PR #45');
+    expect(resumeNote(fixing, { round: 2, fixReason: 'conflict' })).toContain('resolviendo los conflictos de merge de la PR #45');
+    expect(resumeNote(fixing, { round: 2, fixReason: 'checks' })).toContain('corrigiendo los checks fallidos de la PR #45');
   });
 
   it('restates an issue: the issue, the branch, and opening or updating its PR', () => {
     const issue = { ...fixing, task: 'issue' as const, prNumber: null };
-    expect(resumeNote(issue)).toContain('working on issue #12 (Toolbar) on branch swarm/issue-12-ada');
+    expect(resumeNote(issue)).toContain('trabajabas en el issue #12 (Toolbar) en la rama swarm/issue-12-ada');
     expect(resumeNote(issue)).toContain('git push -u origin swarm/issue-12-ada');
     expect(resumeNote(issue)).toContain('"Closes #12"');
-    expect(resumeNote({ ...issue, prNumber: 50 })).toContain('to update PR #50');
+    expect(resumeNote({ ...issue, prNumber: 50 })).toContain('para actualizar la PR #50');
   });
 
   it('falls back to "carry on" for anything else', () => {
-    expect(resumeNote({ ...fixing, task: null })).toMatch(/continue where you left off/);
+    expect(resumeNote({ ...fixing, task: null })).toMatch(/continúa donde lo dejaste/);
   });
 });

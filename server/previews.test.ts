@@ -79,8 +79,8 @@ describe('starting a PR preview', () => {
 
   it('refuses PRs that are not open', async () => {
     pulls['acme/app1'] = [{ number: 5, state: 'MERGED' } as PullInfo];
-    await expect(previews.startPr(floor(1), 5, 'x')).rejects.toThrow(/merged, not open/);
-    await expect(previews.startPr(floor(1), 0, 'x')).rejects.toThrow(/Invalid/);
+    await expect(previews.startPr(floor(1), 5, 'x')).rejects.toThrow(/fusionada, no abierta/);
+    await expect(previews.startPr(floor(1), 0, 'x')).rejects.toThrow(/no válido/);
   });
 
   it('shows why a failed start failed, with the log', async () => {
@@ -105,7 +105,7 @@ describe('at most two PR previews', () => {
     expect(started[1].stopped).toBe(true); // PR 2's app
     expect(started[2].job.slug).toBe(started[1].job.slug);
     expect(calls.filter((c) => c.startsWith('remove'))).toEqual([]); // same floor: the worktree is reused
-    expect(notes.join(' ')).toMatch(/PR #2's preview stopped to make room/);
+    expect(notes.join(' ')).toMatch(/Vista previa de la PR #2 detenida para hacer sitio/);
   });
 
   it("clears another floor's worktree away when it takes over that slot", async () => {
@@ -124,7 +124,7 @@ describe('at most two PR previews', () => {
     await previews.startPr(floor(1), 2, 'x');
     previews.watch('viewer-aaaa', 'acme/app1', 1);
     previews.watch('viewer-bbbb', 'acme/app1', 2);
-    await expect(previews.startPr(floor(1), 3, 'x')).rejects.toThrow(/on screen already/);
+    await expect(previews.startPr(floor(1), 3, 'x')).rejects.toThrow(/en pantalla/);
     expect(views.get('acme/app1#1')?.watched).toBe(true);
   });
 });
@@ -144,7 +144,7 @@ describe('a PR preview stops', () => {
     previews.pullsChanged(floor(1), [{ number: 1, state: 'MERGED' } as PullInfo, ...open(2)]);
     await settle();
     expect(previews.prViews().map((v) => v.pr)).toEqual([2]);
-    expect(notes.join(' ')).toMatch(/PR #1's preview stopped: the PR was merged/);
+    expect(notes.join(' ')).toMatch(/Vista previa de la PR #1 detenida: la PR se ha fusionado/);
   });
 
   it('after the idle time with nobody watching', async () => {
@@ -181,12 +181,12 @@ describe('parsePreviewPatch', () => {
 
   it('refuses an env over the character budget, saying how big it is and the ceiling', () => {
     const env = vars(10, 'x'.repeat(PREVIEW_ENV_MAX_CHARS / 10));
-    expect(() => parsePreviewPatch(undefined, env)).toThrow(/16,0\d\d characters \(10 variables.*over the 16,000/);
+    expect(() => parsePreviewPatch(undefined, env)).toThrow(/16\.0\d\d caracteres \(10 variables.*16\.000/);
   });
 
-  it('still refuses bad names and Claude credentials', () => {
-    expect(() => parsePreviewPatch(undefined, { '1BAD': 'x' })).toThrow(/not a valid environment variable name/);
-    expect(() => parsePreviewPatch(undefined, { ANTHROPIC_API_KEY: 'x' })).toThrow(/never reach/);
-    expect(() => parsePreviewPatch(undefined, { A: 1 })).toThrow(/must be a string/);
+  it('still refuses bad names and credenciales de Claude', () => {
+    expect(() => parsePreviewPatch(undefined, { '1BAD': 'x' })).toThrow(/no es un nombre de variable de entorno válido/);
+    expect(() => parsePreviewPatch(undefined, { ANTHROPIC_API_KEY: 'x' })).toThrow(/nunca llegan/);
+    expect(() => parsePreviewPatch(undefined, { A: 1 })).toThrow(/debe ser un texto/);
   });
 });

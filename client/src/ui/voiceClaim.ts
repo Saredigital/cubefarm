@@ -9,7 +9,7 @@ const KEEP = 50;
 
 const tab = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 const claims = new Map<number, VoiceClaim[]>(); // kept for claims that arrive before this tab has the message
-const channel = typeof document !== 'undefined' && typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('cubefarm:voice') : null;
+const channel = typeof document !== 'undefined' && typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('sareoffice:voice') : null;
 
 function claimsFor(id: number): VoiceClaim[] {
   let list = claims.get(id);

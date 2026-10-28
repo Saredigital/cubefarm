@@ -14,22 +14,22 @@ describe('career stats', () => {
   });
 
   it('ranks by merges and reviews together', () => {
-    expect(rank(career())).toBe('Rookie');
-    expect(rank(career({ merged: 3, reviews: 2 }))).toBe('Regular');
-    expect(rank(career({ merged: 15 }))).toBe('Veteran');
-    expect(rank(career({ merged: 10, reviews: 5 }))).toBe('Veteran');
-    expect(rank(career({ reviews: 40 }))).toBe('Legend');
+    expect(rank(career())).toBe('Novato');
+    expect(rank(career({ merged: 3, reviews: 2 }))).toBe('Habitual');
+    expect(rank(career({ merged: 15 }))).toBe('Veterano');
+    expect(rank(career({ merged: 10, reviews: 5 }))).toBe('Veterano');
+    expect(rank(career({ reviews: 40 }))).toBe('Leyenda');
   });
 
   it('is known for its best line', () => {
-    expect(knownFor(career())).toBe('Fresh on the team: first task coming up');
-    expect(knownFor(career({ opened: 1 }))).toBe('First PR in review, fingers crossed');
-    expect(knownFor(career({ merged: 9, best: 9, run: 9 }))).toBe('First-time QA passes: 9 in a row');
-    expect(knownFor(career({ merged: 2, qaPass: 3, best: 1 }))).toBe('Never failed QA: 3 rounds passed');
-    expect(knownFor(career({ merged: 1, qaPass: 1, qaFail: 1, fixRounds: 1 }))).toBe('Shipped 1 PR so far');
-    expect(knownFor(career({ merged: 2, qaPass: 2, qaFail: 1 }))).toBe('Clean shipper: 2 PRs merged without a fix round');
-    expect(knownFor(career({ reviews: 12 }))).toBe('QA reviews: 12 and counting');
-    expect(knownFor(career({ merged: 4, reviews: 3, qaPass: 4, qaFail: 1, fixRounds: 1 }))).toBe('Shipped 4 PRs so far');
+    expect(knownFor(career())).toBe('Acaba de llegar: su primera tarea está al caer');
+    expect(knownFor(career({ opened: 1 }))).toBe('Primera PR en revisión, cruzando los dedos');
+    expect(knownFor(career({ merged: 9, best: 9, run: 9 }))).toBe('QA aprobado a la primera: 9 veces seguidas');
+    expect(knownFor(career({ merged: 2, qaPass: 3, best: 1 }))).toBe('Nunca ha suspendido QA: 3 rondas aprobadas');
+    expect(knownFor(career({ merged: 1, qaPass: 1, qaFail: 1, fixRounds: 1 }))).toBe('Ya ha fusionado 1 PR');
+    expect(knownFor(career({ merged: 2, qaPass: 2, qaFail: 1 }))).toBe('Trabajo limpio: 2 PRs fusionadas sin correcciones');
+    expect(knownFor(career({ reviews: 12 }))).toBe('Revisiones de QA: 12 y sumando');
+    expect(knownFor(career({ merged: 4, reviews: 3, qaPass: 4, qaFail: 1, fixRounds: 1 }))).toBe('Ya ha fusionado 4 PRs');
   });
 
   it('picks the MVP of the week from merges in the last 7 days', () => {

@@ -1,4 +1,4 @@
-// The saved accessibility and comfort settings (localStorage `cubefarm:a11y`): captions, the status palette and shapes,
+// The saved accessibility and comfort settings (localStorage `sareoffice:a11y`): captions, the status palette and shapes,
 // motion comfort, UI scale and readability. Pure, so old, partial or corrupt values are tested without a browser. The
 // defaults are exactly the office as it was, so nothing changes for anyone until they pick something.
 

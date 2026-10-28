@@ -199,7 +199,7 @@ describe('Voice', () => {
     });
 
   beforeEach(async () => {
-    dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cubefarm-voice-'));
+    dir = await fs.mkdtemp(path.join(os.tmpdir(), 'sareoffice-voice-'));
     settings = { ...DEFAULT_VOICE, provider: 'elevenlabs' };
     listen = { ...DEFAULT_LISTEN, provider: 'elevenlabs' };
     notes = [];
@@ -251,7 +251,7 @@ describe('Voice', () => {
   it('speaks CEO messages once, cached, and 404s for the rest', async () => {
     const v = make();
     await v.setKey('sk_good');
-    expect((await v.messageAudio(1)).toString()).toBe('mp3:Floor 2 shipped number 12.');
+    expect((await v.messageAudio(1)).toString()).toBe('mp3:Floor 2 shipped número 12.');
     await v.messageAudio(1);
     expect(calls.synth).toBe(1);
     expect(await status(v.messageAudio(2))).toBe(404);
@@ -363,7 +363,7 @@ describe('Voice', () => {
     const v = make();
     await v.setKey('sk_good');
     const first = await v.standupAudio(3, 'morning');
-    expect(first.toString()).toBe('mp3:Morning team, three new features today!');
+    expect(first.toString()).toBe('mp3:¡Buenos días, equipo! Hoy tenemos tres funcionalidades nuevas.');
     expect(await v.standupAudio(3, 'morning')).toEqual(first);
     expect(calls.synth).toBe(1);
     await v.standupAudio(2, 'morning');
@@ -399,7 +399,7 @@ describe('Voice', () => {
     it('needs a key, and says where to add it', async () => {
       const err = await make().transcribe(clip, webm, 2400).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpError);
-      expect(err).toMatchObject({ status: 409, message: expect.stringContaining('Add your ElevenLabs API key in Settings → Voice') });
+      expect(err).toMatchObject({ status: 409, message: expect.stringContaining('Añade tu clave API de ElevenLabs en Ajustes → Voz') });
       expect(heard).toEqual([]);
     });
 
@@ -425,7 +425,7 @@ describe('Voice', () => {
       const v = make();
       await v.setKey('sk_good');
       failWith = 403;
-      expect(await v.transcribe(clip, webm, 2400).catch((e: unknown) => e)).toMatchObject({ status: 502, message: expect.stringContaining('may not use Speech to Text') });
+      expect(await v.transcribe(clip, webm, 2400).catch((e: unknown) => e)).toMatchObject({ status: 502, message: expect.stringContaining('no tiene permiso para Speech to Text') });
       failWith = 401;
       expect(await status(v.transcribe(clip, webm, 2400))).toBe(502);
       expect(notes).toEqual([KEY_REJECTED_NOTE]);

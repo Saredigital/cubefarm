@@ -211,17 +211,17 @@ export function toHold(pr: KnownPull, f: FloorState): number[] {
 
 /** "Ada", "Ada and Linus", "Ada, Linus and Grace". */
 export function nameList(names: readonly string[]): string {
-  return names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : (names[0] ?? '');
+  return names.length > 1 ? `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}` : (names[0] ?? '');
 }
 
 /** What happened to it, e.g. "issue #192 was closed", "PR #198 on acme/app was merged". */
 export function closedWhy(c: Closure, repo?: string): string {
-  const what = `${c.kind === 'issue' ? 'issue' : 'PR'} #${c.number}${repo ? ` on ${repo}` : ''}`;
-  if (c.kind === 'pr') return `${what} was ${c.merged ? 'merged' : 'closed'}`;
-  return `${what} was closed${c.mergedBy.length ? ` by PR #${c.mergedBy[0].number}` : ''}`;
+  const what = `${c.kind === 'issue' ? 'issue' : 'PR'} #${c.number}${repo ? ` en ${repo}` : ''}`;
+  if (c.kind === 'pr') return `${what} se ha ${c.merged ? 'fusionado' : 'cerrado'}`;
+  return `${what} se ha cerrado${c.mergedBy.length ? ` mediante la PR #${c.mergedBy[0].number}` : ''}`;
 }
 
 /** The one phone message naming who a closure stopped, e.g. "🛑 Stopped Barbara: issue #192 on acme/app was closed." */
 export function stoppedMessage(names: readonly string[], c: Closure, repo: string): string {
-  return `🛑 Stopped ${nameList(names)}: ${closedWhy(c, repo)}.`;
+  return `🛑 Se ha parado a ${nameList(names)}: ${closedWhy(c, repo)}.`;
 }

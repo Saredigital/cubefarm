@@ -81,7 +81,7 @@ describe("the demo CEO's team sizes", () => {
 
   it('grows a floor when ready issues outnumber its free agents, up to six and the max', () => {
     expect(demoGrow(floor({ free: 1 }), 3)).toMatchObject({ size: 4 });
-    expect(demoGrow(floor({ free: 1 }), 3)?.reason).toContain('3 issues are ready to start on floor 2 and 1 agent is free');
+    expect(demoGrow(floor({ free: 1 }), 3)?.reason).toContain('3 issues están listos para empezar en la planta 2 y 1 agente está libre');
     expect(demoGrow(floor(), 12)?.size).toBe(6);
     expect(demoGrow(floor({ max: 3 }), 12)?.size).toBe(3);
     expect(demoGrow(floor({ size: 6 }), 12)).toBeNull(); // big enough: more agents mostly add conflicts

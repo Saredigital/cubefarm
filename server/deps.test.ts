@@ -12,7 +12,7 @@ const state = (s: Partial<DepsState>): DepsState => {
   return { pkg, lock, hash: depsHash(pkg ?? '', lock), marker: '', nodeModules: false, ...s };
 };
 
-const ROOT = await fs.mkdtemp(path.join(os.tmpdir(), 'cubefarm deps '));
+const ROOT = await fs.mkdtemp(path.join(os.tmpdir(), 'sareoffice deps '));
 afterAll(() => fs.rm(ROOT, { recursive: true, force: true, maxRetries: 5 }));
 let seq = 0;
 /** A checkout with the given files; node_modules (with a marker for its current hash) when `installed`. */
@@ -92,10 +92,10 @@ describe('installDesk', () => {
       await fs.mkdir(path.join(d, 'node_modules'), { recursive: true });
     };
     expect(await installDesk(dir, { log: (l) => lines.push(...l), installing: () => undefined }, install)).toBe('installed');
-    expect(lines).toContain('Installing dependencies…');
+    expect(lines).toContain('Instalando dependencias…');
     expect(await installDesk(dir, { log: (l) => lines.push(...l), installing: () => undefined }, install)).toBe('skipped');
     expect(runs).toEqual([dir]);
-    expect(lines.at(-1)).toMatch(/skipping/);
+    expect(lines.at(-1)).toMatch(/no hace falta repetirla/);
   });
 
   it('leaves a checkout without a lockfile, or without package.json, alone', async () => {
@@ -113,7 +113,7 @@ describe('installDesk', () => {
     });
     expect(failed).toBe('failed');
     expect(lines.at(-1)).toMatch(/took longer than 15 minutes/);
-    expect(depsPromptLine(failed)).toMatch(/run npm install yourself/);
+    expect(depsPromptLine(failed)).toMatch(/ejecuta npm install antes de empezar/);
   });
 
   it(`runs at most ${MAX_DESK_INSTALLS} installs at once; a third waits for a free slot`, async () => {
@@ -163,7 +163,7 @@ describe('createLimiter', () => {
 
 describe('depsPromptLine', () => {
   it('says the dependencies are installed after an install or a skip, and nothing when the office left them alone', () => {
-    expect(depsPromptLine('installed')).toBe('Dependencies are already installed for this checkout; run npm install only if you change package.json.');
+    expect(depsPromptLine('installed')).toBe('Las dependencias de este checkout ya están instaladas; ejecuta npm install solo si cambias package.json.');
     expect(depsPromptLine('skipped')).toBe(depsPromptLine('installed'));
     expect(depsPromptLine('agent')).toBe('');
     expect(depsPromptLine('none')).toBe('');

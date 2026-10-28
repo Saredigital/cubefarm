@@ -11,9 +11,9 @@ export function swVersion(indexHtml: string, packageVersion: string, commit: str
 
 /** The worker itself. Only `version` changes between offices. */
 export function serviceWorkerSource(version: string): string {
-  return `// cubefarm's service worker (server/pwa.ts). Version ${version}.
+  return `// sareoffice's service worker (server/pwa.ts). Version ${version}.
 const VERSION = ${JSON.stringify(version)};
-const CACHE = 'cubefarm-shell-' + VERSION;
+const CACHE = 'sareoffice-shell-' + VERSION;
 const PRECACHE = ['/', '/manifest.webmanifest', '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
@@ -23,7 +23,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('cubefarm-shell-') && k !== CACHE).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith('sareoffice-shell-') && k !== CACHE).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
@@ -63,7 +63,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-  let n = { title: 'cubefarm', body: '', tag: 'cubefarm', url: '/' };
+  let n = { title: 'sareoffice', body: '', tag: 'sareoffice', url: '/' };
   try {
     n = Object.assign(n, event.data ? event.data.json() : {});
   } catch {}
@@ -77,7 +77,7 @@ self.addEventListener('notificationclick', (event) => {
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
       const open = list.find((c) => new URL(c.url).origin === self.location.origin);
       if (!open) return self.clients.openWindow(url);
-      open.postMessage({ type: 'cubefarm:open', url });
+      open.postMessage({ type: 'sareoffice:open', url });
       return open.focus();
     }),
   );

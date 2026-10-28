@@ -4,12 +4,12 @@ import type { NotifyChannel, NotifyEvent, NotifySettings, NotifyWebhook } from '
 
 /** In the order the settings list them. */
 export const NOTIFY_EVENTS: { id: NotifyEvent; label: string }[] = [
-  { id: 'needsHuman', label: 'A pull request needs me' },
-  { id: 'ceoMessage', label: 'A message from the CEO' },
-  { id: 'hire', label: 'A team change waits for my decision' },
-  { id: 'agentError', label: 'Someone is stuck in an error for over 10 minutes' },
-  { id: 'usage', label: "Claude's usage limit pauses or paces the office" },
-  { id: 'merge', label: 'Every merge' },
+  { id: 'needsHuman', label: 'Una pull request me necesita' },
+  { id: 'ceoMessage', label: 'Un mensaje del CEO' },
+  { id: 'hire', label: 'Un cambio en el equipo espera mi decisión' },
+  { id: 'agentError', label: 'Alguien lleva más de 10 minutos atascado en un error' },
+  { id: 'usage', label: 'El límite de uso de Claude pausa o frena la oficina' },
+  { id: 'merge', label: 'Cada merge' },
 ];
 
 export const NOTIFY_WEBHOOKS: NotifyWebhook[] = ['ntfy'];

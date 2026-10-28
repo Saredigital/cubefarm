@@ -1,4 +1,4 @@
-// The saved sound settings (localStorage `cubefarm:audio`): master volume, mute, one level per sound group and how
+// The saved sound settings (localStorage `sareoffice:audio`): master volume, mute, one level per sound group and how
 // much the agents chat. Pure, so loading old or corrupt values is tested without a browser.
 
 /**

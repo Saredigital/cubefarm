@@ -7,7 +7,7 @@ import { BOX_HELPERS } from './boxHelpers.ts';
 import { EventLines } from './boxCli.ts';
 
 // The helpers run in a Box with its node; here they run with this one, in a temp folder, the way the CLIs call them.
-const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cubefarm-boxhelpers-'));
+const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sareoffice-boxhelpers-'));
 for (const [name, source] of Object.entries(BOX_HELPERS)) fs.writeFileSync(path.join(dir, name), source);
 afterAll(() => fs.rmSync(dir, { recursive: true, force: true }));
 
@@ -47,7 +47,7 @@ describe('statusline.cjs', () => {
   it("passes on cost and limits only when they change, and prints the office's line", () => {
     const file = path.join(dir, 'status.jsonl');
     const status = JSON.stringify({ session_id: 's', cost: { total_cost_usd: 0.5 }, rate_limits: {} });
-    expect(node('statusline.cjs', [file], status, { CUBEFARM_STATUS: '🏢 cubefarm · Ada' }).stdout).toBe('🏢 cubefarm · Ada');
+    expect(node('statusline.cjs', [file], status, { SAREOFFICE_STATUS: '🏢 sareoffice · Ada' }).stdout).toBe('🏢 sareoffice · Ada');
     node('statusline.cjs', [file], status);
     node('statusline.cjs', [file], JSON.stringify({ session_id: 's', cost: { total_cost_usd: 0.7 }, rate_limits: {} }));
     expect(events(file).map((e) => (e.cost as { total_cost_usd: number }).total_cost_usd)).toEqual([0.5, 0.7]);
@@ -59,7 +59,7 @@ describe('notify.cjs and codex-hook.cjs', () => {
     const file = path.join(dir, 'codex.jsonl');
     node('notify.cjs', [file, JSON.stringify({ type: 'agent-turn-complete', 'thread-id': 't1', 'last-assistant-message': 'PR opened', 'input-messages': ['Fix #3'] })]);
     node('notify.cjs', [file, JSON.stringify({ type: 'something-else' })]);
-    node('codex-hook.cjs', [], JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'shell' }), { CUBEFARM_HOOK_URL: file });
+    node('codex-hook.cjs', [], JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'shell' }), { SAREOFFICE_HOOK_URL: file });
     expect(events(file)).toEqual([
       { hook_event_name: 'TurnComplete', session_id: 't1', last_assistant_message: 'PR opened', input: 'Fix #3' },
       { hook_event_name: 'PreToolUse', tool_name: 'shell' },
@@ -77,7 +77,7 @@ describe('launch.cjs', () => {
     const r = node('launch.cjs', [spec]);
     expect(r.status).toBe(3);
     expect(r.stdout.trim()).toBe(prompt);
-    expect(events(file)).toEqual([{ hook_event_name: 'CubefarmExit', code: 3 }]);
+    expect(events(file)).toEqual([{ hook_event_name: 'SareofficeExit', code: 3 }]);
   });
 
   it("notes a CLI that couldn't start", () => {
@@ -85,7 +85,7 @@ describe('launch.cjs', () => {
     const spec = path.join(dir, 'launch-missing.json');
     fs.writeFileSync(spec, JSON.stringify({ file: path.join(dir, 'no-such-cli'), args: [], cwd: dir, events: file }));
     expect(node('launch.cjs', [spec]).status).toBe(127);
-    expect(events(file)).toEqual([{ hook_event_name: 'CubefarmExit', code: 127 }]);
+    expect(events(file)).toEqual([{ hook_event_name: 'SareofficeExit', code: 127 }]);
   });
 });
 

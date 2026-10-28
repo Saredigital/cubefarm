@@ -9,21 +9,21 @@ import { Panel } from './Panel';
 import { tuneChannel, useChannel, useWatch } from './theatre';
 
 const STATUS_LABEL: Record<PreviewStatus, string> = {
-  unconfigured: 'not set up',
-  stopped: 'stopped',
-  preparing: 'checking out',
-  installing: 'installing',
-  starting: 'starting',
-  running: 'running',
+  unconfigured: 'sin configurar',
+  stopped: 'detenida',
+  preparing: 'descargando código',
+  installing: 'instalando',
+  starting: 'arrancando',
+  running: 'en marcha',
   error: 'error',
 };
 
 const ACTIVE: PreviewStatus[] = ['preparing', 'installing', 'starting', 'running'];
 
 const STEPS: { status: PreviewStatus; label: string }[] = [
-  { status: 'preparing', label: 'Check out the code' },
-  { status: 'installing', label: 'Install dependencies' },
-  { status: 'starting', label: 'Start the app' },
+  { status: 'preparing', label: 'Descargar el código' },
+  { status: 'installing', label: 'Instalar las dependencias' },
+  { status: 'starting', label: 'Arrancar la app' },
 ];
 
 // The last width picked, so reopening the viewer keeps it.
@@ -52,14 +52,14 @@ function parseEnv(text: string): { env: Record<string, string>; error: string | 
     if (!line || line.startsWith('#')) continue;
     const eq = line.indexOf('=');
     const key = eq > 0 ? line.slice(0, eq).trim() : '';
-    if (!key) return { env, error: `Line ${i + 1}: write it as KEY=value.` };
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) return { env, error: `Line ${i + 1}: “${key}” is not a valid variable name.` };
+    if (!key) return { env, error: `Línea ${i + 1}: escríbela como KEY=value.` };
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) return { env, error: `Línea ${i + 1}: «${key}» no es un nombre de variable válido.` };
     env[key] = line.slice(eq + 1).trim();
   }
   return { env, error: null };
 }
 
-export function PreviewSettings({ repo, saveLabel = 'Save', onSaved }: { repo: RepoView; saveLabel?: string; onSaved?: () => void }) {
+export function PreviewSettings({ repo, saveLabel = 'Guardar', onSaved }: { repo: RepoView; saveLabel?: string; onSaved?: () => void }) {
   const saved = { command: repo.previewConfig.command ?? '', env: envText(repo.previewConfig.env) };
   const [command, setCommand] = useState(saved.command);
   const [env, setEnv] = useState(saved.env);
@@ -95,31 +95,31 @@ export function PreviewSettings({ repo, saveLabel = 'Save', onSaved }: { repo: R
       }}
     >
       <label className="field">
-        <span>Run command</span>
+        <span>Comando de arranque</span>
         <input
           value={command}
           onChange={(e) => setCommand(e.target.value)}
-          placeholder={unconfigured ? 'e.g. python -m http.server {port}' : 'Auto-detected: npm run dev, else npm start, else npm run preview'}
+          placeholder={unconfigured ? 'p. ej. python -m http.server {port}' : 'Detección automática: npm run dev; si no, npm start; si no, npm run preview'}
           spellCheck={false}
         />
       </label>
       <label className="field">
-        <span>Environment (KEY=value, one per line)</span>
+        <span>Entorno (KEY=value, uno por línea)</span>
         <textarea value={env} onChange={(e) => setEnv(e.target.value)} rows={3} placeholder={'API_URL=http://localhost:{port}/api\nDATA_DIR={tmp}'} spellCheck={false} />
       </label>
       <p className="muted small">
-        Runs from the repo root in the floor's own preview worktree. <code>{'{port}'}</code> is this floor's port ({repo.preview.port}) and <code>PORT</code> is always set;{' '}
-        <code>{'{tmp}'}</code> is a scratch folder.{!unconfigured && ' Leave the command empty to use the auto-detected npm script.'}
+        Se ejecuta desde la raíz del repo, en el worktree de vista previa de la planta. <code>{'{port}'}</code> es el puerto de esta planta ({repo.preview.port}) y <code>PORT</code> siempre está definido;{' '}
+        <code>{'{tmp}'}</code> es una carpeta temporal.{!unconfigured && ' Deja el comando vacío para usar el script de npm detectado automáticamente.'}
       </p>
       {envChars > PREVIEW_ENV_MAX_CHARS * 0.8 && (
         <p className="muted small">
-          Environment: {envChars.toLocaleString('en-US')} of {PREVIEW_ENV_MAX_CHARS.toLocaleString('en-US')} characters (each variable counts as KEY=value).
+          Entorno: {envChars.toLocaleString('es-ES')} de {PREVIEW_ENV_MAX_CHARS.toLocaleString('es-ES')} caracteres (cada variable cuenta como KEY=value).
         </p>
       )}
       {error && <div className="term-error">⚠️ {error}</div>}
       <div className="row">
         <button className="btn btn-small btn-good" disabled={busy || (!dirty && !onSaved) || (unconfigured && !command.trim())}>
-          {busy ? 'Saving…' : saveLabel}
+          {busy ? 'Guardando…' : saveLabel}
         </button>
         {dirty && (
           <button
@@ -131,7 +131,7 @@ export function PreviewSettings({ repo, saveLabel = 'Save', onSaved }: { repo: R
               setError(null);
             }}
           >
-            Undo changes
+            Deshacer los cambios
           </button>
         )}
       </div>
@@ -191,7 +191,7 @@ function PreviewStage({
           ref={frameRef}
           className="app-frame"
           src={src}
-          title={`${repo.fullName.split('/')[1]} app (${label})`}
+          title={`App ${repo.fullName.split('/')[1]} (${label})`}
           sandbox={IFRAME_SANDBOX}
           allow="clipboard-read; clipboard-write; fullscreen; autoplay"
           onLoad={() => setLoaded(true)}
@@ -199,9 +199,9 @@ function PreviewStage({
         />
         {slow && !loaded && (
           <div className="app-frame-hint" role="status">
-            <b>The app isn't showing up here.</b> It may refuse to be shown inside another page (X-Frame-Options or a CSP frame-ancestors rule).{' '}
+            <b>La app no aparece aquí.</b> Puede que no permita mostrarse dentro de otra página (X-Frame-Options o una regla CSP frame-ancestors).{' '}
             <a href={src} target="_blank" rel="noreferrer">
-              Open it in a new tab ↗
+              Ábrela en una pestaña nueva ↗
             </a>
           </div>
         )}
@@ -213,12 +213,12 @@ function PreviewStage({
     return (
       <div className={`app-state ${compact ? 'app-state-compact' : ''}`} role="status">
         <div className="app-state-icon app-spin">⚙️</div>
-        <h3>Starting {label}…</h3>
+        <h3>Arrancando {label}…</h3>
         <ol className="app-steps">
           {STEPS.map((s, i) => (
             <li key={s.status} className={i < at ? 'app-step-done' : i === at ? 'app-step-now' : ''}>
               {i < at ? '✓' : i === at ? '●' : '○'} {s.label}
-              {s.status === 'starting' && preview.port ? ` on port ${preview.port}` : ''}
+              {s.status === 'starting' && preview.port ? ` en el puerto ${preview.port}` : ''}
             </li>
           ))}
         </ol>
@@ -229,17 +229,17 @@ function PreviewStage({
   if (preview.status === 'error') {
     return (
       <div className={`app-state app-state-left ${compact ? 'app-state-compact' : ''}`}>
-        <h3>⚠️ {label} didn't run</h3>
-        <div className="term-error">{preview.error ?? 'The app stopped unexpectedly.'}</div>
-        <pre className="term app-log" aria-label="Last output">
-          {preview.logTail.length ? preview.logTail.join('\n') : '(no output)'}
+        <h3>⚠️ {label} no ha arrancado</h3>
+        <div className="term-error">{preview.error ?? 'La app se ha detenido de forma inesperada.'}</div>
+        <pre className="term app-log" aria-label="Última salida">
+          {preview.logTail.length ? preview.logTail.join('\n') : '(sin salida)'}
         </pre>
         <div className="row wrap">
           <button className="btn btn-good" disabled={busy} onClick={onStart}>
-            ↻ Try again
+            ↻ Reintentar
           </button>
           <button className="btn" aria-expanded={showSettings} onClick={() => setShowSettings((v) => !v)}>
-            ⚙️ Run settings
+            ⚙️ Ajustes de arranque
           </button>
         </div>
         {showSettings && <PreviewSettings repo={repo} />}
@@ -249,28 +249,28 @@ function PreviewStage({
   if (preview.status === 'unconfigured') {
     return (
       <div className="app-state app-state-left">
-        <h3>🛠️ How should the office run this app?</h3>
-        <p className="muted">{preview.error ?? 'This floor has no package.json to fall back on.'} Give it a command that serves the app on the floor's port.</p>
-        <PreviewSettings repo={repo} saveLabel="Save & start" onSaved={onStart} />
+        <h3>🛠️ ¿Cómo debe arrancar la oficina esta app?</h3>
+        <p className="muted">{preview.error ?? 'Esta planta no tiene un package.json al que recurrir.'} Indica un comando que sirva la app en el puerto de la planta.</p>
+        <PreviewSettings repo={repo} saveLabel="Guardar y arrancar" onSaved={onStart} />
       </div>
     );
   }
   return (
     <div className={`app-state ${compact ? 'app-state-compact' : ''}`}>
       <div className="app-state-icon">🖥️</div>
-      <h3>{label} isn't running</h3>
+      <h3>{label} no está en marcha</h3>
       <p className="muted">
         {preview.pr
-          ? `Start it to try the PR's head right here, beside ${repo.defaultBranch}. It runs from a worktree of its own and stops after a while unwatched.`
-          : `Start it to use it right here. It runs from the floor's own preview worktree on port ${preview.port}.`}
+          ? `Arráncala para probar la última versión de la PR aquí mismo, junto a ${repo.defaultBranch}. Se ejecuta en su propio worktree y se detiene si nadie la mira durante un rato.`
+          : `Arráncala para usarla aquí mismo. Se ejecuta en el worktree de vista previa de la planta, en el puerto ${preview.port}.`}
       </p>
       <button className="btn btn-good" disabled={busy} onClick={onStart}>
-        ▶ Start {label}
+        ▶ Arrancar {label}
       </button>
       {!preview.pr && !compact && (
         <>
           <button className="btn btn-ghost btn-small" aria-expanded={showSettings} onClick={() => setShowSettings((v) => !v)}>
-            ⚙️ Run settings
+            ⚙️ Ajustes de arranque
           </button>
           {showSettings && (
             <div className="app-state-left app-settings">
@@ -291,8 +291,8 @@ function ChannelBar({ repo, channel, onPick }: { repo: RepoView; channel: Channe
   const qa = useStore((s) => s.qa);
   const pulls = channelPulls(repo.pulls);
   return (
-    <div className="channels" role="tablist" aria-label="Channels">
-      <button role="tab" aria-selected={channel == null} className={`channel ${channel == null ? 'channel-on' : ''}`} onClick={() => onPick(null)} title={`The floor's app on ${repo.defaultBranch}`}>
+    <div className="channels" role="tablist" aria-label="Canales">
+      <button role="tab" aria-selected={channel == null} className={`channel ${channel == null ? 'channel-on' : ''}`} onClick={() => onPick(null)} title={`La app de la planta en ${repo.defaultBranch}`}>
         <span className={`led led-${channelLed(repo.preview.status)}`} aria-hidden /> {repo.defaultBranch}
       </button>
       {pulls.map((p) => {
@@ -303,19 +303,19 @@ function ChannelBar({ repo, channel, onPick }: { repo: RepoView; channel: Channe
           </button>
         );
       })}
-      {pulls.length === 0 && <span className="muted small channels-empty">No open PRs: each one gets a channel here, to try it running beside {repo.defaultBranch}.</span>}
+      {pulls.length === 0 && <span className="muted small channels-empty">No hay PRs abiertas: cada una tendrá aquí su canal, para probarla en marcha junto a {repo.defaultBranch}.</span>}
     </div>
   );
 }
 
-const CHECKS_LABEL: Record<PullInfo['checks'], string> = { passing: '✅ passing', failing: '❌ failing', pending: '⏳ running', none: 'none' };
+const CHECKS_LABEL: Record<PullInfo['checks'], string> = { passing: '✅ en verde', failing: '❌ en rojo', pending: '⏳ en curso', none: 'ninguno' };
 const CHECK_ICON = { pass: '✅', fail: '❌', skip: '⏭️' } as const;
 
 /** The PR beside its app: GitHub's checks, and QA's latest report with its screenshots. */
 function QaPanel({ repo, pull, qa }: { repo: RepoView; pull: PullInfo; qa?: QaView }) {
   const shots = qa?.shots ?? [];
   return (
-    <aside className="qa-side" aria-label={`PR #${pull.number}: checks and QA`}>
+    <aside className="qa-side" aria-label={`PR #${pull.number}: checks y QA`}>
       <h4 className="qa-side-title">
         <a href={pull.url} target="_blank" rel="noreferrer">
           PR #{pull.number} ↗
@@ -329,7 +329,7 @@ function QaPanel({ repo, pull, qa }: { repo: RepoView; pull: PullInfo; qa?: QaVi
         <a href={`${pull.url}/checks`} target="_blank" rel="noreferrer">
           Checks: {CHECKS_LABEL[pull.checks]}
         </a>
-        {pull.isDraft && <span>draft</span>}
+        {pull.isDraft && <span>borrador</span>}
       </div>
       {pull.failedChecks.length > 0 && (
         <ul className="qa-failed small">
@@ -350,14 +350,14 @@ function QaPanel({ repo, pull, qa }: { repo: RepoView; pull: PullInfo; qa?: QaVi
         <>
           <div className="qa-side-status">
             <span className={`qa-badge qa-badge-${qa.status}`}>{QA_BADGE[qa.status]}</span>
-            <span className="muted small">round {qa.round}</span>
+            <span className="muted small">ronda {qa.round}</span>
             {qa.commentUrl && (
               <a className="small" href={qa.commentUrl} target="_blank" rel="noreferrer">
-                Full report ↗
+                Informe completo ↗
               </a>
             )}
           </div>
-          {qa.summary ? <Markdown className="qa-summary" text={qa.summary} /> : <p className="muted small">{qa.status === 'testing' ? 'QA is testing it now.' : 'No QA report yet.'}</p>}
+          {qa.summary ? <Markdown className="qa-summary" text={qa.summary} /> : <p className="muted small">{qa.status === 'testing' ? 'QA la está probando ahora.' : 'Todavía no hay informe de QA.'}</p>}
           {qa.checks.length > 0 && (
             <ul className="qa-checks">
               {qa.checks.map((c, i) => (
@@ -386,7 +386,7 @@ function QaPanel({ repo, pull, qa }: { repo: RepoView; pull: PullInfo; qa?: QaVi
           )}
         </>
       ) : (
-        <p className="muted small">QA hasn't tested this PR yet.</p>
+        <p className="muted small">QA todavía no ha probado esta PR.</p>
       )}
     </aside>
   );
@@ -453,8 +453,8 @@ function CompareView({
   // that isn't passed on again.
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
-      const d = e.data as { cubefarmSync?: unknown; x?: unknown; y?: unknown; path?: unknown } | null;
-      if (!d || (d.cubefarmSync !== 'scroll' && d.cubefarmSync !== 'path')) return;
+      const d = e.data as { sareofficeSync?: unknown; x?: unknown; y?: unknown; path?: unknown } | null;
+      if (!d || (d.sareofficeSync !== 'scroll' && d.sareofficeSync !== 'path')) return;
       const from: Side | null = e.source && e.source === frames.main.current?.contentWindow ? 'main' : e.source && e.source === frames.pr.current?.contentWindow ? 'pr' : null;
       if (!from) return;
       const to: Side = from === 'main' ? 'pr' : 'main';
@@ -462,11 +462,11 @@ function CompareView({
       if (!sync) return;
       const target = frames[to].current?.contentWindow;
       const now = Date.now();
-      if (d.cubefarmSync === 'scroll' && now > driven.current[from]) {
+      if (d.sareofficeSync === 'scroll' && now > driven.current[from]) {
         driven.current[to] = now + 250;
-        target?.postMessage({ cubefarmSyncTo: 'scroll', x: d.x, y: d.y }, '*');
-      } else if (d.cubefarmSync === 'path' && typeof d.path === 'string' && relayPath(paths.current, from, d.path, now)) {
-        target?.postMessage({ cubefarmSyncTo: 'path', path: d.path }, '*');
+        target?.postMessage({ sareofficeSyncTo: 'scroll', x: d.x, y: d.y }, '*');
+      } else if (d.sareofficeSync === 'path' && typeof d.path === 'string' && relayPath(paths.current, from, d.path, now)) {
+        target?.postMessage({ sareofficeSyncTo: 'path', path: d.path }, '*');
       }
     };
     window.addEventListener('message', onMessage);
@@ -481,7 +481,7 @@ function CompareView({
       <b>{side === 'main' ? repo.defaultBranch : p.ref}</b>
       {p.commit && <code>{p.commit}</code>}
       {where[side] && <span className="muted">{where[side]}</span>}
-      {sync && where[side] !== null && <span className="compare-synced">⇅ synced</span>}
+      {sync && where[side] !== null && <span className="compare-synced">⇅ sincronizado</span>}
     </div>
   );
   return (
@@ -497,11 +497,11 @@ function CompareView({
         }}
       >
         <label className="compare-path">
-          <span className="muted small">Path</span>
-          <input value={draft} onChange={(e) => setDraft(e.target.value)} spellCheck={false} aria-label="Path to open on both sides" />
+          <span className="muted small">Ruta</span>
+          <input value={draft} onChange={(e) => setDraft(e.target.value)} spellCheck={false} aria-label="Ruta que abrir en los dos lados" />
         </label>
-        <button className="btn btn-small">Open on both</button>
-        <label className="toggle small" title="Shows each side through the office so it can follow the other's scrolling and links. Works for plain web pages that scroll the page itself.">
+        <button className="btn btn-small">Abrir en los dos</button>
+        <label className="toggle small" title="Muestra cada lado a través de la oficina para que siga el desplazamiento y los enlaces del otro. Funciona con páginas web sencillas que desplazan la propia página.">
           <input
             type="checkbox"
             checked={sync}
@@ -512,7 +512,7 @@ function CompareView({
               paths.current = newPathSync();
             }}
           />{' '}
-          Sync scrolling
+          Sincronizar el desplazamiento
         </label>
       </form>
       <div className="compare-sides">
@@ -522,7 +522,7 @@ function CompareView({
         </div>
         <div className="compare-side">
           {label(pr, 'pr')}
-          <PreviewStage repo={repo} preview={pr} label={pr.ref ?? 'the PR'} src={src(pr, 'pr')} width={width} reloads={reloads + opened} busy={busy} onStart={onStartPr} frameRef={frames.pr} compact />
+          <PreviewStage repo={repo} preview={pr} label={pr.ref ?? 'la PR'} src={src(pr, 'pr')} width={width} reloads={reloads + opened} busy={busy} onStart={onStartPr} frameRef={frames.pr} compact />
         </div>
       </div>
     </div>
@@ -562,7 +562,7 @@ export function AppViewer({ repoId, pr }: { repoId: string; pr?: number | null }
   if (!repo) {
     return (
       <Panel title="App">
-        <p className="muted">This floor no longer exists.</p>
+        <p className="muted">Esta planta ya no existe.</p>
       </Panel>
     );
   }
@@ -612,19 +612,19 @@ export function AppViewer({ repoId, pr }: { repoId: string; pr?: number | null }
     >
       <div ref={toolbar}>
         <ChannelBar repo={repo} channel={channel} onPick={(n) => tuneChannel(repo.id, n)} />
-        <div className="app-toolbar" role="toolbar" aria-label="App controls">
+        <div className="app-toolbar" role="toolbar" aria-label="Controles de la app">
           {active ? (
             <>
-              <button className="btn btn-small" disabled={busy} onClick={() => void (channel == null ? startMain() : startPr(true))} title={`Restart ${label}${channel == null ? '' : " from the PR's latest commit"}`}>
-                ↻ Restart
+              <button className="btn btn-small" disabled={busy} onClick={() => void (channel == null ? startMain() : startPr(true))} title={`Reiniciar ${label}${channel == null ? '' : ' desde el último commit de la PR'}`}>
+                ↻ Reiniciar
               </button>
               <button className="btn btn-small btn-bad" disabled={busy} onClick={() => void run(() => (channel == null ? api.stopPreview(repo.id) : api.stopPrPreview(repo.id, channel)))}>
-                ■ Stop
+                ■ Detener
               </button>
             </>
           ) : (
             <button className="btn btn-small btn-good" disabled={busy || current.status === 'unconfigured'} onClick={() => void (channel == null ? startMain() : startPr())}>
-              ▶ Start
+              ▶ Arrancar
             </button>
           )}
           {prView && (
@@ -635,20 +635,20 @@ export function AppViewer({ repoId, pr }: { repoId: string; pr?: number | null }
                 lastCompare = !compare;
                 setCompare(!compare);
               }}
-              title={`${repo.defaultBranch} on the left, PR #${channel} on the right`}
+              title={`${repo.defaultBranch} a la izquierda, PR #${channel} a la derecha`}
             >
-              ⇆ Compare with {repo.defaultBranch}
+              ⇆ Comparar con {repo.defaultBranch}
             </button>
           )}
-          <button className="btn btn-small" disabled={current.status !== 'running' && !(comparing && main.status === 'running')} onClick={() => setReloads((n) => n + 1)} title="Reload the app">
-            ⟳ Reload
+          <button className="btn btn-small" disabled={current.status !== 'running' && !(comparing && main.status === 'running')} onClick={() => setReloads((n) => n + 1)} title="Recargar la app">
+            ⟳ Recargar
           </button>
-          <div className="seg" role="group" aria-label="Viewport width">
+          <div className="seg" role="group" aria-label="Ancho de la ventana">
             <button className={`seg-btn ${width === 'desktop' ? 'seg-on' : ''}`} aria-pressed={width === 'desktop'} onClick={() => pickWidth('desktop')}>
-              🖥 Desktop
+              🖥 Escritorio
             </button>
-            <button className={`seg-btn ${width === 'phone' ? 'seg-on' : ''}`} aria-pressed={width === 'phone'} onClick={() => pickWidth('phone')} title="390px wide">
-              📱 Phone
+            <button className={`seg-btn ${width === 'phone' ? 'seg-on' : ''}`} aria-pressed={width === 'phone'} onClick={() => pickWidth('phone')} title="390 px de ancho">
+              📱 Móvil
             </button>
           </div>
           <span className="spacer" />
@@ -666,11 +666,11 @@ export function AppViewer({ repoId, pr }: { repoId: string; pr?: number | null }
           )}
           {current.url ? (
             <a className="btn btn-small" href={current.url} target="_blank" rel="noreferrer">
-              Open in new tab ↗
+              Abrir en una pestaña nueva ↗
             </a>
           ) : (
             <button className="btn btn-small" disabled>
-              Open in new tab ↗
+              Abrir en una pestaña nueva ↗
             </button>
           )}
         </div>
@@ -688,9 +688,9 @@ export function AppViewer({ repoId, pr }: { repoId: string; pr?: number | null }
       </div>
       {current.status === 'running' && (
         <p className="muted small app-foot">
-          Blank, or “refused to connect”? The app may block being framed: use <b>Open in new tab</b>. Keys typed in the app stay in the app, so <kbd>Esc</kbd> only closes this panel
-          when focus is outside it; <b>✕</b> always does.
-          {prView && ' A PR preview stops after a while with nobody watching it, and when its PR merges or closes.'}
+          ¿En blanco o «conexión rechazada»? Puede que la app no permita mostrarse en un marco: usa <b>Abrir en una pestaña nueva</b>. Las teclas que pulses en la app se quedan en la app, así que <kbd>Esc</kbd> solo cierra este panel
+          cuando el foco está fuera de ella; <b>✕</b> lo cierra siempre.
+          {prView && ' La vista previa de una PR se detiene si nadie la mira durante un rato, y cuando su PR se fusiona o se cierra.'}
         </p>
       )}
     </Panel>

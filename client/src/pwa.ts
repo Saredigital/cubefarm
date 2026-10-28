@@ -8,7 +8,7 @@ export function registerServiceWorker() {
   navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch((err) => console.warn('no service worker:', err));
   // A tapped notification asks the open office to show what it's about.
   navigator.serviceWorker.addEventListener('message', (e: MessageEvent<{ type?: string; url?: string }>) => {
-    if (e.data?.type === 'cubefarm:open') window.dispatchEvent(new CustomEvent('cubefarm:open', { detail: e.data.url }));
+    if (e.data?.type === 'sareoffice:open') window.dispatchEvent(new CustomEvent('sareoffice:open', { detail: e.data.url }));
   });
 }
 
@@ -37,7 +37,7 @@ function sameKey(sub: PushSubscription, key: Uint8Array) {
 /** Asks to show notifications, subscribes with the office's key and tells the office. Throws why not. */
 export async function enablePush(): Promise<void> {
   if (Notification.permission !== 'granted' && (await Notification.requestPermission()) !== 'granted') {
-    throw new Error("Notifications are blocked for the office in this browser's site settings.");
+    throw new Error('Las notificaciones de la oficina están bloqueadas en los ajustes del sitio de este navegador.');
   }
   const reg = await navigator.serviceWorker.ready;
   const key = fromB64u((await api.pushKey()).publicKey);

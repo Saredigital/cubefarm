@@ -20,7 +20,7 @@ export function parseOfficeArgs(argv) {
 
 /** The office's state folder, resolved like server/config.ts. */
 export function swarmHome(env = process.env, home = os.homedir()) {
-  return env.SWARM_HOME ?? path.join(home, '.cubefarm');
+  return env.SWARM_HOME ?? path.join(home, '.sareoffice');
 }
 
 /** Vite's port: SWARM_CLIENT_PORT, else 5317 (the same default as vite.config.ts). */
@@ -38,10 +38,10 @@ export function parseSymref(output) {
  * only on the default branch, with no local changes and no local commits. Nothing is ever stashed or discarded.
  */
 export function refusal({ branch, defaultBranch, dirty, ahead }) {
-  if (!branch) return 'the office folder is on a detached HEAD';
-  if (branch !== defaultBranch) return `the office folder is on branch ${branch}, not ${defaultBranch}`;
-  if (dirty) return 'the office folder has local changes';
-  if (ahead > 0) return `the office folder has ${ahead} local commit${ahead === 1 ? '' : 's'} not on origin/${defaultBranch}`;
+  if (!branch) return 'la carpeta de la oficina está en un HEAD separado (detached HEAD)';
+  if (branch !== defaultBranch) return `la carpeta de la oficina está en la rama ${branch}, no en ${defaultBranch}`;
+  if (dirty) return 'la carpeta de la oficina tiene cambios locales';
+  if (ahead > 0) return `la carpeta de la oficina tiene ${ahead} commit${ahead === 1 ? '' : 's'} local${ahead === 1 ? '' : 'es'} que no está${ahead === 1 ? '' : 'n'} en origin/${defaultBranch}`;
   return null;
 }
 

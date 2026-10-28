@@ -45,7 +45,7 @@ export function Panel({
       <div
         ref={box}
         className={`panel ${wide ? 'panel-wide' : ''} ${className ?? ''}`}
-        style={{ ['--accent' as string]: accent ?? '#ff8a5b' }}
+        style={{ ['--accent' as string]: accent ?? '#ffc107' }}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -55,7 +55,7 @@ export function Panel({
           <h2 className="panel-title" id={titleId}>
             {title}
           </h2>
-          <button className="panel-x" onClick={() => (onClose ? onClose() : closeOverlay())} aria-label="Close">
+          <button className="panel-x" onClick={() => (onClose ? onClose() : closeOverlay())} aria-label="Cerrar">
             ✕
           </button>
         </div>

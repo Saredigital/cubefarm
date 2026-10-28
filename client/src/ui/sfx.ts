@@ -8,14 +8,19 @@
 // (behind a wall, in the elevator, out on a balcony) comes through quieter and muffled.
 // While the 🎙 listens (mic.ts) everything dips, the voice too, and event cues wait until it closes.
 
-import { ROOM_SENDS, type Occlusion } from './acoustics';
 import { normalizeAudioPrefs, parseAudioPrefs, SOUND_GROUPS, sliderGain, type AudioPrefs, type SoundGroup } from './audioPrefs';
 import { audible, distance, distanceGain, DROP_NEW, MAX_DISTANCE, panOf, PLAY, REF_DISTANCE, ROLLOFF, type Vec3, voiceToDrop } from './sfxMix';
 
 export type { SoundGroup } from './audioPrefs';
 export type { Vec3 } from './sfxMix';
 
-const PREFS_KEY = 'cubefarm:audio';
+/** How walls muffle a sound: its loudness and a low-pass cutoff. */
+export interface Occlusion {
+  gain: number;
+  cutoff: number;
+}
+
+const PREFS_KEY = 'sareoffice:audio';
 
 function loadPrefs(): AudioPrefs {
   try {
@@ -77,11 +82,6 @@ export function audio(): { ctx: AudioContext; out: GainNode } | null {
         gain.gain.value = groupLevels[g];
         gain.connect(g === 'voice' ? master : bus);
         groupGains[g] = gain;
-        if (ROOM_SENDS[g] > 0) {
-          const send = ctx.createGain();
-          send.gain.value = ROOM_SENDS[g];
-          gain.connect(send).connect(roomIn);
-        }
       }
       writeListener();
     }

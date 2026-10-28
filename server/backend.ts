@@ -13,7 +13,6 @@ import { realOffice, type OfficeHost } from './officeUpdate.ts';
 import { elevenLabs } from './elevenlabs.ts';
 import { httpTransport, type NotifyTransport } from './notifier.ts';
 import type { VoiceApi } from './voice.ts';
-import { openMeteo, type WeatherApi } from './weather.ts';
 import type { AgentTerminal } from './terminal.ts';
 import type { OpsHistory } from './metrics.ts';
 import type { UsageWarning } from './pacing.ts';
@@ -92,8 +91,6 @@ export interface Backend {
   office: OfficeHost;
   /** Text to speech for the manager's phone (ElevenLabs). */
   voice: VoiceApi;
-  /** The real local weather for Settings → Weather (Open-Meteo, keyless; only coordinates are sent once a city is found). */
-  weather: WeatherApi;
   /** Notifications to the chat apps and push services (docs/pocket.md). */
   notify: NotifyTransport;
   /** Cloud agents (docs/cloud.md): Upstash's Box API (the demo's is fake), and picking their CLIs up after a restart. */
@@ -111,7 +108,7 @@ export interface Backend {
 export interface CloudBackend {
   /** The Box API behind an Upstash Box API key. */
   boxes(key: string): BoxApi;
-  /** The environment cloud credentials are read from (CUBEFARM_CLAUDE_TOKEN): the office's own, or the demo's. */
+  /** The environment cloud credentials are read from (SAREOFFICE_CLAUDE_TOKEN): the office's own, or the demo's. */
   env(): Record<string, string | undefined>;
   /** The manager's gh login token ('' when gh isn't signed in), for cloud agents' GitHub when no token is saved. */
   ghToken(): Promise<string>;
@@ -135,7 +132,7 @@ export const realCloud: CloudBackend = {
   gitIdentity: async (login) => {
     const get = (key: string) => run('git', ['config', '--global', key], { timeoutMs: 10_000 }).then((v) => v.trim(), () => '');
     const [name, email] = await Promise.all([get('user.name'), get('user.email')]);
-    return { name: name || login || 'cubefarm', email: email || (login ? `${login}@users.noreply.github.com` : '') };
+    return { name: name || login || 'sareoffice', email: email || (login ? `${login}@users.noreply.github.com` : '') };
   },
   reconnect: reconnectBoxClis,
   detach: detachBoxClis,
@@ -201,7 +198,6 @@ export const realBackend: Backend = {
   previews: realPreviews,
   office: realOffice,
   voice: elevenLabs,
-  weather: openMeteo,
   notify: httpTransport,
   cloud: realCloud,
 };

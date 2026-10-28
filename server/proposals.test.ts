@@ -57,25 +57,25 @@ describe('team changes waiting for the manager', () => {
   it("grows no team past the floor's max, and keeps one agent", async () => {
     const { swarm, team } = await office();
     swarm.updateSettings({ maxAgents: 3 });
-    expect(() => swarm.demoPropose('hire')).toThrow('Every floor already has its most agents');
+    expect(() => swarm.demoPropose('hire')).toThrow('Todas las plantas tienen ya su máximo de agentes');
     swarm.updateSettings({ maxAgents: 10 });
     swarm.demoPropose('let-go');
     swarm.approveRequest(swarm.snapshot().requests.find((r) => r.status === 'pending')!.id);
     swarm.demoPropose('let-go');
     swarm.approveRequest(swarm.snapshot().requests.find((r) => r.status === 'pending')!.id);
     expect(team()).toHaveLength(1);
-    expect(() => swarm.demoPropose('let-go')).toThrow('No floor has an idle agent to let go');
-    expect(() => swarm.fireAgent(team()[0].id)).toThrow('every floor keeps at least one');
+    expect(() => swarm.demoPropose('let-go')).toThrow('Ninguna planta tiene un agente libre al que despedir');
+    expect(() => swarm.fireAgent(team()[0].id)).toThrow('cada planta conserva al menos uno');
   });
 
   it('refuses outside the demo, without floors, and for anything but a hire or a let-go', async () => {
     const real = new Swarm({ ...createDemoBackend(), demo: false });
     expect(() => real.demoPropose('hire')).toThrow(HttpError);
     const demo = new Swarm(createDemoBackend());
-    expect(() => demo.demoPropose('hire')).toThrow(/no floors/);
+    expect(() => demo.demoPropose('hire')).toThrow(/no hay plantas/);
     await demo.connectRepo('demo-co/weather-api');
     expect(() => demo.demoPropose('promote')).toThrow(/kind/);
-    expect(() => demo.demoPropose('hire', 7)).toThrow(/no floor 7/);
+    expect(() => demo.demoPropose('hire', 7)).toThrow(/No existe la planta 7/);
   });
 });
 
@@ -93,7 +93,7 @@ describe('team changes applied straight away', () => {
     busy[0].status = 'idle';
     // From 4 to 2: the idle one leaves now, a busy one after their task.
     const text = (swarm as unknown as { scaleTeam(x: object): string }).scaleTeam({ floor: 1, size: 2, reason: 'Nothing ready to start.' });
-    expect(text).toMatch(/left; .+ will leave after their current task/);
+    expect(text).toMatch(/se va .+; .+ se irá tras su tarea actual/);
     expect(team()).toHaveLength(3);
     const leaving = swarm.snapshot().requests.find((r) => r.kind === 'let-go' && r.status === 'pending')!;
     const agent = internals.state.agents.find((a) => a.id === leaving.agentId)!;

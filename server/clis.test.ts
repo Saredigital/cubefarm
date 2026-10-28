@@ -34,7 +34,7 @@ describe('trustKey', () => {
     const question = (selected: 'no' | 'yes') =>
       [
         'Accessing workspace:',
-        'C:\\Users\\me\\.cubefarm\\workspaces\\me__app\\desks\\ada-01df',
+        'C:\\Users\\me\\.sareoffice\\workspaces\\me__app\\desks\\ada-01df',
         'Quick safety check: Is this a project you created or one you trust?',
         "Claude Code'll be able to read, edit, and execute files here.",
         selected === 'no' ? '❯ No, exit' : '  No, exit',
@@ -147,12 +147,12 @@ describe('launchArgs', () => {
     const hooks = args.filter((a) => a.startsWith('hooks.'));
     expect(hooks.map((h) => h.slice(6, h.indexOf('=')))).toEqual(CODEX_HOOK_EVENTS);
     expect(hooks[0]).toContain('type="command"');
-    expect(env.CUBEFARM_HOOK_URL).toBe('http://127.0.0.1:1/api/hooks/t');
+    expect(env.SAREOFFICE_HOOK_URL).toBe('http://127.0.0.1:1/api/hooks/t');
   });
 
   it('runs the hook program with a command that never starts with a quote on Windows', () => {
-    expect(codexHookCommand('C:\\Program Files\\nodejs\\node.exe', 'C:\\Users\\A B\\.cubefarm\\bin\\codex-hook.cjs', true)).toBe('node "C:\\Users\\A B\\.cubefarm\\bin\\codex-hook.cjs"');
-    expect(codexHookCommand('/usr/bin/node', "/home/o'neil/.cubefarm/bin/codex-hook.cjs", false)).toBe(`'/usr/bin/node' '/home/o'"'"'neil/.cubefarm/bin/codex-hook.cjs'`);
+    expect(codexHookCommand('C:\\Program Files\\nodejs\\node.exe', 'C:\\Users\\A B\\.sareoffice\\bin\\codex-hook.cjs', true)).toBe('node "C:\\Users\\A B\\.sareoffice\\bin\\codex-hook.cjs"');
+    expect(codexHookCommand('/usr/bin/node', "/home/o'neil/.sareoffice/bin/codex-hook.cjs", false)).toBe(`'/usr/bin/node' '/home/o'"'"'neil/.sareoffice/bin/codex-hook.cjs'`);
   });
 
   it("lets OpenCode run without stopping to ask, and without updating itself", () => {
@@ -200,18 +200,18 @@ describe("Codex's file edits in the log", () => {
   it('names the files an apply_patch touches, and says when it worked', () => {
     const patch = '*** Begin Patch\n*** Add File: notes.txt\n+hi\n*** Update File: src/app.ts\n@@\n-a\n+b\n*** End Patch';
     expect(describeTool(dir, 'apply_patch', { command: patch })).toBe('Edit add notes.txt, src/app.ts');
-    expect(summariseResult(dir, 'apply_patch', 'Exit code: 0\nOutput:\nSuccess. Updated the following files:\nA notes.txt')).toEqual([{ kind: 'result', text: '  ⎿ Updated' }]);
+    expect(summariseResult(dir, 'apply_patch', 'Exit code: 0\nOutput:\nSuccess. Updated the following files:\nA notes.txt')).toEqual([{ kind: 'result', text: '  ⎿ Actualizado' }]);
     expect(summariseResult(dir, 'apply_patch', 'error: patch did not apply')[0].text).toContain('patch did not apply');
   });
 });
 
 describe("the CEO's office tools in the log", () => {
   it('says what each one asks for', () => {
-    expect(describeOfficeTool('scale_team', { floor: 2, size: 5, reason: 'Six issues ready, two agents free' })).toBe('📈 scale_team floor 2 → 5: Six issues ready, two agents free');
+    expect(describeOfficeTool('scale_team', { floor: 2, size: 5, reason: 'Six issues ready, two agents free' })).toBe('📈 scale_team planta 2 → 5: Six issues ready, two agents free');
     expect(describeOfficeTool('configure_agent', { agent_id: 'ada', cli: 'codex', model: '' })).toBe('⚙️ configure_agent ada: codex');
-    expect(describeOfficeTool('set_dependencies', { floor: 1, number: 7, depends_on: [3, 4] })).toBe('🔗 set_dependencies #7 → floor 1 · depends on #3, #4');
-    expect(describeOfficeTool('set_dependencies', { floor: 1, number: 7, depends_on: [] })).toBe('🔗 set_dependencies #7 → floor 1 · depends on nothing');
-    expect(describeOfficeTool('file_issue', { floor: 1, title: 'Dark mode', body: 'x' })).toBe('📝 file_issue "Dark mode" → floor 1');
+    expect(describeOfficeTool('set_dependencies', { floor: 1, number: 7, depends_on: [3, 4] })).toBe('🔗 set_dependencies #7 → planta 1 · depende de #3, #4');
+    expect(describeOfficeTool('set_dependencies', { floor: 1, number: 7, depends_on: [] })).toBe('🔗 set_dependencies #7 → planta 1 · depende de nada');
+    expect(describeOfficeTool('file_issue', { floor: 1, title: 'Dark mode', body: 'x' })).toBe('📝 file_issue "Dark mode" → planta 1');
   });
 });
 

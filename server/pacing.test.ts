@@ -44,33 +44,33 @@ describe('usageView and usageLabel', () => {
 
   it("carries the last warning's limit, fill and reset for the usage meter", () => {
     const warning = warningView({ resetsAt: NOW + HOUR, rateLimitType: 'seven_day', utilization: 0.91 }, NOW);
-    expect(warning).toEqual({ limit: 'weekly limit', pct: 91, resetsAt: NOW + HOUR, at: NOW });
+    expect(warning).toEqual({ limit: 'límite semanal', pct: 91, resetsAt: NOW + HOUR, at: NOW });
     expect(usageView({ now: NOW, pausedUntil: 0, pacingUntil: NOW + HOUR }, warning)).toEqual({ state: 'pacing', until: NOW + HOUR, warning });
     expect(warningView({ resetsAt: null, rateLimitType: null, utilization: null }, NOW)).toEqual({ limit: null, pct: null, resetsAt: null, at: NOW });
   });
 
   it('reads as the CEO sees it in company_status', () => {
     expect(usageLabel({ state: 'normal', until: null }, NOW)).toBe('normal');
-    expect(usageLabel({ state: 'pacing', until: NOW + 150 * 60_000 }, NOW)).toBe('pacing until 14:30');
-    expect(usageLabel({ state: 'paused', until: NOW + 5 * 60_000 }, NOW)).toBe('paused until 12:05');
+    expect(usageLabel({ state: 'pacing', until: NOW + 150 * 60_000 }, NOW)).toBe('ritmo reducido hasta las 14:30');
+    expect(usageLabel({ state: 'paused', until: NOW + 5 * 60_000 }, NOW)).toBe('en pausa hasta las 12:05');
   });
 
   it('names the day when the window resets on another day', () => {
-    expect(clock(NOW + 3 * 24 * HOUR, NOW)).toMatch(/^[A-Z][a-z]{2} 12:00$/);
+    expect(clock(NOW + 3 * 24 * HOUR, NOW)).toMatch(/^(?:lun|mar|mié|jue|vie|sáb|dom)\.? 12:00$/);
   });
 });
 
 describe('pacingMessage', () => {
   it('says which limit, how full, until when and how many sessions', () => {
     expect(pacingMessage({ resetsAt: null, rateLimitType: 'five_hour', utilization: 0.82 }, NOW + 150 * 60_000, 3, NOW)).toBe(
-      "🐢 Claude's usage is getting high (5-hour limit, 82%). Until 14:30 the office finishes open work first and starts at most 3 sessions at a time.",
+      "🐢 El uso de Claude está subiendo (límite de 5 horas, 82%). Hasta las 14:30, la oficina termina primero el trabajo abierto y arranca como mucho 3 sesiones a la vez.",
     );
   });
 
   it('copes with a percentage and with missing details', () => {
-    expect(pacingMessage({ resetsAt: null, rateLimitType: 'seven_day', utilization: 91 }, NOW + HOUR, 1, NOW)).toContain('(weekly limit, 91%)');
-    expect(pacingMessage({ resetsAt: null, rateLimitType: 'seven_day', utilization: 91 }, NOW + HOUR, 1, NOW)).toContain('at most 1 session at a time');
-    expect(pacingMessage({ resetsAt: null, rateLimitType: null, utilization: null }, NOW + HOUR, 3, NOW)).toMatch(/^🐢 Claude's usage is getting high\. Until 13:00/);
+    expect(pacingMessage({ resetsAt: null, rateLimitType: 'seven_day', utilization: 91 }, NOW + HOUR, 1, NOW)).toContain('(límite semanal, 91%)');
+    expect(pacingMessage({ resetsAt: null, rateLimitType: 'seven_day', utilization: 91 }, NOW + HOUR, 1, NOW)).toContain('como mucho 1 sesión a la vez');
+    expect(pacingMessage({ resetsAt: null, rateLimitType: null, utilization: null }, NOW + HOUR, 3, NOW)).toMatch(/^🐢 El uso de Claude está subiendo\. Hasta las 13:00/);
   });
 });
 
@@ -88,10 +88,10 @@ describe('resume full speed', () => {
   it('clears pacing, but never a hard pause and never when there is nothing to clear', () => {
     expect(resumeRefusal({ now: NOW, pausedUntil: 0, pacingUntil: NOW + HOUR })).toBeNull();
     expect(resumeRefusal({ now: NOW, pausedUntil: NOW + 5 * 60_000, pacingUntil: NOW + HOUR })).toBe(
-      "Claude turned a session away at the usage limit, so nothing new starts until 12:05. That pause can't be lifted early.",
+      "Claude ha rechazado una sesión por el límite de uso: no se empieza nada nuevo hasta las 12:05. Esa pausa no se puede quitar antes de tiempo.",
     );
-    expect(resumeRefusal({ now: NOW, pausedUntil: 0, pacingUntil: 0 })).toBe('The office is already running at full speed.');
-    expect(resumeRefusal({ now: NOW, pausedUntil: NOW - 1, pacingUntil: NOW })).toBe('The office is already running at full speed.');
+    expect(resumeRefusal({ now: NOW, pausedUntil: 0, pacingUntil: 0 })).toBe('La oficina ya está funcionando a toda velocidad.');
+    expect(resumeRefusal({ now: NOW, pausedUntil: NOW - 1, pacingUntil: NOW })).toBe('La oficina ya está funcionando a toda velocidad.');
   });
 
   it("ignores later warnings about the window the manager waived, but not another limit's or a new window's", () => {

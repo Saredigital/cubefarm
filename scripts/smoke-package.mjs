@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 const root = path.resolve(import.meta.dirname, '..');
-const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cubefarm-package-'));
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'sareoffice-package-'));
 // An agent's reserved port when it has one (CI sets SWARM_PORT=0).
 const PORT = Number(process.env.SWARM_PORT) || 4456;
 const sh = (cmd, cwd) => {
@@ -22,15 +22,15 @@ try {
   sh('npm init -y', tmp);
   sh(`npm install --no-audit --no-fund "${tarball}"`, tmp);
   fs.rmSync(tarball);
-  const version = sh('npx --no-install cubefarm --version', tmp);
-  console.log(`cubefarm --version: ${version}`);
+  const version = sh('npx --no-install sareoffice --version', tmp);
+  console.log(`sareoffice --version: ${version}`);
   // The agents' pinned browser tool resolves from the installed server, the way server/browser.ts finds it.
-  const mcpPkg = createRequire(path.join(tmp, 'node_modules', 'cubefarm', 'dist-server', 'index.js')).resolve('@playwright/mcp/package.json');
+  const mcpPkg = createRequire(path.join(tmp, 'node_modules', 'sareoffice', 'dist-server', 'index.js')).resolve('@playwright/mcp/package.json');
   const mcp = spawnSync(process.execPath, [path.join(path.dirname(mcpPkg), 'cli.js'), '--version'], { encoding: 'utf8' });
   if (mcp.status !== 0) throw new Error(`the pinned @playwright/mcp does not run:\n${mcp.stdout}\n${mcp.stderr}`);
   console.log(`@playwright/mcp --version: ${mcp.stdout.trim()}`);
 
-  const bin = path.join(tmp, 'node_modules', 'cubefarm', 'bin', 'cubefarm.js');
+  const bin = path.join(tmp, 'node_modules', 'sareoffice', 'bin', 'sareoffice.js');
   server = spawn(process.execPath, [bin, '--demo', '--no-open', '--port', String(PORT)], {
     env: { ...process.env, SWARM_HOME: path.join(tmp, 'home') },
     stdio: ['ignore', 'inherit', 'inherit'],
@@ -45,7 +45,7 @@ try {
   }
   if (!state || !Array.isArray(state.repos)) throw new Error('the office never answered /api/state');
   const page = await fetch(`http://127.0.0.1:${PORT}/`).then((r) => r.text());
-  if (!page.includes('<title>cubefarm</title>')) throw new Error('the office does not serve the client');
+  if (!page.includes('<title>sareoffice</title>')) throw new Error('the office does not serve the client');
   console.log(`demo office up: ${state.repos.length} floors, ${state.agents.length} agents, client served`);
 } finally {
   server?.kill();

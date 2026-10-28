@@ -44,7 +44,7 @@ export interface BoxFile {
 }
 
 export interface BoxApi {
-  /** Every Box on the account (they all count towards the plan's limit); the office's carry the `cubefarm` label. */
+  /** Every Box on the account (they all count towards the plan's limit); the office's carry the `sareoffice` label. */
   list(): Promise<BoxInfo[]>;
   create(o: { name: string; labels: string[]; size: BoxSize }): Promise<BoxInfo>;
   /** null: there's no such Box any more. */
@@ -79,13 +79,13 @@ export function cloudError(err: unknown, what: string): CloudError {
   const status = err instanceof BoxError ? err.statusCode : undefined;
   const text = (err as Error)?.message ?? String(err);
   if (status === 401 || status === 403 || /unauthori[sz]ed|invalid api key|forbidden/i.test(text)) {
-    return new CloudError('Upstash turned the Box API key away. Copy it again from console.upstash.com → Box → API Keys.', 'auth');
+    return new CloudError('Upstash ha rechazado la clave API de Box. Cópiala de nuevo desde console.upstash.com → Box → API Keys.', 'auth');
   }
   if (status === 402 || status === 429 || /limit|quota|concurrent|exceed/i.test(text)) {
-    return new CloudError(`Upstash refused to ${what}: your plan's Box limit or usage is used up (${text.slice(0, 160)}).`, 'limit');
+    return new CloudError(`Upstash no ha permitido ${what}: has agotado el límite de Boxes o el uso de tu plan (${text.slice(0, 160)}).`, 'limit');
   }
-  if (status === 404 || /not found/i.test(text)) return new CloudError(`That Box is gone (${text.slice(0, 120)}).`, 'gone');
-  return new CloudError(`Couldn't ${what} on Upstash: ${text.slice(0, 200)}`, 'other');
+  if (status === 404 || /not found/i.test(text)) return new CloudError(`Esa Box ya no existe (${text.slice(0, 120)}).`, 'gone');
+  return new CloudError(`No se ha podido ${what} en Upstash: ${text.slice(0, 200)}`, 'other');
 }
 
 const STATES: BoxState[] = ['creating', 'idle', 'running', 'paused', 'error', 'deleted'];
@@ -139,9 +139,9 @@ export function upstashBoxes(apiKey: string): BoxApi {
     };
   };
   return {
-    list: () => guard('list your Boxes', async () => (await Box.list(conn)).map((d) => ({ id: d.id, name: d.name ?? '', labels: d.labels ?? [], status: state(d.status) }))),
+    list: () => guard('listar tus Boxes', async () => (await Box.list(conn)).map((d) => ({ id: d.id, name: d.name ?? '', labels: d.labels ?? [], status: state(d.status) }))),
     create: (o) =>
-      guard('create a Box', async () => {
+      guard('crear una Box', async () => {
         const b = await Box.create({ ...conn, name: o.name, labels: o.labels, size: o.size, runtime: 'node', browser: true, timeout: 300_000 });
         boxes.set(b.id, b);
         return { id: b.id, name: o.name, labels: o.labels, status: 'running' };
@@ -160,15 +160,15 @@ export function upstashBoxes(apiKey: string): BoxApi {
         throw e;
       }
     },
-    resume: (id) => guard('resume a Box', async () => (await box(id)).resume()),
-    pause: (id) => guard('pause a Box', async () => (await box(id)).pause()),
+    resume: (id) => guard('reanudar una Box', async () => (await box(id)).resume()),
+    pause: (id) => guard('pausar una Box', async () => (await box(id)).pause()),
     remove: (id) =>
-      guard('delete a Box', async () => {
+      guard('borrar una Box', async () => {
         await Box.delete({ ...conn, boxIds: id });
         boxes.delete(id);
       }),
     run: (id, script, o = {}) =>
-      guard('run a command in a Box', async () => {
+      guard('ejecutar un comando en una Box', async () => {
         let output = '';
         const s = await openSession(id, { cmd: script, env: o.env, onData: (t) => (output += t) });
         const timer = setTimeout(() => s.close(), o.timeoutMs ?? 600_000);
@@ -188,7 +188,7 @@ export function upstashBoxes(apiKey: string): BoxApi {
         throw e;
       }
     },
-    write: (id, file, content) => guard('write a file in a Box', async () => (await box(id)).files.write({ path: file, content })),
+    write: (id, file, content) => guard('escribir un fichero en una Box', async () => (await box(id)).files.write({ path: file, content })),
     files: async (id, dir) => {
       try {
         const list = await (await box(id)).files.list(dir);
@@ -197,7 +197,7 @@ export function upstashBoxes(apiKey: string): BoxApi {
         return [];
       }
     },
-    session: (id, o) => guard('open a terminal in a Box', () => openSession(id, o)),
+    session: (id, o) => guard('abrir un terminal en una Box', () => openSession(id, o)),
     browser: async (id) => {
       try {
         const b = await box(id);

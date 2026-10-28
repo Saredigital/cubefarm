@@ -111,7 +111,7 @@ describe('fileLabel', () => {
     expect(fileLabel('src/components/TodoList.tsx')).toBe('TodoList.tsx');
     expect(fileLabel('C:\\Users\\leon\\secret\\notes.txt')).toBe('…/notes.txt');
     expect(fileLabel('/home/leon/.env')).toBe('…/.env');
-    expect(fileLabel('~/.cubefarm/state.json')).toBe('…/state.json');
+    expect(fileLabel('~/.sareoffice/state.json')).toBe('…/state.json');
   });
 });
 

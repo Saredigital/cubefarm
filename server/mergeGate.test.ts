@@ -35,7 +35,7 @@ describe('mergeStep', () => {
   it('waits on a draft without touching the record', () => {
     expect(mergeStep(pull({ isDraft: true, mergeable: 'CONFLICTING', headSha: 'other' }), record({ passedSha: null }), NOW, base)).toEqual({
       do: 'wait',
-      note: 'a draft: waiting',
+      note: 'borrador: en espera',
       set: {},
     });
   });
@@ -49,7 +49,7 @@ describe('mergeStep', () => {
     it('waits when the details still say UNKNOWN', () => {
       expect(mergeStep(pull({ mergeable: 'UNKNOWN', mergeState: 'UNKNOWN' }), record(), NOW, { ...base, detailed: true })).toEqual({
         do: 'wait',
-        note: 'GitHub is checking it can merge',
+        note: 'GitHub está comprobando si se puede fusionar',
         set: { pendingSince: null },
       });
     });
@@ -83,7 +83,7 @@ describe('mergeStep', () => {
         expect(mergeStep(pull(p), record({ mergeFixes: 1 }), NOW, { base: 'develop' })).toEqual({
           do: 'send-back',
           reason: 'conflict',
-          instructions: 'It conflicts with develop.',
+          instructions: 'Tiene conflictos con develop.',
           needsHuman: false,
           set: {},
         });
@@ -116,13 +116,13 @@ describe('mergeStep', () => {
     });
 
     it('waits out the old result just after the re-run', () => {
-      expect(mergeStep(red, record({ rerunSha: 'abc123', rerunAt: NOW - RERUN_GRACE_MS + 1 }), NOW, base)).toEqual({ do: 'wait', note: 're-running a failed check', set: {} });
+      expect(mergeStep(red, record({ rerunSha: 'abc123', rerunAt: NOW - RERUN_GRACE_MS + 1 }), NOW, base)).toEqual({ do: 'wait', note: 'relanzando un check fallido', set: {} });
     });
 
     it('says the checks are re-running while they run again', () => {
       expect(mergeStep(pull({ checks: 'pending', pendingChecks: ['e2e'] }), record({ rerunSha: 'abc123', rerunAt: NOW - 1 }), NOW, base)).toMatchObject({
         do: 'wait',
-        note: 're-running a failed check: e2e',
+        note: 'relanzando un check fallido: e2e',
       });
     });
 
@@ -170,14 +170,14 @@ describe('mergeStep', () => {
     it('starts the clock and names the running checks', () => {
       expect(mergeStep(pull({ checks: 'pending', pendingChecks: ['build', 'test'] }), record(), NOW, base)).toEqual({
         do: 'wait',
-        note: 'waiting for checks: build, test',
+        note: 'esperando los checks: build, test',
         alert: false,
         set: { pendingSince: NOW },
       });
     });
 
     it('says "running" when GitHub names none', () => {
-      expect(mergeStep(pull({ checks: 'pending' }), record(), NOW, base)).toMatchObject({ note: 'waiting for checks: running' });
+      expect(mergeStep(pull({ checks: 'pending' }), record(), NOW, base)).toMatchObject({ note: 'esperando los checks: en curso' });
     });
 
     it('keeps the clock it already started', () => {
@@ -189,7 +189,7 @@ describe('mergeStep', () => {
       expect(mergeStep(pr, record({ pendingSince: NOW - CHECKS_ALERT_MS }), NOW, base)).toMatchObject({ alert: false, set: {} });
       expect(mergeStep(pr, record({ pendingSince: NOW - CHECKS_ALERT_MS - 1 }), NOW, base)).toEqual({
         do: 'wait',
-        note: 'waiting for checks: e2e',
+        note: 'esperando los checks: e2e',
         alert: true,
         set: { alerted: true },
       });

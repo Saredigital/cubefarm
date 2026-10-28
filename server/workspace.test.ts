@@ -383,7 +383,7 @@ describe('prepareDesk', { timeout: 60_000 }, () => {
     expect(await branchOf(desk)).toBe('swarm/issue-109-tim');
     expect(await fs.readFile(path.join(desk, 'node_modules', 'left-pad', 'index.js'), 'utf8')).toBe('module.exports = 1;\n');
     await expect(fs.access(lock)).rejects.toThrow();
-    expect(notes).toEqual([expect.stringMatching(/^Removed a stale git lock/)]);
+    expect(notes).toEqual([expect.stringMatching(/^Eliminado un bloqueo de git abandonado/)]);
   });
 
   it("says why it couldn't reuse a desk, and still refuses one whose files can't be removed", async () => {
@@ -395,9 +395,9 @@ describe('prepareDesk', { timeout: 60_000 }, () => {
     lockFolder(desk, { emptiesIt: false });
     const notes: string[] = [];
     await expect(prepareDesk(r.fullName, { defaultBranch: 'main' }, 'ada-01df', 'swarm/issue-109-ada', (t) => notes.push(t))).rejects.toThrow(
-      /^Could not clear the desk folder .*EBUSY.*A program started by the previous task is probably still running there\. Close it and try again\.$/,
+      /^No se ha podido vaciar la carpeta del puesto .*EBUSY.*Seguramente un programa lanzado por la tarea anterior sigue ejecutándose ahí\. Ciérralo y vuelve a intentarlo\.$/,
     );
-    expect(notes).toEqual([expect.stringMatching(/^Couldn't reuse the desk in place, so it's rebuilt: /)]);
+    expect(notes).toEqual([expect.stringMatching(/^No se ha podido reutilizar el puesto tal cual, así que se reconstruye: /)]);
     expect(await fs.readFile(path.join(desk, 'README.md'), 'utf8')).toMatch(/^# Test/);
   });
 
@@ -420,7 +420,7 @@ describe('prepareDesk', { timeout: 60_000 }, () => {
       if (slug === 'dennis-1234') expect(desk).toBe(dennis);
       expect(await branchOf(desk)).toBe('HEAD');
       expect(await head(desk)).toBe(await git(['rev-parse', `origin/${branch}`], { cwd: r.dir }));
-      expect(notes).toEqual([expect.stringContaining(`push with git push origin HEAD:${branch}`)]);
+      expect(notes).toEqual([expect.stringContaining(`haz push con git push origin HEAD:${branch}`)]);
       await commitFile(desk, file, 'fixed\n');
       await git(['push', '-q', 'origin', `HEAD:${branch}`], { cwd: desk });
       await git(['push', '-q', '-f', 'origin', 'HEAD:refs/pull/198/head'], { cwd: desk }); // what GitHub does to the PR ref
@@ -488,15 +488,15 @@ describe('blocking files', () => {
 });
 
 describe('leftoversInDesk', () => {
-  const desk = '/Users/ada/.cubefarm/workspaces/me__app/desks/ada-01df';
-  const keep = { pids: [300], markers: ['/Users/ada/.cubefarm/sessions', '/Users/ada/.cubefarm/bin'] };
+  const desk = '/Users/ada/.sareoffice/workspaces/me__app/desks/ada-01df';
+  const keep = { pids: [300], markers: ['/Users/ada/.sareoffice/sessions', '/Users/ada/.sareoffice/bin'] };
 
   it("finds what an agent left running in its desk, but never an agent's own CLI or the office's processes", () => {
     const listing = [
       `  101 node ${desk}/node_modules/.bin/vite --port 5401`, // a dev server it left: a leftover
       `  102 /bin/zsh -c cd ${desk} && npm test`, // a command still running there
-      `  103 node /opt/homebrew/bin/codex -c notify=["node","/Users/ada/.cubefarm/bin/notify.cjs"] -c developer_instructions="Your worktree: ${desk}"`,
-      `  104 /opt/homebrew/lib/codex/codex -c notify=["node","/Users/ada/.cubefarm/bin/notify.cjs"] -c developer_instructions="Your worktree: ${desk}"`,
+      `  103 node /opt/homebrew/bin/codex -c notify=["node","/Users/ada/.sareoffice/bin/notify.cjs"] -c developer_instructions="Your worktree: ${desk}"`,
+      `  104 /opt/homebrew/lib/codex/codex -c notify=["node","/Users/ada/.sareoffice/bin/notify.cjs"] -c developer_instructions="Your worktree: ${desk}"`,
       `  300 node /Users/ada/project/${desk}`, // spared by pid
       '  105 node /somewhere/else/server.js',
     ].join('\n');
@@ -504,11 +504,11 @@ describe('leftoversInDesk', () => {
   });
 
   it('recognises Windows paths as Codex escapes them in its command line', () => {
-    const winDesk = String.raw`C:\Users\Ada\.cubefarm\workspaces\me__app\desks\ada-01df`;
-    const winKeep = { pids: [], markers: [String.raw`C:\Users\Ada\.cubefarm\bin`] };
+    const winDesk = String.raw`C:\Users\Ada\.sareoffice\workspaces\me__app\desks\ada-01df`;
+    const winKeep = { pids: [], markers: [String.raw`C:\Users\Ada\.sareoffice\bin`] };
     const escaped = (s: string) => s.replaceAll('\\', '\\\\'); // how -c values carry a path (JSON strings)
     const listing = [
-      `  7 codex.exe -c notify=["node","${escaped(String.raw`C:\Users\Ada\.cubefarm\bin\notify.cjs`)}"] -c developer_instructions="Your worktree: ${escaped(winDesk)}"`,
+      `  7 codex.exe -c notify=["node","${escaped(String.raw`C:\Users\Ada\.sareoffice\bin\notify.cjs`)}"] -c developer_instructions="Your worktree: ${escaped(winDesk)}"`,
       `  8 node ${winDesk}\\server.js`,
     ].join('\n');
     expect(leftoversInDesk(listing, winDesk, winKeep)).toEqual([8]);
@@ -517,7 +517,7 @@ describe('leftoversInDesk', () => {
 
 describe('planSweep', () => {
   const top = path.parse(process.cwd()).root;
-  const root = path.join(top, 'home', 'ada', '.cubefarm', 'workspaces');
+  const root = path.join(top, 'home', 'ada', '.sareoffice', 'workspaces');
   const desks = path.join(root, 'me__app', 'desks');
   const oldDesks = path.join(top, 'home', 'ada', '.office-swarm', 'workspaces', 'me__app', 'desks');
   const main = path.join(top, 'projects', 'app');

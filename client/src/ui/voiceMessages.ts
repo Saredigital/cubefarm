@@ -10,7 +10,6 @@ import { useStore } from '../store';
 import { sliderGain } from './audioPrefs';
 import { speechClip, speechEnded, speechStarted, speechWord } from './captions';
 import { replyEnded } from './mic';
-import { holdMusicDuck } from './music';
 import { audio, chirp, duckOthers, getAudioPrefs, groupOutput, subscribeAudio } from './sfx';
 import { wonVoice } from './voiceClaim';
 import { enqueue, nextUp, type Queued, type ReplayKind } from './voiceQueue';
@@ -102,7 +101,7 @@ async function read(m: PhoneMessage, replay?: Exclude<ReplayKind, 'gone'>) {
   const { voiceName } = settings.voice;
   const provider = replay ? (replay === 'clip' ? 'elevenlabs' : 'browser') : settings.voice.provider;
   if (provider === 'off') return; // turned off while it waited
-  const now: { rec: SpokenRecord | null; unduckMusic?: () => void } = { rec: null };
+  const now: { rec: SpokenRecord | null } = { rec: null };
   cutShort = false;
   const words = speechText(m.text);
   /** `clipMs`: a recording's length (null for the browser's voice), and how many clips the message has. */
@@ -113,7 +112,6 @@ async function read(m: PhoneMessage, replay?: Exclude<ReplayKind, 'gone'>) {
     if (spoken.length > 50) spoken.splice(0, spoken.length - 50);
     useStore.setState({ voiceSpeaking: m.id });
     duckOthers(true);
-    now.unduckMusic = holdMusicDuck();
   };
   try {
     if (provider === 'browser') await speak(words, voiceName, () => began(null), (i) => speechWord(m.id, i));
@@ -123,7 +121,7 @@ async function read(m: PhoneMessage, replay?: Exclude<ReplayKind, 'gone'>) {
   } catch (err) {
     // A replay whose clip went meanwhile (pruned or cleared) says so; the phone's ▶ follows the server's list.
     if (replay) {
-      if (!now.rec) useStore.getState().pushToast('info', replay === 'clip' ? '🔇 Audio no longer saved' : "🔇 The browser couldn't speak this message");
+      if (!now.rec) useStore.getState().pushToast('info', replay === 'clip' ? '🔇 El audio ya no está guardado' : '🔇 El navegador no ha podido leer este mensaje');
       return;
     }
     // No key, ElevenLabs being down, no voice in this browser: the message still rings, just without words.
@@ -138,7 +136,6 @@ async function read(m: PhoneMessage, replay?: Exclude<ReplayKind, 'gone'>) {
       speechEnded(m.id);
       now.rec.end = performance.now();
       duckOthers(false);
-      now.unduckMusic?.();
       useStore.setState({ voiceSpeaking: null });
       if (!replay && !cutShort && m.from === 'ceo' && !queue.length && !replayNext) replyEnded();
     }

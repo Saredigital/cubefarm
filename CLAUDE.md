@@ -1,223 +1,252 @@
-# cubefarm
+# sareoffice
 
-A cartoon first-person 3D office (React Three Fiber) over a Node orchestrator that runs one coding-agent session
-(Claude Code, Codex or OpenCode) per agent, plus the CEO, working through GitHub issues. Agents are interchangeable (no
-roles: any free agent builds, tests or fixes) and each works on a machine of its own (docs/agents.md).
-This is the app the company runs on: a live office is running from this repo right now. README.md is the quick start; docs/how-it-works.md and CONTRIBUTING.md have the details.
-It ships on npm as `cubefarm` (`npx cubefarm`); it used to be called Office Swarm.
+Un panel de control 2D (React) sobre un orquestador en Node que ejecuta una
+sesión de agente de código (Claude Code, Codex u OpenCode) por agente, más el CEO, trabajando issues de GitHub. Los
+agentes son intercambiables (sin roles: cualquier agente libre construye, prueba o corrige) y cada uno trabaja en una
+máquina propia (docs/agents.md).
+Es un fork interno de [cubefarm](https://github.com/leonvanzyl/cubefarm) (Leon van Zyl, MIT) para Saredigital, en
+https://github.com/Saredigital/cubefarm. Es la app con la que trabaja la empresa: hay una oficina en vivo ejecutándose
+desde un clon de este repositorio. README.md es la guía rápida; docs/how-it-works.md y CONTRIBUTING.md tienen los detalles.
+No se publica en npm (`"private": true`): se ejecuta desde un clon con `npm install`, `npm run build` y `npm start`.
+Antes se llamaba cubefarm (y antes, Office Swarm). La oficina 3D original se retiró: el cliente es el panel de control
+(`client/src/panel/`) y, en móviles, el modo bolsillo.
 
-## SAFETY (read first)
+Los textos que ve una persona, y los prompts de los agentes, están en español de España; los agentes escriben issues y
+PRs en español. Identificadores, comandos, rutas, etiquetas de GitHub y convenciones que parsea el código siguen en inglés.
 
-- The live office runs from `C:\Projects\office-swarm` on this machine, on ports 4317 (server) and 5317 (Vite),
-  with its state in `~/.cubefarm`. Never edit or run anything there, never read or write `~/.cubefarm` directly, and
-  never use ports 4317 or 5317.
-- Test only in demo mode (fake GitHub, fake agents, no Claude usage), with an isolated `SWARM_HOME` and your reserved
-  `SWARM_PORT` (from your job instructions):
+## SEGURIDAD (léelo primero)
+
+- La oficina en vivo se ejecuta desde el clon del responsable, con su estado en `~/.sareoffice` y los puertos 4317
+  (servidor) y 5317 (Vite). Nunca uses esos puertos ni ese estado: no edites ni ejecutes nada en ese clon, y nunca
+  leas ni escribas `~/.sareoffice` directamente.
+- Prueba solo en modo demo (GitHub simulado, agentes simulados, sin uso de Claude), con un `SWARM_HOME` aislado y tu
+  `SWARM_PORT` reservado (de las instrucciones de tu tarea):
 
   ```bash
   npm install
   npm run build
-  SWARM_HOME="$PWD/.swarm-home" SWARM_PORT=<your port> node --import tsx server/index.ts --demo
+  SWARM_HOME="$PWD/.swarm-home" SWARM_PORT=<tu puerto> node --import tsx server/index.ts --demo
   ```
   ```powershell
   npm install; npm run build
-  $env:SWARM_HOME="$PWD\.swarm-home"; $env:SWARM_PORT="<your port>"; node --import tsx server/index.ts --demo
+  $env:SWARM_HOME="$PWD\.swarm-home"; $env:SWARM_PORT="<tu puerto>"; node --import tsx server/index.ts --demo
   ```
-  Then open `http://localhost:<your port>` (the server serves the built `dist/`). The startup banner must say
-  `DEMO MODE` and print a `state:` path inside your `SWARM_HOME`. Stop it when done; don't commit `.swarm-home`.
-- Never real mode (no `--demo`), and never `npm run dev` / `npm run demo` / `npm start` / `npx cubefarm`: they default
-  to 4317, and `dev`/`demo` default Vite to 5317. The first three run `scripts/office.mjs`, the launcher, which also
-  updates its own folder (git fetch + merge, npm install, build) when the office or you ask for it (`u`). Run it
-  only in a throwaway clone outside the live office, with `--demo` and your `SWARM_HOME`, `SWARM_PORT` and
-  `SWARM_CLIENT_PORT`.
-- Agents are ordinary coding-agent CLI sessions on the manager's own setup, unsandboxed, by the manager's choice. The
-  office's workflow rules (no pushes to the default branch, no merging, QA leaves GitHub alone) live in their prompts
-  and instructions, not in enforcement: don't add hooks, permission rules or sandboxes that refuse tool calls.
-  `ANTHROPIC_*` / `CLAUDE_*` are stripped from agent and preview env.
+  Después abre `http://localhost:<tu puerto>` (el servidor sirve el `dist/` construido). El banner de arranque debe
+  decir `DEMO MODE` e imprimir una ruta `state:` dentro de tu `SWARM_HOME`. Páralo al terminar; no hagas commit de `.swarm-home`.
+- Nunca el modo real (sin `--demo`), y nunca `npm run dev` / `npm run demo` / `npm start` sin tu propio entorno: usan
+  por defecto el 4317, y `dev`/`demo` ponen Vite en el 5317. Los tres ejecutan `scripts/office.mjs`, el lanzador, que
+  además actualiza su propia carpeta (git fetch + merge, npm install, build) cuando la oficina o tú se lo pedís (`u`).
+  Ejecútalo solo en un clon desechable, fuera de la oficina en vivo, con `--demo` y tus `SWARM_HOME`, `SWARM_PORT` y
+  `SWARM_CLIENT_PORT`. Lo mismo para `node bin/sareoffice.js` (por defecto, el 4317).
+- Los agentes de desarrollo son sesiones normales de CLIs de agentes de código con la configuración del propio responsable, sin
+  sandbox, por decisión suya. Las normas de trabajo de la oficina (no subir a la rama por defecto, no fusionar, QA no
+  toca GitHub) viven en sus prompts e instrucciones, no en mecanismos que las impongan: no añadas hooks, reglas de
+  permisos ni sandboxes que rechacen llamadas a herramientas. `ANTHROPIC_*` / `CLAUDE_*` se eliminan del entorno de
+  los agentes y de las vistas previas.
+- La política anterior solo corresponde al runtime histórico de desarrollo. Los especialistas de empresa y el
+  broker de correo/redes exigen permisos impuestos por el servidor, procedencia acumulativa, aprobación humana
+  y separación de identidad, almacenamiento y red. No pueden heredar las CLIs ni sus credenciales. La oficina
+  local bloquea integraciones reales; `docs/security-company.md` documenta el servicio independiente Windows.
+- `server/originGuard.ts` comprueba `Origin` y `Host` en las rutas HTTP y las conexiones WebSocket de `index.ts`.
+  Ese control no es autenticación: las rutas privadas de empresa añaden sesión humana/identidad de especialista,
+  CSRF y autorización por recurso. Los datos de correo nunca entran en snapshots, diario, voz o terminales globales.
 
 ## Scripts
 
-| Command | What it does |
+| Comando | Qué hace |
 | --- | --- |
-| `npm run typecheck` | `tsc --noEmit` over client, server, shared, the `.ts` in scripts and the configs |
-| `npm test` | Vitest, once (`npm run test:watch` to re-run on edits) |
-| `npm run build` | typecheck, `vite build` to `dist/`, then the server bundled into `dist-server/` (`scripts/build-server.mjs`) |
-| `npm run test:e2e` | optional, local only: Playwright (`e2e/`, `playwright.config.ts`): builds (`E2E_SKIP_BUILD=1` reuses your `dist/`), boots a demo office on `E2E_PORT` (default 4399; set it to your reserved port) with a temp `SWARM_HOME`, and smoke-tests it headless in a local Google Chrome, else Playwright's Chromium. Stops at once if the browser is missing: never install it mid-task |
-| `node scripts/smoke-package.mjs` | after a build: packs the npm package, installs it into a temp folder and boots its demo |
-| `npm run bench -- --port <yours>` | after a build: the scale benchmark (`scripts/bench.mjs`): boots the big-company demo headless, visits the lobby and three floors, writes FPS, frame-time p95, CPU per frame, draw calls, triangles, heap, audio nodes and websocket traffic to a JSON report (`--help`) |
-| `node --import tsx server/index.ts --demo` | a demo office (see SAFETY for the env it needs) |
+| `npm run typecheck` | `tsc --noEmit` sobre client, server, shared, los `.ts` de scripts y las configuraciones |
+| `npm test` | Vitest, una vez (`npm run test:watch` para repetir al editar) |
+| `npm run build` | typecheck, `vite build` a `dist/` y después el servidor empaquetado en `dist-server/` (`scripts/build-server.mjs`) |
+| `npm run test:e2e` | opcional, solo en local: Playwright (`e2e/`, `playwright.config.ts`): construye (`E2E_SKIP_BUILD=1` reutiliza tu `dist/`), arranca una oficina demo en `E2E_PORT` (por defecto 4399; ponlo en tu puerto reservado) con un `SWARM_HOME` temporal y hace tests de humo sin interfaz en un Google Chrome local o, si no, en el Chromium de Playwright. Se para al momento si falta el navegador: nunca lo instales a mitad de tarea |
+| `node scripts/smoke-package.mjs` | después de una build: empaqueta el paquete npm, lo instala en una carpeta temporal y arranca su demo (solo comprobación; no se publica) |
+| `npm run login` / `npm run doctor` | `node bin/sareoffice.js login` / `doctor`: iniciar sesión en Claude Code / comprobar la máquina |
+| `node --import tsx server/index.ts --demo` | una oficina demo (ver SEGURIDAD para el entorno que necesita) |
+| `npm run company:provision` / `npm run company:broker` | configuración cifrada y servicio HTTPS independiente; solo en el despliegue dedicado de `docs/security-company.md`, nunca desde el usuario de las CLIs |
+| `npm run company:setup-local -- --state-dir <nuevo> --port 4454` | configuración local sin demo, cuentas ni ejecución: loopback, contraseña temporal y estado independiente. Ver `docs/local-company-setup.md` |
 
-CI (`.github/workflows/ci.yml`): Node 24, `npm ci` → `typecheck` → `test` → `build` → package smoke test, for every PR
-and push to `main`, with a throwaway `SWARM_HOME` and `SWARM_PORT=0`, on `ubuntu-latest` always and on `windows-latest`
-and `macos-latest` unless a PR touches nothing OS-sensitive (only `client/`, `e2e/`, docs: they show as skipped).
-e2e is not part of CI. Locally, `typecheck`, `test` and `build` must pass before you open a PR. Don't run `test:e2e`
-unless an issue asks for it. If your change shows up in the office, boot your own demo office, check it in a real
-browser with the Playwright tools, and put screenshots in the PR. `.github/workflows/release.yml` publishes to npm when the manager runs it from GitHub's Actions tab or pushes a
-`v*` tag (npm trusted publishing, tied to that file name); never publish or tag releases yourself.
+CI (`.github/workflows/ci.yml`): Node 24, `npm ci` → `typecheck` → `test` → `build` → test de humo del paquete, en
+cada PR y push a `main`, con un `SWARM_HOME` desechable y `SWARM_PORT=0`, siempre en `ubuntu-latest` y en
+`windows-latest` y `macos-latest` salvo que una PR no toque nada sensible al sistema operativo (solo `client/`, `e2e/`,
+documentación: aparecen como omitidos). e2e no forma parte de CI. En local, `typecheck`, `test` y `build` tienen que
+pasar antes de abrir una PR. No ejecutes `test:e2e` salvo que un issue lo pida. Si tu cambio se ve en la oficina,
+arranca tu propia oficina demo, compruébalo en un navegador real con las herramientas de Playwright y pon capturas en
+la PR. No hay workflow de release ni publicación en npm: desplegar es fusionar en `main`, y las oficinas que se
+ejecutan con el lanzador se actualizan solas desde `origin`.
 
-## Code map
+## Mapa del código
 
-Server (`server/`, Node + Express 5 + ws, run by tsx in development; esbuild bundles it into `dist-server/` for npm):
-- `index.ts`: entry; picks the real or demo backend, REST routes under `/api`, the `/ws` and `/ws/term` websockets, serves `dist/`, shutdown.
-- `config.ts`: `SWARM_PORT` (default 4317), `SWARM_HOME` (default `~/.cubefarm`), `--demo`, state file, intervals,
-  the default projects folder.
-- `swarm.ts`: the orchestrator. Floors, agents, scheduling/auto-assign, build → QA → fix → merge loop, team changes
-  (the CEO's `scale_team`, lobby approvals), CEO job queue, phone messages, persistence (`state.json` / `demo-state.json`), websocket fan-out (through
-  `outbox.ts`).
-- `outbox.ts`: what goes out on `/ws`: agents' and floors' changes batched on a 250 ms tick as patches of what
-  changed, terminal lines only to the tabs that show them (`shared/watch.ts`), catch-ups when a tab's watch changes.
-- `agentRunner.ts`: one Agent SDK session; options, env stripping, Playwright MCP, and turning the SDK stream into
-  terminal lines.
-- `cliRunner.ts`: the terminal runtime (the default): one agent as the real CLI in a node-pty, same session contract
-  as `agentRunner.ts`. Claude Code reports through HTTP hooks (`POST /api/hooks/:token`; PreToolUse approves every
-  call); Codex reports turn endings (notify) and, once the manager trusts them, its steps (`-c hooks.*`); OpenCode
-  only turn endings. Codex/OpenCode screenshots are collected from the session's Playwright output folder. Esc in a
-  terminal ends the session as `interrupted`. The CEO's office tools are served over MCP (`/api/mcp/:token`).
-- `ptyHost.ts`: the terminal keeper, a detached process of its own (`launch` re-spawns it outside the office's process
-  tree) holding the CLIs' pseudo-terminals and relaying their hooks, so agents keep working through office restarts.
-  `ptyClient.ts` is the office's side (start/connect, spawn, adopt after a restart, local fallback); `ptyProtocol.ts`
-  their JSON-lines messages. The launcher's `office:shutdown` says `restart: false` when quitting: CLIs stop then.
-  An agent's CLI stays at its prompt after building or fixing (`keepAlive`): follow-ups and prompts typed there reuse it.
-- `clis.ts`: the CLIs (Claude Code from the SDK's bundled binary, Codex, OpenCode): detection, Windows `.cmd` shim
-  unwrapping, each one's command line, and the helper scripts they call back with.
-- `terminal.ts`: `AgentTerminal`, a headless xterm mirror per agent (replay for late viewers, saved to disk), its
-  `/ws/term` viewers, and keystrokes/resizes to the running CLI.
-- `ceo.ts`: the CEO's office MCP tools (`createOfficeTools`, zod-validated: `scale_team`, `configure_agent`, issues,
-  triage), `scalePlan` (team-size arithmetic), `ceoSystemPrompt`, `ceoJobPrompt`.
-- `backend.ts`: the `Backend` interface (everything touching GitHub, git, disk and sessions) and `realBackend`.
-- `machines.ts`: agents' machines, `MachineProvider`: each agent's own clone, worktree and temp folder (the local
-  provider is folders under `<SWARM_HOME>/machines/<machine>/`, in `workspace.ts`; cloud agents' are Upstash Boxes).
-- Cloud agents (docs/cloud.md, opt-in; `PersistedAgent.host === 'box'`): `cloud.ts` is the account (the Upstash key and
-  pasted keys in `secrets.json`, `CUBEFARM_CLAUDE_TOKEN` read from the environment and never saved, credential
-  resolution, `CloudView`); `box.ts` the only importer of `@upstash/box` (`BoxApi`, which the demo fakes);
-  `boxMachines.ts` the Box `MachineProvider` (create, set up, prepare, pause, leftovers); `boxScripts.ts` the shell
-  scripts run in a Box (pure, tested); `boxHelpers.ts` the programs put in a Box (launcher, hooks writing to the
-  session's `events.jsonl`); `boxCli.ts` `BoxPty` (the CLI under tmux, its events read from a byte offset, reattached
-  after drops and restarts). Credentials only ever travel as one Box command's environment. Without a key for its CLI,
-  a cloud agent's CLI uses its own login in the Box: `Swarm`'s sign-in checks it before each task (`needsSignIn`
-  holds the task) and runs the CLI's own login in their terminal (`cliRunner.ts` `startBoxSignIn`); the office never
-  reads that login.
-- `demo.ts`: `createDemoBackend()`: fake GitHub, fake sessions (drawn into the agent's terminal in the terminal runtime), fake previews and machines for `--demo`;
-  `--floors N --agents N` (or `SWARM_DEMO_FLOORS` / `SWARM_DEMO_AGENTS`) makes it a big company for scale tests.
-- `github.ts`: all GitHub access through the `gh` CLI.
-- `workspace.ts`: floor checkouts, the preview worktrees (`<SWARM_HOME>/workspaces/<owner>__<repo>/desks/<name>`),
-  local machines (clone, worktree, branch sweep, removal with leftovers), fast-forwarding main, a git lock per clone,
-  stopping processes an agent left running.
-- `exec.ts`: `run` / `git` / `gh`: `execFile` without a shell, prompts disabled, `CommandError` with stderr.
-- `previews.ts`: one preview per floor: ports (6300 + floor), statuses, config validation; and the PR theatre's PR
-  previews (`prTheatre.ts`: their slots, ports, eviction and idle stop, pure; `syncProxy.ts`: compare mode's synced scrolling).
-- `qaShots.ts`: QA's screenshots of each PR's latest round, kept for the app viewer's QA panel.
-- `previewRunner.ts`: checks out, installs and runs a floor's app in its preview worktree; kills the process tree.
+Servidor (`server/`, Node + Express 5 + ws, ejecutado con tsx en desarrollo; esbuild lo empaqueta en `dist-server/`):
+- `index.ts`: entrada; elige el backend real o el demo, rutas REST bajo `/api`, los websockets `/ws` y `/ws/term`, sirve `dist/`, apagado.
+- `company/`: empresa, departamentos, tareas, conocimiento, CRM ligero, entregables y revisiones; estado privado
+  separado del flujo GitHub. `company-security/`: sesiones opacas, cifrado, runtime API sin shell y broker independiente.
+- `mail/`: Graph e IMAP/SMTP, permisos por buzón, adjuntos limitados y envío con aprobación de una versión exacta.
+  `company-social/`: cuentas, piezas, medios y publicaciones revisadas por canal; aprobación independiente del correo.
+- `config.ts`: `SWARM_PORT` (por defecto 4317), `SWARM_HOME` (por defecto `~/.sareoffice`), `--demo`, fichero de estado,
+  intervalos, la carpeta de proyectos por defecto.
+- `swarm.ts`: el orquestador. Plantas, agentes, planificación/autoasignación, el bucle construir → QA → corregir →
+  merge, cambios de equipo (el `scale_team` del CEO, aprobaciones en el vestíbulo), cola de trabajos del CEO, mensajes
+  del móvil, persistencia (`state.json` / `demo-state.json`), difusión por websocket (a través de `outbox.ts`).
+- `outbox.ts`: lo que sale por `/ws`: los cambios de agentes y plantas agrupados en un tick de 250 ms como parches de
+  lo que cambió, las líneas de terminal solo para las pestañas que las muestran (`shared/watch.ts`), puestas al día
+  cuando cambia lo que mira una pestaña.
+- `prompts.ts`, `qaPrompt.ts`: los prompts de los agentes (en español).
+- `agentRunner.ts`: una sesión del Agent SDK; opciones, limpieza del entorno, Playwright MCP y conversión del flujo
+  del SDK en líneas de terminal.
+- `cliRunner.ts`: el runtime de terminal (el de por defecto): un agente como la CLI real en un node-pty, con el mismo
+  contrato de sesión que `agentRunner.ts`. Claude Code informa por hooks HTTP (`POST /api/hooks/:token`; PreToolUse
+  aprueba todas las llamadas); Codex informa del fin de turno (notify) y, cuando el responsable confía en ellos, de sus
+  pasos (`-c hooks.*`); OpenCode solo del fin de turno. Las capturas de Codex/OpenCode se recogen de la carpeta de
+  salida de Playwright de la sesión. Esc en un terminal termina la sesión como `interrupted`. Las herramientas de
+  oficina del CEO se sirven por MCP (`/api/mcp/:token`).
+- `ptyHost.ts`: el guardián de terminales, un proceso independiente (`launch` lo vuelve a lanzar fuera del árbol de
+  procesos de la oficina) que mantiene los pseudoterminales de las CLIs y retransmite sus hooks, para que los agentes
+  sigan trabajando durante los reinicios de la oficina. `ptyClient.ts` es el lado de la oficina (arrancar/conectar,
+  lanzar, adoptar tras un reinicio, alternativa local); `ptyProtocol.ts` sus mensajes en líneas JSON. El
+  `office:shutdown` del lanzador dice `restart: false` al salir: entonces las CLIs se paran. La CLI de un agente se
+  queda en su prompt después de construir o corregir (`keepAlive`): los seguimientos y lo que se escriba ahí la reutilizan.
+- `clis.ts`: las CLIs (Claude Code del binario incluido en el SDK, Codex, OpenCode): detección, desenvolver los shims
+  `.cmd` de Windows, la línea de comando de cada una y los scripts auxiliares con los que llaman de vuelta.
+- `terminal.ts`: `AgentTerminal`, un espejo xterm sin interfaz por agente (repetición para quien llega tarde, guardado
+  en disco), sus espectadores de `/ws/term` y las teclas/redimensiones hacia la CLI en ejecución.
+- `ceo.ts`: las herramientas MCP de oficina del CEO (`createOfficeTools`, validadas con zod: `scale_team`,
+  `configure_agent`, issues, triaje), `scalePlan` (aritmética del tamaño del equipo), `ceoSystemPrompt`, `ceoJobPrompt`.
+- `backend.ts`: la interfaz `Backend` (todo lo que toca GitHub, git, disco y sesiones) y `realBackend`.
+- `machines.ts`: las máquinas de los agentes, `MachineProvider`: el clon, el worktree y la carpeta temporal de cada
+  agente (el proveedor local son carpetas bajo `<SWARM_HOME>/machines/<machine>/`, en `workspace.ts`; las de los
+  agentes en la nube son Upstash Boxes).
+- Agentes en la nube (docs/cloud.md, opcional; `PersistedAgent.host === 'box'`): `cloud.ts` es la cuenta (la clave de
+  Upstash y las claves pegadas en `secrets.json`, `SAREOFFICE_CLAUDE_TOKEN` leído del entorno y nunca guardado,
+  resolución de credenciales, `CloudView`); `box.ts` el único que importa `@upstash/box` (`BoxApi`, que la demo
+  simula); `boxMachines.ts` el `MachineProvider` de Box (crear, configurar, preparar, pausar, restos); `boxScripts.ts`
+  los scripts de shell que se ejecutan en una Box (puros, con tests); `boxHelpers.ts` los programas que se ponen en una
+  Box (lanzador, hooks que escriben en el `events.jsonl` de la sesión); `boxCli.ts` `BoxPty` (la CLI bajo tmux, sus
+  eventos leídos desde un offset en bytes, reconectada tras caídas y reinicios). Las credenciales solo viajan como el
+  entorno de un comando de Box. Sin una clave para su CLI, la CLI de un agente en la nube usa su propio inicio de
+  sesión en la Box: el inicio de sesión de `Swarm` lo comprueba antes de cada tarea (`needsSignIn` retiene la tarea) y
+  ejecuta el login propio de la CLI en su terminal (`cliRunner.ts` `startBoxSignIn`); la oficina nunca lee ese login.
+- `demo.ts`: `createDemoBackend()`: GitHub simulado, sesiones simuladas (dibujadas en el terminal del agente en el
+  runtime de terminal), vistas previas y máquinas simuladas para `--demo`; `--floors N --agents N` (o
+  `SWARM_DEMO_FLOORS` / `SWARM_DEMO_AGENTS`) la convierte en una empresa grande para pruebas de escala.
+- `github.ts`: todo el acceso a GitHub con la CLI `gh`.
+- `workspace.ts`: los checkouts de las plantas, los worktrees de vista previa
+  (`<SWARM_HOME>/workspaces/<owner>__<repo>/desks/<name>`), las máquinas locales (clon, worktree, limpieza de ramas,
+  borrado con restos), fast-forward de main, un bloqueo de git por clon, parar procesos que un agente dejó en marcha.
+- `exec.ts`: `run` / `git` / `gh`: `execFile` sin shell, prompts desactivados, `CommandError` con stderr.
+- `previews.ts`: una vista previa por planta: puertos (6300 + planta), estados, validación de la configuración; y las
+  vistas previas de PRs de la sala de PRs (`prTheatre.ts`: sus huecos, puertos, desalojo y parada por inactividad,
+  puro; `syncProxy.ts`: el desplazamiento sincronizado del modo comparar).
+- `qaShots.ts`: las capturas de QA de la última ronda de cada PR, guardadas para el panel de QA del visor de la app.
+- `previewRunner.ts`: hace checkout, instala y ejecuta la app de una planta en su worktree de vista previa; mata el árbol de procesos.
 - `httpError.ts`: `HttpError(status, message)`.
-- `officeUpdate.ts`: the office's self-update: the drain decision, the launcher contract (IPC, `last-update.json`).
-- `pacing.ts`: pacing new work after Claude's usage warnings: the start/skip decision and the usage state.
-- `presence.ts`: shared presence: relays tabs' poses, emotes and pings on `/ws` to their floor (pure interest and rate
-  rules), never saved; `demoVisitors.ts` walks the demo's fake visitors. Names and limits in `shared/presence.ts`.
-- `voice.ts`: phone messages read aloud (docs/voice.md): the ElevenLabs key in `secrets.json`, voices, cached clips;
-  `elevenlabs.ts` is its REST client. The words spoken come from `shared/speech.ts`. `secrets.ts`: that file's reads and merged writes.
-- `notifier.ts`: notifications (docs/pocket.md): the rate-limited fan-out to open tabs (desktop), Web Push and the chat
-  apps' webhooks (secrets in `secrets.json`, push keys and devices in `push.json`), behind `Backend.notify`; `notify.ts`
-  is its pure part (formatting, the per-event rate limit, webhook checks), `webPush.ts` VAPID and RFC 8291 encryption,
-  `shared/notify.ts` the settings. `pwa.ts`: the installable app's service worker, served at `/sw.js`.
-- `journal.ts`: the time-lapse journal (`<SWARM_HOME>/journal/<day>/`): records what `Swarm.broadcast` sends, a file
-  per 10-minute keyframe, pruning, and the reads behind `/api/journal/*`. The rules (what's kept, secrets, seeking,
-  marks) are in `shared/journal.ts`; `journalSample.ts` is the demo's made-up day.
+- `officeUpdate.ts`: la autoactualización de la oficina: la decisión de vaciado, el contrato con el lanzador (IPC, `last-update.json`).
+- `pacing.ts`: frenar el trabajo nuevo tras los avisos de uso de Claude: la decisión de empezar/saltar y el estado de uso.
+- `voice.ts`: los mensajes del móvil leídos en voz alta (docs/voice.md): la clave de ElevenLabs en `secrets.json`,
+  voces, clips en caché; `elevenlabs.ts` es su cliente REST. Las palabras que se dicen salen de `shared/speech.ts`.
+  `secrets.ts`: las lecturas y escrituras combinadas de ese fichero.
+- `notifier.ts`: notificaciones (docs/pocket.md): el reparto con límite de frecuencia a las pestañas abiertas
+  (escritorio), Web Push y los webhooks de las apps de chat (secretos en `secrets.json`, claves push y dispositivos en
+  `push.json`), detrás de `Backend.notify`; `notify.ts` es su parte pura (formato, el límite por evento, comprobación
+  de webhooks), `webPush.ts` VAPID y el cifrado RFC 8291, `shared/notify.ts` los ajustes. `pwa.ts`: el service worker
+  de la app instalable, servido en `/sw.js`.
+- `ledger.ts`: lo que el trabajo va dejando (PRs, QA, correcciones, merges, sesiones): las carreras de los agentes que
+  muestran Ajustes → Equipo y su terminal, y los logros que se anuncian en el chat.
+- `legacyState.ts`: leer ficheros de estado antiguos con la forma de hoy, y los valores con pinta de secreto del entorno.
 
-The `cubefarm` command (`bin/cubefarm.js`, plain JS): checks Node/git/gh/Claude login, starts `dist-server/index.js`,
-opens the browser; `login` and `doctor` subcommands.
+El comando `sareoffice` (`bin/sareoffice.js`, JS plano; lo ejecuta `npm start` a través del lanzador): comprueba
+Node/git/gh/el inicio de sesión de Claude, arranca `dist-server/index.js` y abre el navegador; subcomandos `login` y
+`doctor` (`npm run login`, `npm run doctor`). Sus mensajes están en español.
 
-The launcher (`scripts/office.mjs`, plain JS; `npm run dev` / `demo` / `start`): runs the server (plus Vite with
-`--dev`, watching `server/` and `shared/`) with `SWARM_LAUNCHER=1` and an IPC channel, and applies office updates:
-stop, fast-forward, install/build, restart, roll back on failure, `<SWARM_HOME>/last-update.json`. Its pure decisions
-are in `scripts/officeSteps.mjs` (tested in `officeSteps.test.ts`).
+El lanzador (`scripts/office.mjs`, JS plano; `npm run dev` / `demo` / `start`): ejecuta el servidor (más Vite con
+`--dev`, vigilando `server/` y `shared/`) con `SWARM_LAUNCHER=1` y un canal IPC, y aplica las actualizaciones de la
+oficina: parar, fast-forward, instalar/construir, reiniciar, volver atrás si falla, `<SWARM_HOME>/last-update.json`.
+Sus decisiones puras están en `scripts/officeSteps.mjs` (con tests en `officeSteps.test.ts`).
 
-Shared (`shared/`, imported by both sides):
-- `types.ts`: the REST/websocket contract (`WorldSnapshot`, `ServerEvent`, views, settings).
-- `issues.ts`: issue conventions (`swarm:skip`, `Depends on #N`, hold-up ranking).
-- `journal.ts`: the time-lapse journal's format and pure rules, for the server and the replay.
-- `watch.ts`: which terminal lines a tab gets: its floor, open panels, the workers list's latest lines.
-- `looks.ts`: the look editor's options and `cleanStyle` (an agent's `style`, checked on the server).
+Compartido (`shared/`, importado por ambos lados):
+- `types.ts`: el contrato REST/websocket (`WorldSnapshot`, `ServerEvent`, vistas, ajustes).
+- `issues.ts`: convenciones de los issues (`swarm:skip`, `Depends on #N`, orden por lo que bloquean).
+- `watch.ts`: qué líneas de terminal recibe una pestaña: su planta, los paneles abiertos, las últimas líneas de la lista de trabajadores.
+- `looks.ts`: `cleanStyle`, el `style` de un agente guardado en el servidor (de la oficina 3D; el panel no lo edita).
+- `careers.ts`, `progress.ts`, `speech.ts`, `notify.ts`, `previewEnv.ts`, `clipLimits.ts`: carreras, logros, el texto
+  para la voz, notificaciones, el entorno de las vistas previas, límites de los clips de voz.
 
-Client (`client/`, Vite root; React 19, R3F, drei, zustand):
-- `src/world/`: the 3D building: floors, desks, characters (`appearance.ts`, `characterParts.ts`, `Figure.tsx`, `face.ts`), elevator,
-  whiteboard, player movement and collisions (`layout.ts`), canvas textures (`draw.ts`), `toys/` (Rapier physics),
-  where people can walk (`walkways.ts`: the walk grid, paths, named spots and steering, on the roomba's grid),
-  errands that get them up (`errands.ts`: the registry and who may go; `ErrandDirector.tsx` runs them), toy
-  errands (`toyErrands.ts`: hoops and catch, on `toys/npc.ts`, the toys' hands for people, aimed by `toys/npcAim.ts`),
-  comings and goings (`socials.ts`: new agents by elevator, leavers with a box, chats, visits, the CEO's stroll),
-  the time of day (`sky/time.ts`, `sky/useDayTime.ts`) and the city outside (`outside/`: the seeded layout in
-  `cityLayout.ts`, drawn by `City.tsx` in six instanced draw calls), the camera's other views (`camera/`: the
-  overview, the building view and the follow cam in `rig.ts`, pose maths in `cameraMath.ts`, the cutaway as global
-  clipping planes), the gamepad (`gamepad.ts`) and the graphics tiers (`gfx/`: Low/Medium/High/Auto in `quality.ts`
-  with Auto's governor, post-processing in a lazy chunk (`Effects.tsx`, `pipeline.ts`); a material blooms only if
-  `bloomMarks.ts` marks it), the other people viewing the office (`presence/`: visitors, pings, the profile),
-  holiday themes (`themes/`: which one is on from `shared/themes.ts`, their data and decoration slots in `themes.ts`
-  and `layout.ts`, each theme's scene in one lazy chunk loaded only while a theme is on; `?theme=` and `?date=` for QA).
-- `src/ui/`: HTML overlays: HUD, terminal (`LiveTerminal.tsx`: xterm.js on `/ws/term`), Kanban, manager's console,
-  phone (with its mini-games in `games/`: pure logic in `tetris.ts` / `snake.ts` / `pet.ts`), elevator panel, app
-  viewer, sounds (`sfx.ts`), key bindings (`keymap.ts`, pure; `controls.ts` keeps the player's own, and every
-  shortcut asks it, never a hard-coded key).
-- Accessibility (Settings → Accessibility, `ui/a11y.ts`, saved per browser through pure `a11yPrefs.ts`): captions
-  (`captions.ts`, rules in `captionRules.ts`; every sound `sfx.ts` records is offered to them), status colours and
-  shapes (`statusLook.ts`, shared by CSS and the canvases), motion comfort (call `reduceMotion()` before animating
-  the camera or anything non-essential), UI scale, readable font, high contrast. Dialogs use `dialogFocus.ts`
-  (focus in, trapped, returned); `announce()` speaks to screen readers; `FloorList.tsx` is the list view.
-- `src/pocket/`: pocket mode (docs/pocket.md), the 2D office for phones (`mode.ts` picks it; `App.tsx` loads it or the
-  3D `Office.tsx` lazily, so a phone never downloads three.js). `src/pwa.ts` registers the service worker and Web Push;
-  `src/notifications.ts` shows desktop notifications. `ui/Panel.tsx` is the panel, apart from `Overlays.tsx` (3D).
-- `src/photo/`: photo mode and clips, lazy-loaded except `gate.ts` (on/frozen, the K and I keys, `__swarmPhoto`):
-  `PhotoScene.tsx` (its own camera; frozen, the frame loop stops and it draws on change), `post.ts` (filters and depth
-  of field on the finished picture), `recorder.ts` / `instantReplay.ts` (MediaRecorder; `webmRing.ts` keeps the last 15 s),
-  `PhotoPanel.tsx`, and pure `flight.ts`, `shots.ts`, `filters.ts`.
-- `src/store.ts`: the zustand store; `apply(ServerEvent)` folds websocket events into UI state.
-- `src/api.ts`: REST calls; errors become toasts.
-- `src/net.ts`: the websocket connection with reconnect; it sends the tab's watch (`src/watch.ts`) as it changes.
-  `src/perf.tsx`: render pausing, adaptive DPR, `?stats` (and `window.__swarmStats` with a census of what's drawn).
-- `src/world/batch.ts` / `Batched.tsx`: a floor's repeated parts (Toon.tsx's boxes, people's `Piece`s) drawn as
-  instanced batches behind invisible stand-ins (`?batch=off` to compare). `src/world/paint/`: canvas textures
-  recorded here and painted in an OffscreenCanvas worker, with the canvas path as fallback (`?paint=main`).
-- `src/replay.ts`: the time-lapse: plays the journal through `store.apply(ev, 'play' | 'seek')` while live events
-  wait; `replayClock.ts` is its pure clock and "since I was last here", `ui/TimeLapse.tsx` its console tab and bar.
+Cliente (`client/`, raíz de Vite; React 19, zustand):
+- `src/panel/`: el panel de control, la vista por defecto en un ordenador. `ControlPanel.tsx` es la estructura (barra
+  lateral, rutas en el hash `#/project/<owner>/<name>/<tab>`, `Ctrl K`, los paneles de la oficina abiertos encima);
+  `Overview.tsx`, `Project.tsx`, `Agents.tsx`, `LaunchTask.tsx` (una tarea en palabras → issue o encargo al CEO),
+  `Settings.tsx` (las pestañas de `ui/ManagerTabs.tsx`); `panelData.ts` su lógica pura; `panel.css`, todo bajo `.cp`,
+  que también da su aspecto a los componentes de `ui/` que reutiliza.
+- `src/pocket/`: el modo bolsillo (docs/pocket.md), el panel en pestañas para móviles; `mode.ts` elige entre panel y
+  bolsillo (`?view=panel|pocket`). `src/pwa.ts` registra el service worker y Web Push; `src/notifications.ts` muestra
+  las notificaciones de escritorio.
+- `src/ui/`: piezas compartidas: terminal (`TerminalView.tsx`, `LiveTerminal.tsx`: xterm.js sobre `/ws/term`), Kanban
+  (`KanbanView.tsx`), chat con el CEO y cambios de equipo (`Phone.tsx`), visor de la app (`AppViewer.tsx`), conectar
+  proyectos (`ProjectPicker.tsx`), configuración inicial (`SetupWizard.tsx`), ajustes (`ManagerTabs.tsx`,
+  `AgentSettings.tsx`, `CloudSettings.tsx`, `NotifySettings.tsx`, `VoiceSettings.tsx`), centro de control
+  (`MissionConsole.tsx`), diálogos (`Panel.tsx`, `Confirm.tsx`), sonidos de aviso (`sfx.ts`) y voz/micrófono.
+- Accesibilidad (Ajustes → Accesibilidad, `ui/a11y.ts`, guardada por navegador con el puro `a11yPrefs.ts`):
+  subtítulos (`captions.ts`, reglas en `captionRules.ts`), colores y formas de estado (`statusLook.ts`), escala de la
+  interfaz, fuente legible, alto contraste. Los diálogos usan `dialogFocus.ts`; `announce()` habla a los lectores de
+  pantalla.
+- `src/company/`: la gestión de empresa (`CompanyWorkspace.tsx`), también sola en `/?company=1`.
+- `src/store.ts`: el store de zustand; `apply(ServerEvent)` incorpora los eventos del websocket al estado de la interfaz.
+- `src/api.ts`: llamadas REST; los errores se convierten en avisos.
+- `src/net.ts`: la conexión websocket con reconexión; envía lo que mira la pestaña (`src/watch.ts`) cuando cambia: la
+  planta del proyecto abierto (sus líneas de terminal), los paneles abiertos y la última línea de cada agente.
 
-## Conventions
+## Convenciones
 
-- ESM TypeScript everywhere (`"type": "module"`), strict, `noUnusedLocals`/`Parameters`. The server runs through
-  tsx and imports with `.ts` extensions (`import { run } from './exec.ts'`); client files import without extensions.
-- Comments are sparse and say why: a short header comment per file describing its role, `/** */` on exported
-  functions and interface fields when the name isn't enough, inline notes for Windows or safety reasons, and
-  `// ---------- section ----------` dividers in long files. No commented-out code.
-- Demo parity: every new `Backend` method, CEO tool or capability gets a fake in `server/demo.ts`, so `--demo` works
-  with no GitHub, no git/npm and no Claude usage.
-- UI state comes from the server: on connect the client gets a `snapshot`, then typed `ServerEvent`s (`repo`,
-  `agent`, `qa`, `ceo`, `message`, `toast`, …) from `Swarm.broadcast`; agents' and floors' frequent changes come
-  batched as `agents` / `repos` patches and terminal lines as `logs` / `latest`, only for what the tab shows
-  (`server/outbox.ts`). Add new state to `shared/types.ts`, the snapshot and an event, and handle it in `store.ts`'s
-  `apply`. REST is for commands, not for polling state. A big company must fit `server/scale.test.ts`'s budgets.
-- REST errors: throw `HttpError(4xx, message)`; the handler in `index.ts` returns `{ error }` JSON, anything else
-  is a logged 500. Validate request bodies by hand at the route or in the swarm.
-- CEO tools: zod input schemas, errors worded so the CEO can act on them, small outputs.
-- Windows first (the office runs on Windows):
-  - build paths with `path.join` / `path.resolve`; paths may contain spaces, so pass args as arrays (`execFile`),
-    never string-built shell commands;
-  - `fs.rm` with `maxRetries` for EBUSY/EPERM file locks; write state to a temp file and `rename`;
-  - kill process trees, not just the child (`taskkill /T /F` on Windows, process groups elsewhere);
-  - `windowsHide: true` on spawns; npm on Windows goes through `cmd.exe`.
-- Agent prompts are paid for on every session: keep prompt text short and specific.
+- TypeScript ESM en todas partes (`"type": "module"`), strict, `noUnusedLocals`/`Parameters`. El servidor se ejecuta
+  con tsx e importa con extensión `.ts` (`import { run } from './exec.ts'`); los ficheros del cliente importan sin extensión.
+- Pocos comentarios, y que digan por qué: un comentario breve de cabecera por fichero describiendo su papel, `/** */`
+  en funciones exportadas y campos de interfaces cuando el nombre no basta, notas en línea por motivos de Windows o de
+  seguridad, y separadores `// ---------- sección ----------` en ficheros largos. Nada de código comentado. Los
+  comentarios del código siguen en inglés.
+- Textos en español de España (tuteando) para todo lo que ve una persona y para los prompts de los agentes; nunca
+  traduzcas identificadores, claves, nombres de eventos, valores de enums, comandos, etiquetas de GitHub
+  (`swarm:skip`) ni convenciones que parsea el código (`Depends on #N`, `Closes #<n>`).
+- Paridad con la demo: cada método nuevo de `Backend`, herramienta del CEO o capacidad tiene su versión simulada en
+  `server/demo.ts`, para que `--demo` funcione sin GitHub, sin git/npm y sin uso de Claude.
+- El estado de la interfaz viene del servidor: al conectar, el cliente recibe un `snapshot` y después `ServerEvent`s
+  tipados (`repo`, `agent`, `qa`, `ceo`, `message`, `toast`, …) desde `Swarm.broadcast`; los cambios frecuentes de
+  agentes y plantas llegan agrupados como parches `agents` / `repos` y las líneas de terminal como `logs` / `latest`,
+  solo para lo que muestra la pestaña (`server/outbox.ts`). Añade el estado nuevo a `shared/types.ts`, al snapshot y a
+  un evento, y trátalo en el `apply` de `store.ts`. REST es para comandos, no para consultar estado periódicamente.
+  Una empresa grande tiene que caber en los presupuestos de `server/scale.test.ts`.
+- Errores REST: lanza `HttpError(4xx, message)`; el manejador de `index.ts` devuelve JSON `{ error }`, y cualquier
+  otra cosa es un 500 registrado. Valida los cuerpos de las peticiones a mano en la ruta o en el swarm.
+- Herramientas del CEO: esquemas de entrada con zod, errores redactados para que el CEO pueda actuar, salidas pequeñas.
+- Windows primero (la oficina se ejecuta en Windows):
+  - construye las rutas con `path.join` / `path.resolve`; las rutas pueden tener espacios, así que pasa los argumentos
+    como arrays (`execFile`), nunca comandos de shell construidos como cadenas;
+  - `fs.rm` con `maxRetries` para los bloqueos de ficheros EBUSY/EPERM; escribe el estado en un fichero temporal y haz `rename`;
+  - mata árboles de procesos, no solo el hijo (`taskkill /T /F` en Windows, grupos de procesos en el resto);
+  - `windowsHide: true` al lanzar procesos; npm en Windows pasa por `cmd.exe`.
+  - `bin/sareoffice.js` usa finales de línea LF (`.gitattributes`): el shebang falla en macOS y Linux con CRLF.
+- Los prompts de los agentes se pagan en cada sesión: mantén su texto corto y concreto.
 
 ## Tests
 
-- Vitest, `*.test.ts` next to the code, anywhere under `client/`, `server/`, `shared/` or `scripts/`
-  (e.g. `shared/issues.test.ts`, `client/src/world/layout.test.ts`, `server/ceo.test.ts`). Config: `vitest.config.ts`.
-- Test pure functions directly; extract logic into pure helpers rather than mocking. No network, no `gh`, no Claude
-  sessions, no real `~/.cubefarm`: `npm test` already points `SWARM_HOME` at a temp folder and `SWARM_PORT` at 0.
-- Must pass on both CI runners (ubuntu + windows): don't hardcode `/` or `\` in expected paths.
-- E2E: one spec file per feature, setup from `e2e/helpers.ts`; new e2e tests go in their feature's spec file or a new one, never appended to `smoke.spec.ts`.
+Las pruebas de `server/company-security/`, `server/mail/`, `server/company/` y `server/company-social/` usan
+proveedores simulados, claves temporales y puertos efímeros. Nunca deben conectar cuentas, enviar correo ni publicar.
+Para verificaciones paralelas entre worktrees, limita cada suite específica con `--maxWorkers=1`.
+
+- Vitest, `*.test.ts` junto al código, en cualquier parte de `client/`, `server/`, `shared/` o `scripts/`
+  (p. ej. `shared/issues.test.ts`, `client/src/panel/panelData.test.ts`, `server/ceo.test.ts`). Configuración: `vitest.config.ts`.
+- Prueba directamente las funciones puras; extrae la lógica a funciones auxiliares puras en lugar de usar mocks. Sin
+  red, sin `gh`, sin sesiones de Claude, sin el `~/.sareoffice` real: `npm test` ya apunta `SWARM_HOME` a una carpeta
+  temporal y `SWARM_PORT` a 0.
+- Tienen que pasar en los dos runners de CI (ubuntu + windows): no pongas `/` ni `\` fijos en las rutas esperadas.
+- Si cambias un texto que un test comprueba, actualiza el test en el mismo cambio.
+- E2E: un fichero de spec por funcionalidad, con la preparación de `e2e/helpers.ts`; los tests e2e nuevos van en el
+  spec de su funcionalidad o en uno nuevo, nunca añadidos a `smoke.spec.ts`.
 
 ## Pull requests
 
-- One issue per PR, `Closes #<n>` in the body. Keep the diff small and on-topic.
-- Many PRs merge in parallel and auto-merge sends conflicts back: don't reformat, reorder or rename code you aren't
-  changing, and don't touch unrelated files.
-- Before opening it: `typecheck`, `test` and `build`. `test:e2e` only when an issue asks for it; CI doesn't run it.
-- Say how you verified it and list your assumptions. UI changes get screenshots from the demo office.
-- Never push to `main`, never force-push, never merge your own PR.
+- Un issue por PR, con `Closes #<n>` en la descripción. Mantén el diff pequeño y centrado en el tema.
+- Muchas PRs se fusionan en paralelo y el auto-merge devuelve los conflictos: no reformatees, reordenes ni renombres
+  código que no estás cambiando, y no toques ficheros no relacionados.
+- Antes de abrirla: `typecheck`, `test` y `build`. `test:e2e` solo cuando un issue lo pida; CI no lo ejecuta.
+- Explica cómo lo has verificado y enumera tus suposiciones. Los cambios de interfaz llevan capturas de la oficina demo.
+- Escribe el título y la descripción de la PR en español.
+- Nunca subas a `main`, nunca hagas force-push, nunca fusiones tu propia PR.

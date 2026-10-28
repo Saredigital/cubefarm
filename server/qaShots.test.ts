@@ -6,7 +6,7 @@ import { pruneQaShots, qaShotFile, qaShotsDir, QA_SHOTS_KEPT, readQaShot, saveQa
 
 let root: string;
 beforeEach(() => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), 'cubefarm-qashots-'));
+  root = fs.mkdtempSync(path.join(os.tmpdir(), 'sareoffice-qashots-'));
 });
 afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
 

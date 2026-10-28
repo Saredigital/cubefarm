@@ -6,7 +6,7 @@ import type { WebSocket } from 'ws';
 
 // Its own folder: notifier.test.ts writes the same demo secrets file in the shared one, and two test processes
 // renaming it at once fail on Windows.
-const home = fs.mkdtempSync(path.join(os.tmpdir(), 'cubefarm-voicekey-'));
+const home = fs.mkdtempSync(path.join(os.tmpdir(), 'sareoffice-voicekey-'));
 process.env.SWARM_HOME = home;
 const { createDemoBackend } = await import('./demo.ts');
 const { Swarm } = await import('./swarm.ts');

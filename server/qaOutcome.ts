@@ -59,6 +59,6 @@ export function qaGate(pr: QaPull & { headRefName: string }, rec: Pick<QaRoundRe
 
 /** What the developer is told on a conflict send-back: QA's findings first, then the merge. */
 export function conflictFixInstructions(qaInstructions: string, base: string): string {
-  const merge = `It also conflicts with ${base}: bring it up to date (git fetch origin && git merge origin/${base}) and resolve the conflicts so both this change and the newly merged work keep working.`;
+  const merge = `También tiene conflictos con ${base}: actualízala (git fetch origin && git merge origin/${base}) y resuélvelos para que funcionen tanto este cambio como el trabajo recién fusionado.`;
   return qaInstructions.trim() ? `${qaInstructions.trim()}\n\n${merge}` : merge;
 }

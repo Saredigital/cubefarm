@@ -25,7 +25,7 @@ export const CACHE_MAX_AGE_MS = KEEP_DAYS_DEFAULT * DAY_MS;
 /** The clips of this many of the newest CEO messages stay whatever their age. */
 export const KEEP_NEWEST_MESSAGES = 20;
 const MANIFEST = 'clips.json';
-export const KEY_REJECTED_NOTE = "🔇 ElevenLabs rejected the key, so messages aren't read aloud until you set a new one in the voice settings.";
+export const KEY_REJECTED_NOTE = '🔇 ElevenLabs ha rechazado la clave, así que los mensajes no se leerán en voz alta hasta que pongas una nueva en los ajustes de voz.';
 
 type Labels = VoiceOption['labels'];
 const voice = (id: string, name: string, description: string, accent = ''): VoiceOption => ({
@@ -42,14 +42,14 @@ const voice = (id: string, name: string, description: string, accent = ''): Voic
  * 31 December 2026. They're in the Voice Library, usable by id without saving them (paid plans).
  */
 export const RECOMMENDED_VOICES: VoiceOption[] = [
-  voice('OZ0L6eISlOejga3XjDFt', 'Talia', 'warm soft guide'),
-  voice('l7kNoIfnJKPg7779LI2t', 'Eddie', 'helpful and comforting'),
-  voice('AaOhDHYJ1XLZk74lXhdE', 'Caleb', 'trusted guide'),
-  voice('gOupLcAkjEnguROwi4oS', 'Darian', 'warm grounded storyteller'),
-  voice('BFd5oBc2DDna33pSi4Gf', 'Alicia', 'polished global anchor'),
-  voice('QtY3JBOUKEB5xzrRfOKc', 'Maisie', 'friendly casual neighbor'),
-  voice('FrS6cKLB1wg4WYgPa9GW', 'Wyatt', 'seasoned mentor'),
-  voice('6WwXjDDEMyNmFG95zycZ', 'Eldrin', 'crisp baritone', 'british'),
+  voice('OZ0L6eISlOejga3XjDFt', 'Talia', 'guía cálida y suave'),
+  voice('l7kNoIfnJKPg7779LI2t', 'Eddie', 'servicial y reconfortante'),
+  voice('AaOhDHYJ1XLZk74lXhdE', 'Caleb', 'guía de confianza'),
+  voice('gOupLcAkjEnguROwi4oS', 'Darian', 'narrador cálido y sereno'),
+  voice('BFd5oBc2DDna33pSi4Gf', 'Alicia', 'presentadora pulida e internacional'),
+  voice('QtY3JBOUKEB5xzrRfOKc', 'Maisie', 'vecina simpática y cercana'),
+  voice('FrS6cKLB1wg4WYgPa9GW', 'Wyatt', 'mentor veterano'),
+  voice('6WwXjDDEMyNmFG95zycZ', 'Eldrin', 'barítono nítido', 'british'),
 ];
 
 export const DEFAULT_VOICE: VoiceSettings = {
@@ -245,13 +245,13 @@ export class Voice {
   async setKey(raw: string): Promise<VoiceKeyView> {
     const key = raw.trim();
     if (key) {
-      if (key.length > 200 || /\s/.test(key)) throw new HttpError(400, "That doesn't look like an ElevenLabs API key.");
+      if (key.length > 200 || /\s/.test(key)) throw new HttpError(400, 'Eso no parece una clave API de ElevenLabs.');
       try {
         await this.deps.api.checkKey(key);
       } catch (err) {
-        if (err instanceof VoiceApiError && err.status === 401) throw new HttpError(400, 'ElevenLabs rejected that key. Copy it again from elevenlabs.io → Developers → API Keys.');
-        if (err instanceof VoiceApiError && err.status === 403) throw new HttpError(400, 'That key may not read voices. Give it the Voices (read) and Text to Speech permissions on elevenlabs.io.');
-        throw new HttpError(502, `Couldn't check the key with ElevenLabs: ${(err as Error).message}`);
+        if (err instanceof VoiceApiError && err.status === 401) throw new HttpError(400, 'ElevenLabs ha rechazado esa clave. Cópiala de nuevo desde elevenlabs.io → Developers → API Keys.');
+        if (err instanceof VoiceApiError && err.status === 403) throw new HttpError(400, 'Esa clave no tiene permiso para leer voces. Dale los permisos Voices (read) y Text to Speech en elevenlabs.io.');
+        throw new HttpError(502, `No se ha podido comprobar la clave con ElevenLabs: ${(err as Error).message}`);
       }
     }
     this.key = key;
@@ -269,7 +269,7 @@ export class Voice {
     const now = this.now();
     if (this.voicesCache && now - this.voicesCache.at < VOICES_TTL_MS) return this.voicesCache.list;
     const key = this.key;
-    const mine = await this.deps.api.listVoices(key).catch((err) => this.failed(err, key, 'list the voices'));
+    const mine = await this.deps.api.listVoices(key).catch((err) => this.failed(err, key, 'listar las voces'));
     const recommended = new Map(RECOMMENDED_VOICES.map((v) => [v.id, v]));
     const list: VoiceOption[] = [
       ...RECOMMENDED_VOICES.map((r) => {
@@ -285,14 +285,14 @@ export class Voice {
   /** GET /api/voice/messages/:id: a phone message as mp3, made once and cached. */
   async messageAudio(id: number): Promise<Buffer> {
     const s = this.deps.settings();
-    if (s.provider !== 'elevenlabs') throw new HttpError(404, "Messages aren't read by ElevenLabs right now.");
+    if (s.provider !== 'elevenlabs') throw new HttpError(404, 'Ahora mismo ElevenLabs no lee los mensajes.');
     const m = this.message(id);
-    if (!m || !speaks(m, s)) throw new HttpError(404, `No spoken message ${id}`);
+    if (!m || !speaks(m, s)) throw new HttpError(404, `No hay ningún mensaje hablado ${id}`);
     const saved = clipsFor(this.clips, m);
     const first = saved && (await fs.readFile(path.join(this.deps.cacheDir, saved[0])).catch(() => null));
     if (first) return first; // made before, perhaps in another voice: a message keeps the clip it was first read with
     const text = speechText(m.text);
-    if (!text) throw new HttpError(404, `Message ${id} has nothing to say aloud`);
+    if (!text) throw new HttpError(404, `El mensaje ${id} no tiene nada que decir en voz alta`);
     return this.audio(String(m.id), s.voiceId, s.model, text, m);
   }
 
@@ -305,7 +305,7 @@ export class Voice {
     const files = m && clipsFor(this.clips, m);
     const file = files?.[part];
     const audio = file && (await fs.readFile(path.join(this.deps.cacheDir, file)).catch(() => null));
-    if (!files || !audio) throw new HttpError(404, `Audio for message ${id} is no longer saved.`);
+    if (!files || !audio) throw new HttpError(404, `El audio del mensaje ${id} ya no está guardado.`);
     return { audio, parts: files.length };
   }
 
@@ -348,15 +348,15 @@ export class Voice {
    * ElevenLabs Speech to Text. Only while ElevenLabs is the 🎙's provider, and at most 60 s / 5 MB a clip.
    */
   async transcribe(audio: Buffer, contentType: string | undefined, ms: number): Promise<string> {
-    if (this.deps.listen().provider !== 'elevenlabs') throw new HttpError(409, "ElevenLabs isn't turning speech into text: pick it under Settings → Voice → Talk instead of type.");
+    if (this.deps.listen().provider !== 'elevenlabs') throw new HttpError(409, 'ElevenLabs no está pasando la voz a texto: elígelo en Ajustes → Voz → Hablar en vez de escribir.');
     const bad = clipProblem({ bytes: audio.length, ms, type: contentType });
     if (bad) throw new HttpError(bad.status, bad.message);
-    if (!this.key) throw new HttpError(409, 'Add your ElevenLabs API key in Settings → Voice to talk instead of type, or pick the browser there.');
+    if (!this.key) throw new HttpError(409, 'Añade tu clave API de ElevenLabs en Ajustes → Voz para hablar en vez de escribir, o elige ahí el navegador.');
     this.requireKey();
     const key = this.key;
     const text = await this.deps.api.transcribe(key, { audio, type: clipType(contentType) }, AbortSignal.timeout(TRANSCRIBE_TIMEOUT_MS)).catch((err) => {
-      if (err instanceof VoiceApiError && err.status === 403) throw new HttpError(502, 'Your ElevenLabs key may not use Speech to Text: allow it for the key on elevenlabs.io (Developers → API Keys).');
-      return this.failed(err, key, 'turn your speech into text');
+      if (err instanceof VoiceApiError && err.status === 403) throw new HttpError(502, 'Tu clave de ElevenLabs no tiene permiso para Speech to Text: actívalo para la clave en elevenlabs.io (Developers → API Keys).');
+      return this.failed(err, key, 'pasar tu voz a texto');
     });
     const secs = Number.isFinite(ms) ? ` ${(ms / 1000).toFixed(1)} s` : '';
     this.deps.log?.(`voice: transcribed a${secs} clip (${Math.ceil(audio.length / 1024)} KB)`);
@@ -372,12 +372,12 @@ export class Voice {
   /** GET /api/voice/standup: the CEO's line at a stand-up in the 3D office, made once per wording and cached. */
   async standupAudio(count: number, part: DayPart): Promise<Buffer> {
     const s = this.deps.settings();
-    if (s.provider !== 'elevenlabs') throw new HttpError(404, "The CEO isn't voiced by ElevenLabs right now.");
+    if (s.provider !== 'elevenlabs') throw new HttpError(404, 'Ahora mismo ElevenLabs no pone la voz del CEO.');
     return this.audio('standup', s.voiceId, s.model, standupLine(count, part));
   }
 
   private async audio(name: string, voiceId: string, model: string, text: string, m?: PhoneMessage): Promise<Buffer> {
-    if (!VOICE_ID.test(voiceId)) throw new HttpError(400, 'Pick an ElevenLabs voice first.');
+    if (!VOICE_ID.test(voiceId)) throw new HttpError(400, 'Elige primero una voz de ElevenLabs.');
     // The voice, model and words are in the file name, so a new voice or a reused message id never plays stale audio.
     const hash = crypto.createHash('sha256').update(`${voiceId}\n${model}\n${text}`).digest('hex').slice(0, 12);
     const file = path.join(this.deps.cacheDir, `${name}-${hash}.mp3`);
@@ -403,7 +403,7 @@ export class Voice {
   private async synthesize(file: string, req: { voiceId: string; model: string; text: string }, m?: PhoneMessage): Promise<Buffer> {
     this.requireKey(); // the key may have been rejected or removed while this waited its turn
     const key = this.key;
-    const audio = await this.deps.api.synthesize(key, req, AbortSignal.timeout(SYNTH_TIMEOUT_MS)).catch((err) => this.failed(err, key, 'speak the message'));
+    const audio = await this.deps.api.synthesize(key, req, AbortSignal.timeout(SYNTH_TIMEOUT_MS)).catch((err) => this.failed(err, key, 'leer el mensaje'));
     await fs.mkdir(this.deps.cacheDir, { recursive: true });
     const tmp = `${file}.${process.pid}.tmp`;
     await fs.writeFile(tmp, audio);
@@ -421,13 +421,13 @@ export class Voice {
       this.deps.officeNote(KEY_REJECTED_NOTE);
       await this.writeSecrets({ elevenlabsKeyRejected: true }).catch(() => undefined);
     }
-    if (err instanceof VoiceApiError && err.status === 401) throw new HttpError(502, 'ElevenLabs rejected the key.');
-    throw new HttpError(502, `ElevenLabs couldn't ${what}: ${(err as Error).message}`.slice(0, 240));
+    if (err instanceof VoiceApiError && err.status === 401) throw new HttpError(502, 'ElevenLabs ha rechazado la clave.');
+    throw new HttpError(502, `ElevenLabs no ha podido ${what}: ${(err as Error).message}`.slice(0, 240));
   }
 
   private requireKey() {
-    if (!this.key) throw new HttpError(409, 'Add an ElevenLabs API key first.');
-    if (this.rejected) throw new HttpError(502, 'ElevenLabs rejected the key. Set a new one in the voice settings.');
+    if (!this.key) throw new HttpError(409, 'Añade primero una clave API de ElevenLabs.');
+    if (this.rejected) throw new HttpError(502, 'ElevenLabs ha rechazado la clave. Pon una nueva en los ajustes de voz.');
   }
 
   // ---------- the clip manifest ----------

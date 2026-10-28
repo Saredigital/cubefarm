@@ -106,9 +106,9 @@ export async function takeLastUpdate(home: string): Promise<LastUpdate | null> {
 
 /** The phone message for an update: "Updated the office from abc1234 to def5678 (3 commits)" or why it failed. */
 export function lastUpdateMessage(u: LastUpdate, commits: number | null): string {
-  if (!u.ok) return `⚠️ Update failed and was rolled back: ${u.error || 'unknown error'}`;
+  if (!u.ok) return `⚠️ La actualización ha fallado y se ha deshecho: ${u.error || 'error desconocido'}`;
   const n = commits === null ? '' : ` (${commits} commit${commits === 1 ? '' : 's'})`;
-  return `⬆️ Updated the office from ${u.from.slice(0, 7)} to ${u.to.slice(0, 7)}${n}`;
+  return `⬆️ Oficina actualizada de ${u.from.slice(0, 7)} a ${u.to.slice(0, 7)}${n}`;
 }
 
 // ---------- the running office ----------
@@ -141,7 +141,7 @@ export const realOffice: OfficeHost = {
       .catch(() => null),
   takeLastUpdate: () => takeLastUpdate(HOME_DIR),
   async update(from) {
-    if (!underLauncher()) throw new Error('The office was not started by the launcher');
+    if (!underLauncher()) throw new Error('La oficina no se arrancó con el lanzador');
     await new Promise<void>((resolve, reject) => process.send!({ type: 'office:update', from }, undefined, {}, (err) => (err ? reject(err) : resolve())));
     return null;
   },

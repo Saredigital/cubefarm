@@ -24,27 +24,27 @@ export function qaCardNote(
         note: rec.mergeNote
           ? `QA ✓ · ${rec.mergeNote}`
           : pr.mergeable === 'CONFLICTING'
-            ? 'QA ✓ · conflicts'
+            ? 'QA ✓ · conflictos'
             : pr.checks === 'failing'
-              ? 'QA ✓ · CI failing'
+              ? 'QA ✓ · CI falla'
               : autoMerge && pr.checks === 'pending'
-                ? 'QA ✓ · waiting for checks'
-                : '✅ QA passed',
+                ? 'QA ✓ · esperando checks'
+                : '✅ QA superado',
         tone: pr.mergeable === 'CONFLICTING' || pr.checks === 'failing' ? 'warn' : 'good',
       };
     case 'needs-human':
-      if (rec.ceoLooking) return { note: '🧭 CEO is looking', tone: 'warn' };
-      return { note: `⚠️ needs you${rec.mergeNote ? ` · ${rec.mergeNote}` : ''}`, tone: 'bad' };
+      if (rec.ceoLooking) return { note: '🧭 el CEO lo está mirando', tone: 'warn' };
+      return { note: `⚠️ te necesita${rec.mergeNote ? ` · ${rec.mergeNote}` : ''}`, tone: 'bad' };
     case 'failed':
-      return { note: '🔧 back to the developer', tone: 'warn' };
+      return { note: '🔧 vuelve al desarrollador', tone: 'warn' };
     case 'fixing':
-      return { note: `🔧 fixing · round ${rec.round}`, tone: 'warn' };
+      return { note: `🔧 corrigiendo · ronda ${rec.round}`, tone: 'warn' };
     case 'testing':
-      return { note: `🔍 testing · round ${rec.round}` };
+      return { note: `🔍 probando · ronda ${rec.round}` };
     case 'queued':
-      return { note: `waiting for QA${rec.round > 1 ? ` · round ${rec.round}` : ''}` };
+      return { note: `esperando QA${rec.round > 1 ? ` · ronda ${rec.round}` : ''}` };
     default:
-      return { note: pr.isDraft ? 'draft' : 'not tested yet', tone: 'warn' };
+      return { note: pr.isDraft ? 'borrador' : 'sin probar aún', tone: 'warn' };
   }
 }
 
@@ -61,10 +61,10 @@ export function elapsedLabel(ms: number): string {
  * QA record's updatedAt: nothing changes it while a test runs); without a usable one no time is shown.
  */
 export function testingLabel(tester: string | undefined, round: number, since: number | null | undefined, now: number): { who: string; meta: string[] } {
-  const who = tester ? `🔍 ${tester} · testing` : '🔍 testing';
+  const who = tester ? `🔍 ${tester} · probando` : '🔍 probando';
   const time = since != null && Number.isFinite(since) && since > 0 && since <= now + 60_000 ? elapsedLabel(now - since) : null;
   const r = round >= 1 ? round : null;
-  if (r && time) return { who, meta: [`round ${r} · ${time}`, `R${r} · ${time}`, time] };
-  if (r) return { who, meta: [`round ${r}`, `R${r}`] };
+  if (r && time) return { who, meta: [`ronda ${r} · ${time}`, `R${r} · ${time}`, time] };
+  if (r) return { who, meta: [`ronda ${r}`, `R${r}`] };
   return { who, meta: time ? [time] : [] };
 }

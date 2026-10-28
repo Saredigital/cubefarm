@@ -10,12 +10,12 @@ const clis = [{ id: 'codex', label: 'Codex CLI' }] as CliView[];
 
 describe('doingText', () => {
   it('says what each person is on', () => {
-    expect(doingText(agent({}))).toBe('Nothing assigned');
+    expect(doingText(agent({}))).toBe('Nada asignado');
     expect(doingText(agent({ status: 'working', task: 'issue', issueNumber: 12, issueTitle: 'Add dark mode' }))).toBe('Issue #12: Add dark mode');
-    expect(doingText(agent({ status: 'working', task: 'fix', prNumber: 40, issueTitle: 'Add dark mode' }))).toBe('Fixing PR #40: Add dark mode');
-    expect(doingText(agent({ status: 'working', task: 'qa', prNumber: 40, issueTitle: 'Dark mode' }))).toBe('Testing PR #40: Dark mode');
+    expect(doingText(agent({ status: 'working', task: 'fix', prNumber: 40, issueTitle: 'Add dark mode' }))).toBe('Corrigiendo la PR #40: Add dark mode');
+    expect(doingText(agent({ status: 'working', task: 'qa', prNumber: 40, issueTitle: 'Dark mode' }))).toBe('Probando la PR #40: Dark mode');
     expect(doingText(agent({ role: 'ceo', status: 'working', issueTitle: 'Reviewing the company' }))).toBe('Reviewing the company');
-    expect(doingText(agent({ role: 'ceo' }))).toBe('Free for a chat');
+    expect(doingText(agent({ role: 'ceo' }))).toBe('Libre para charlar');
   });
 });
 
@@ -39,9 +39,9 @@ describe('signInFor', () => {
 
   it('lists someone waiting to be signed in as needing the manager', () => {
     const [row] = floorRows([agent({ host: 'box', needsSignIn: true, status: 'preparing', task: 'issue', issueNumber: 7, issueTitle: 'Dark mode' })], terminals, []);
-    expect(row.status).toBe('Needs you to sign in');
+    expect(row.status).toBe('Necesita que inicies sesión');
     expect(row.kind).toBe('attention');
-    expect(row.doing).toBe('Waiting for Claude Code to be signed in · Issue #7: Dark mode');
+    expect(row.doing).toBe('Esperando a que se inicie sesión en Claude Code · Issue #7: Dark mode');
   });
 });
 
@@ -57,9 +57,9 @@ describe('floorRows', () => {
       [],
     );
     expect(rows.map((r) => [r.name, r.agent, r.status, r.icon, r.doing])).toEqual([
-      ['Ada', 'Claude Code', 'Working', '▶', 'Issue #3: Fix login'],
-      ['Linus', 'Claude Code', 'Needs help', '✕', 'Issue #4'],
-      ['Marple', 'Codex', 'Working', '▶', 'Testing PR #9'],
+      ['Ada', 'Claude Code', 'Trabajando', '▶', 'Issue #3: Fix login'],
+      ['Linus', 'Claude Code', 'Necesita ayuda', '✕', 'Issue #4'],
+      ['Marple', 'Codex', 'Trabajando', '▶', 'Probando la PR #9'],
     ]);
     expect(rows[1].kind).toBe('bad');
   });

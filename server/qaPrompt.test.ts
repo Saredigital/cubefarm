@@ -19,37 +19,37 @@ const input = (i: Partial<QaPromptInput> = {}): QaPromptInput => ({
   ...i,
 });
 
-const TODAYS_STEP = "3. Install dependencies if needed (e.g. npm install when node_modules is missing), then run the project's test suite, linters, type checks and build (whichever exist).";
+const TODAYS_STEP = '3. Instala las dependencias si hace falta (p. ej. npm install si falta node_modules) y ejecuta la batería de tests, los linters, las comprobaciones de tipos y el build del proyecto (los que existan).';
 
 describe('qaInstructions: GitHub checks', () => {
   it('passing: names them and says not to re-run what they cover', () => {
     const qa = qaInstructions(input());
-    expect(qa.checks).toBe('GitHub checks right now: passing (check (ubuntu-latest), e2e)');
-    expect(qa.testStep).toContain("don't re-run that locally");
-    expect(qa.testStep).not.toContain('test suite');
+    expect(qa.checks).toBe('Checks de GitHub ahora mismo: en verde (check (ubuntu-latest), e2e)');
+    expect(qa.testStep).toContain('no lo vuelvas a ejecutar en local');
+    expect(qa.testStep).not.toContain('batería de tests');
   });
 
   it('failing: lists the failing checks and asks for them as findings', () => {
     const qa = qaInstructions(input({ checks: 'failing', failedChecks: ['e2e', 'lint'] }));
-    expect(qa.checks).toBe('GitHub checks right now: failing: e2e, lint');
-    expect(qa.testStep).toContain('A failing check is a finding');
+    expect(qa.checks).toBe('Checks de GitHub ahora mismo: fallan: e2e, lint');
+    expect(qa.testStep).toContain('Un check que falla es un hallazgo');
   });
 
   it('failing while others still run: says which are still running', () => {
     expect(qaInstructions(input({ checks: 'failing', failedChecks: ['e2e'], pendingChecks: ['check (macos-latest)'] })).checks).toBe(
-      'GitHub checks right now: failing: e2e; still running: check (macos-latest)',
+      'Checks de GitHub ahora mismo: fallan: e2e; aún en curso: check (macos-latest)',
     );
   });
 
   it('pending: lists what is still running and still trusts the checks', () => {
     const qa = qaInstructions(input({ checks: 'pending', pendingChecks: ['check (macos-latest)'] }));
-    expect(qa.checks).toBe('GitHub checks right now: pending: check (macos-latest)');
+    expect(qa.checks).toBe('Checks de GitHub ahora mismo: en curso: check (macos-latest)');
     expect(qa.testStep).not.toBe(TODAYS_STEP);
   });
 
   it('no checks: keeps the full local run', () => {
     const qa = qaInstructions(input({ checks: 'none', checkNames: [] }));
-    expect(qa.checks).toBe('GitHub checks right now: none');
+    expect(qa.checks).toBe('Checks de GitHub ahora mismo: ninguno');
     expect(qa.testStep).toBe(TODAYS_STEP);
   });
 });
@@ -65,44 +65,44 @@ describe('qaInstructions: re-tests', () => {
     const retest = qaInstructions(input({ ...failedRound, lastTestedSha: OLD })).retest;
     expect(retest).toContain('The toolbar overflows on phones.');
     expect(retest).toContain('Let it wrap.');
-    expect(retest).toContain('Check those first');
+    expect(retest).toContain('Comprueba eso primero');
     expect(retest).toContain(`git diff ${OLD}..HEAD`);
-    expect(retest).toContain('quick smoke test of the main flow');
-    expect(retest).not.toMatch(/re-check everything/i);
+    expect(retest).toContain('prueba rápida del flujo principal');
+    expect(retest).not.toMatch(/vuelve a comprobar/i);
   });
 
   it('round 2 without the last tested commit: keeps the full re-check', () => {
     expect(qaInstructions(input({ ...failedRound, lastTestedSha: null })).retest).toBe(
-      "\nThis is a re-test after fixes. Last round's findings:\nThe toolbar overflows on phones.\nLet it wrap.\nCheck those first, then re-check everything else.",
+      '\nEs una nueva prueba tras correcciones. Hallazgos de la ronda anterior:\nThe toolbar overflows on phones.\nLet it wrap.\nComprueba eso primero y después vuelve a comprobar todo lo demás.',
     );
   });
 
   it('a retried session whose head was already recorded: keeps the full re-check', () => {
     const retest = qaInstructions(input({ ...failedRound, lastTestedSha: HEAD })).retest;
     expect(retest).not.toContain('git diff');
-    expect(retest).toContain('re-check everything else');
+    expect(retest).toContain('vuelve a comprobar todo lo demás');
   });
 
   it('a checks fix: tests what changed since QA passed it', () => {
     const retest = qaInstructions(input({ round: 3, fixReason: 'checks', lastTestedSha: OLD })).retest;
-    expect(retest).toContain('fix failing GitHub checks');
+    expect(retest).toContain('arreglar checks de GitHub que fallaban');
     expect(retest).toContain(`git diff ${OLD}..HEAD`);
-    expect(retest).not.toMatch(/re-check everything/i);
+    expect(retest).not.toMatch(/vuelve a comprobar/i);
   });
 
   it('a checks fix without the last tested commit: keeps the full re-check', () => {
     expect(qaInstructions(input({ round: 3, fixReason: 'checks' })).retest).toBe(
-      '\nQA passed it before, but since then the developer changed the code to fix failing GitHub checks. Re-check everything.',
+      '\nQA ya la aprobó, pero desde entonces el desarrollador ha cambiado el código para arreglar checks de GitHub que fallaban. Vuelve a comprobarlo todo.',
     );
   });
 
   it('a conflict fix: a lighter re-check of the merge, CI and the feature', () => {
     const retest = qaInstructions(input({ round: 3, fixReason: 'conflict', lastTestedSha: OLD, defaultBranch: 'develop' })).retest;
-    expect(retest).toContain('updated with develop to resolve merge conflicts');
-    expect(retest).toContain(`git show --remerge-diff on the merge commit(s) (git log --merges ${OLD}..HEAD)`);
-    expect(retest).toContain("confirm GitHub's checks are green on the new head");
-    expect(retest).toContain("smoke-test this PR's feature plus whatever the conflicting files touch");
-    expect(retest).not.toContain('Re-check everything');
-    expect(qaInstructions(input({ round: 3, fixReason: 'conflict' })).retest).toContain('on the merge commit(s), confirm');
+    expect(retest).toContain('actualizado con develop para resolver conflictos de merge');
+    expect(retest).toContain(`git show --remerge-diff sobre los commits de merge (git log --merges ${OLD}..HEAD)`);
+    expect(retest).toContain('confirma que los checks de GitHub están en verde en el nuevo head');
+    expect(retest).toContain('prueba rápida de la funcionalidad de esta PR y de lo que toquen los ficheros en conflicto');
+    expect(retest).not.toContain('Vuelve a comprobarlo todo');
+    expect(qaInstructions(input({ round: 3, fixReason: 'conflict' })).retest).toContain('sobre los commits de merge, confirma');
   });
 });

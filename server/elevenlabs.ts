@@ -14,7 +14,7 @@ async function call(key: string, pathname: string, init: RequestInit, signal: Ab
   try {
     res = await fetch(`${API}${pathname}`, { ...init, signal, headers: { ...init.headers, 'xi-api-key': key } });
   } catch (err) {
-    throw new VoiceApiError(0, signal.aborted ? 'it took too long to answer' : `it couldn't be reached (${(err as Error).message})`);
+    throw new VoiceApiError(0, signal.aborted ? 'ha tardado demasiado en responder' : `no se ha podido contactar (${(err as Error).message})`);
   }
   if (!res.ok) throw new VoiceApiError(res.status, await reason(res));
   return res;

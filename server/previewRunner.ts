@@ -150,8 +150,8 @@ class RealPreview implements PreviewHandle {
       this.stopped = true;
       cb.failed(
         pkg
-          ? 'package.json has no dev, start or preview script. Set a preview command for this floor.'
-          : 'Nothing to run: this floor has no preview command and no package.json.',
+          ? 'package.json no tiene script dev, start ni preview. Configura un comando de vista previa para esta planta.'
+          : 'No hay nada que ejecutar: esta planta no tiene comando de vista previa ni package.json.',
         true,
       );
       return;
@@ -173,8 +173,8 @@ class RealPreview implements PreviewHandle {
     void exited.then((code) => (exitCode = code));
     while (!(await portOpen(job.port))) {
       this.check();
-      if (exitCode !== undefined) throw new Error(`The app exited (code ${exitCode}) before it listened on port ${job.port}.`);
-      if (Date.now() > deadline) throw new Error(`The app did not listen on port ${job.port} within 3 minutes. Does the command use PORT or {port}?`);
+      if (exitCode !== undefined) throw new Error(`La app terminó (código ${exitCode}) antes de escuchar en el puerto ${job.port}.`);
+      if (Date.now() > deadline) throw new Error(`La app no ha escuchado en el puerto ${job.port} en 3 minutos. ¿El comando usa PORT o {port}?`);
       await sleep(700);
     }
     this.check();
@@ -184,14 +184,14 @@ class RealPreview implements PreviewHandle {
     while (!this.stopped && (await portOpen(job.port))) await sleep(3000);
     if (this.stopped) return;
     this.stopped = true;
-    cb.failed(`The app stopped (exit code ${code}).`);
+    cb.failed(`La app se ha detenido (código de salida ${code}).`);
   }
 
   /** npm ci (or npm install without a lockfile), skipped when package.json and the lockfile haven't changed. */
   private async install(wt: string, env: Record<string, string>) {
     const deps = await readDeps(wt);
     if (depsCurrent(deps)) {
-      this.cb.log(['Dependencies unchanged since the last install; skipping it.']);
+      this.cb.log(['Las dependencias no han cambiado desde la última instalación; se omite.']);
       return;
     }
     const cmd = deps.lock !== null ? 'npm ci' : 'npm install';
@@ -200,9 +200,9 @@ class RealPreview implements PreviewHandle {
     this.check();
     if (code === 'timeout') {
       if (this.child) await killTree(this.child);
-      throw new Error(`${cmd} took longer than ${INSTALL_TIMEOUT_MS / 60_000} minutes.`);
+      throw new Error(`${cmd} ha tardado más de ${INSTALL_TIMEOUT_MS / 60_000} minutos.`);
     }
-    if (code !== 0) throw new Error(`${cmd} failed (code ${code}).`);
+    if (code !== 0) throw new Error(`${cmd} ha fallado (código ${code}).`);
     this.child = null;
     await writeMarker(wt, deps.hash);
   }

@@ -20,9 +20,7 @@ describe('default bindings', () => {
     expect(b.forward).toEqual(['KeyW', 'ArrowUp']);
     expect(b.run).toEqual(['ShiftLeft', 'ShiftRight']);
     expect(b.interact).toEqual(['KeyE']);
-    expect(b.throw).toEqual(['KeyF']);
     expect(b.drop).toEqual(['KeyG']);
-    expect(b.reload).toEqual(['KeyR']);
     expect(b.phone).toEqual(['KeyP']);
     expect(b.help).toEqual(['KeyH']);
     expect(b.mute).toEqual(['KeyM']);
@@ -53,6 +51,8 @@ describe('actionsForKey', () => {
     expect(actionsForKey(b, 'ArrowUp', ['global', 'move', 'walk'])).toEqual(['forward']);
     expect(actionsForKey(b, 'Tab', ['global'])).toEqual(['overview']);
     expect(actionsForKey(b, 'KeyZ', ['global', 'move', 'walk'])).toEqual([]);
+    expect(actionsForKey(b, 'KeyF', ['global', 'move', 'walk'])).toEqual([]);
+    expect(actionsForKey(b, 'KeyR', ['global', 'move', 'walk'])).toEqual([]);
   });
 
   it('anyHeld checks every key of an action', () => {
@@ -77,18 +77,18 @@ describe('keyLabel', () => {
   });
 
   it('can tell left from right where both are bound', () => {
-    expect(exactKeyLabel('ShiftLeft')).toBe('Left Shift');
-    expect(exactKeyLabel('ControlRight')).toBe('Right Ctrl');
+    expect(exactKeyLabel('ShiftLeft')).toBe('Shift izquierdo');
+    expect(exactKeyLabel('ControlRight')).toBe('Ctrl derecho');
     expect(exactKeyLabel('KeyE')).toBe('E');
   });
 });
 
 describe('rebind', () => {
-  it('swaps keys with the action that had it: interact on F gives throw the E', () => {
-    const r = rebind(defaultBindings(), 'interact', 0, 'KeyF')!;
-    expect(r.bindings.interact).toEqual(['KeyF']);
-    expect(r.bindings.throw).toEqual(['KeyE']);
-    expect(r.displaced).toEqual({ action: 'throw', key: 'KeyE' });
+  it('swaps keys with the action that had it: interact on G gives drop the E', () => {
+    const r = rebind(defaultBindings(), 'interact', 0, 'KeyG')!;
+    expect(r.bindings.interact).toEqual(['KeyG']);
+    expect(r.bindings.drop).toEqual(['KeyE']);
+    expect(r.displaced).toEqual({ action: 'drop', key: 'KeyE' });
     expect(findConflicts(r.bindings)).toEqual([]);
   });
 
@@ -171,7 +171,7 @@ describe('normaliseControls', () => {
       bindings: { interact: ['KeyF'], throw: ['KeyE'], forward: 'KeyW', drop: [7], help: ['Escape'], phone: ['KeyP', 'KeyP', 'KeyO', 'KeyI'], made_up: ['KeyZ'] },
     });
     expect(c.bindings.interact).toEqual(['KeyF']);
-    expect(c.bindings.throw).toEqual(['KeyE']);
+    expect('throw' in c.bindings).toBe(false);
     expect(c.bindings.forward).toEqual(['KeyW', 'ArrowUp']); // a string, not a list
     expect(c.bindings.drop).toEqual(['KeyG']); // not a key code
     expect(c.bindings.help).toEqual(['KeyH']); // reserved
@@ -180,7 +180,14 @@ describe('normaliseControls', () => {
   });
 
   it('keeps an action the player left without a key', () => {
-    expect(normaliseControls({ bindings: { reload: [] } }).bindings.reload).toEqual([]);
+    expect(normaliseControls({ bindings: { drop: [] } }).bindings.drop).toEqual([]);
+  });
+
+  it('ignores saved bindings for removed toy actions', () => {
+    const c = normaliseControls({ bindings: { throw: ['KeyF'], reload: ['KeyR'] } });
+    expect(c).toEqual(defaultControls());
+    expect('throw' in c.bindings).toBe(false);
+    expect('reload' in c.bindings).toBe(false);
   });
 
   it('clamps the gamepad sensitivity and ignores junk', () => {

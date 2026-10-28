@@ -48,7 +48,7 @@ describe('phrasesText', () => {
 
 describe('micErrorLine', () => {
   it('explains a refusal in one friendly line', () => {
-    expect(micErrorLine('not-allowed')).toMatch(/blocked.*Allow it/);
+    expect(micErrorLine('not-allowed')).toMatch(/bloqueado.*Permítelo/);
     expect(micErrorLine('NotAllowedError')).toBe(micErrorLine('not-allowed'));
     expect(micErrorLine('not-allowed')).not.toContain('\n');
   });
@@ -59,10 +59,10 @@ describe('micErrorLine', () => {
   });
 
   it('covers a missing mic, the network and anything else', () => {
-    expect(micErrorLine('audio-capture')).toMatch(/No microphone/);
-    expect(micErrorLine('NotFoundError')).toMatch(/No microphone/);
+    expect(micErrorLine('audio-capture')).toMatch(/ningún micrófono/);
+    expect(micErrorLine('NotFoundError')).toMatch(/ningún micrófono/);
     expect(micErrorLine('network')).toMatch(/ElevenLabs/);
-    expect(micErrorLine('weird')).toBe('🎙️ Listening stopped (weird).');
+    expect(micErrorLine('weird')).toBe('🎙️ Se ha dejado de escuchar (weird).');
   });
 });
 
@@ -74,11 +74,11 @@ describe('cantListen', () => {
   });
 
   it("says plainly when the browser can't recognise speech", () => {
-    expect(cantListen('browser', { recognition: false, recorder: true }, true)).toMatch(/can't turn speech into text/);
+    expect(cantListen('browser', { recognition: false, recorder: true }, true)).toMatch(/no puede convertir la voz en texto/);
   });
 
   it('ElevenLabs needs a recorder and a key', () => {
-    expect(cantListen('elevenlabs', { recognition: true, recorder: false }, true)).toMatch(/can't record/);
-    expect(cantListen('elevenlabs', all, false)).toMatch(/Add your ElevenLabs API key/);
+    expect(cantListen('elevenlabs', { recognition: true, recorder: false }, true)).toMatch(/no puede grabar/);
+    expect(cantListen('elevenlabs', all, false)).toMatch(/Añade tu clave de API de ElevenLabs/);
   });
 });

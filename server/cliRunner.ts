@@ -87,7 +87,7 @@ export function handleHook(token: string, body: unknown): Record<string, unknown
 export async function handleMcp(token: string, req: Request, res: Response) {
   const office = routes.get(token)?.office;
   if (!office) {
-    res.status(404).json({ jsonrpc: '2.0', error: { code: -32001, message: 'This session has ended.' }, id: null });
+    res.status(404).json({ jsonrpc: '2.0', error: { code: -32001, message: 'Esta sesión ha terminado.' }, id: null });
     return;
   }
   const server = office.serve();
@@ -186,7 +186,7 @@ const IDLE_MS = 30 * 60_000;
 const BOX_IDLE_MS = 5 * 60_000;
 
 /** PreToolUse's answer: nobody may be watching to answer a permission question, so every tool call is approved. */
-const ALLOW = { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'allow', permissionDecisionReason: 'Approved by cubefarm' } };
+const ALLOW = { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'allow', permissionDecisionReason: 'Approved by sareoffice' } };
 
 const toolInput = (b: Record<string, unknown>) => (b.tool_input && typeof b.tool_input === 'object' ? b.tool_input : {}) as Record<string, unknown>;
 
@@ -208,7 +208,7 @@ function endLive(live: LiveCli): Promise<void> {
   const gone = live.proc ? exitOf(live.proc) : Promise.resolve();
   live.proc?.kill();
   live.proc = null;
-  live.term.note(`── ${cliLabel(live.cli)} session ended ──`);
+  live.term.note(`── Sesión de ${cliLabel(live.cli)} terminada ──`);
   if (live.box) return gone; // its session folder in the Box goes with its tmux; Codex's threads there aren't ours to archive
   fs.rm(live.dir, { recursive: true, force: true, maxRetries: 5 }, () => undefined);
   if (live.cli === 'codex' && live.resumeId) void codexThread('archive', live.resumeId, gone);
@@ -279,7 +279,7 @@ export async function reconnectClis(terminalFor: (agentId: string) => AgentTermi
       if (meta.cli === 'codex' && meta.resumeId) void codexThread('archive', meta.resumeId, h.exit === null ? new Promise((r) => setTimeout(r, 5000)) : undefined);
       continue;
     }
-    const l: LiveCli = { agentId: meta.agentId, cli: meta.cli, term, proc: adoptPty(h), token: meta.token, dir: meta.dir, resumeId: meta.resumeId ?? null, statusLine: '🏢 cubefarm', shots: new Set(), session: null };
+    const l: LiveCli = { agentId: meta.agentId, cli: meta.cli, term, proc: adoptPty(h), token: meta.token, dir: meta.dir, resumeId: meta.resumeId ?? null, statusLine: '🏢 sareoffice', shots: new Set(), session: null };
     wire(l);
     waitAtPrompt(l);
     // Resizing makes the CLI draw its whole screen again, over whatever the saved copy of the terminal missed.
@@ -322,7 +322,7 @@ export async function reconnectBoxClis(kept: KeptBoxCli[], terminalFor: (agentId
         k.record(null); // gone without finishing: the office resumes or requeues its task
         return;
       }
-      const l: LiveCli = { agentId: k.agentId, cli: k.rec.cli, term, proc: null, token: k.rec.token, dir: k.rec.dir, resumeId: k.rec.resumeId, statusLine: '🏢 cubefarm', shots: new Set(), session: null, box: { api: k.api, boxId: k.rec.boxId } };
+      const l: LiveCli = { agentId: k.agentId, cli: k.rec.cli, term, proc: null, token: k.rec.token, dir: k.rec.dir, resumeId: k.rec.resumeId, statusLine: '🏢 sareoffice', shots: new Set(), session: null, box: { api: k.api, boxId: k.rec.boxId } };
       const p = boxPty(l, { api: k.api, boxId: k.rec.boxId, record: (r) => k.record(r), connection: k.connection }, term.cols, term.rows, readFrom(k.rec));
       l.proc = p;
       wire(l);
@@ -381,7 +381,7 @@ export function startBoxSignIn(o: { api: BoxApi; boxId: string; cli: 'claude' | 
     exited(code);
   };
   l.session = { hook: () => ({}), exited: end };
-  o.term.note(`── Signing ${cliLabel(o.cli)} in · ☁ cloud machine ──`);
+  o.term.note(`── Iniciando sesión en ${cliLabel(o.cli)} · ☁ máquina en la nube ──`);
   void (async () => {
     try {
       await o.api.write(o.boxId, `${dir}/launch.json`, JSON.stringify({ ...signInCommand(o.cli), cwd: BOX_HOME, events: `${dir}/events.jsonl` }));
@@ -391,7 +391,7 @@ export function startBoxSignIn(o: { api: BoxApi; boxId: string; cli: 'claude' | 
       wire(l);
       await pty.open('new');
     } catch (err) {
-      o.term.note(`Couldn't start signing in: ${(err as Error).message}`);
+      o.term.note(`No se ha podido empezar a iniciar sesión: ${(err as Error).message}`);
       end(-1);
     }
   })();
@@ -447,7 +447,7 @@ function idleHook(live: LiveCli, b: Record<string, unknown>): Record<string, unk
     case 'UserPromptSubmit': {
       const text = String(b.prompt ?? '').trim();
       if (!text || live.term.onIdlePrompt?.(text)) return {};
-      return { decision: 'block', reason: "The office couldn't take that on as a follow-up right now (see the agent's panel). Nothing was sent." };
+      return { decision: 'block', reason: 'La oficina no ha podido aceptar eso como seguimiento ahora mismo (mira el panel del agente). No se ha enviado nada.' };
     }
     case 'StatusLine':
       return { statusLine: live.statusLine };
@@ -491,7 +491,7 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
   const sessionId = opts.resumeSessionId ?? crypto.randomUUID();
   const dir = box ? boxSessionDir(token) : path.join(SESSIONS_DIR, token);
   const started = Date.now();
-  const statusLine = `🏢 cubefarm${opts.label ? ` · ${opts.label}` : ''}`;
+  const statusLine = `🏢 sareoffice${opts.label ? ` · ${opts.label}` : ''}`;
   const toolNames = new Map<string, string>();
   const officePrompts: string[] = []; // prompts the office typed, so the ones the manager typed are told apart
   const launched: string[] = []; // every prompt the CLI was given, as given (Codex: finds its main thread)
@@ -553,7 +553,7 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
     // A cloud agent's CLI that failed (or said nothing) because its login expired: the task waits for a new sign-in.
     const cut = r.interrupted || r.signedOut || r.errors[0] === 'Stopped by manager';
     if (inBox && !cut && (!r.ok || !r.text) && (signedOutScreen(term.screen()) || r.errors.some((e) => /authentication failed/i.test(e)))) {
-      r = { ...r, ok: false, signedOut: true, errors: [`${label}'s sign-in in their cloud machine expired or was turned away.`] };
+      r = { ...r, ok: false, signedOut: true, errors: [`La sesión de ${label} en su máquina en la nube ha caducado o se ha rechazado.`] };
       keep = false;
     }
     for (const t of [finishTimer, bootTimer]) clearTimeout(t);
@@ -618,7 +618,7 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
   const assistantLines = (text: string): LogEntry[] => {
     const lines = text.split('\n');
     const out: LogEntry[] = lines.slice(0, 30).map((l, i) => ({ kind: 'text', text: `${i === 0 ? '● ' : '  '}${l}` }));
-    if (lines.length > 30) out.push({ kind: 'text', text: `  … (${lines.length - 30} more lines)` });
+    if (lines.length > 30) out.push({ kind: 'text', text: `  … (${lines.length - 30} líneas más)` });
     return out;
   };
 
@@ -690,7 +690,7 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
         const prompt = String(b.prompt ?? '').trim();
         const i = officePrompts.findIndex((p) => p.slice(0, 60) === prompt.slice(0, 60));
         if (i >= 0) officePrompts.splice(i, 1);
-        else if (prompt) log([{ kind: 'manager', text: `▶ Typed in the terminal: ${clip(prompt.split('\n')[0], 200)}` }]);
+        else if (prompt) log([{ kind: 'manager', text: `▶ Escrito en el terminal: ${clip(prompt.split('\n')[0], 200)}` }]);
         return {};
       }
       case 'Stop': {
@@ -707,11 +707,11 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
         const error = String(b.error ?? 'unknown');
         const details = String(b.error_details ?? '').trim();
         if (error === 'rate_limit') cb.limited?.([...usageResets.values()].find((t) => t !== null) ?? null);
-        finish({ ok: false, text: lastText, errors: [`${label} stopped: ${error.replace(/_/g, ' ')}${details ? ` (${clip(details, 160)})` : ''}`] }, true);
+        finish({ ok: false, text: lastText, errors: [`${label} se ha detenido: ${error.replace(/_/g, ' ')}${details ? ` (${clip(details, 160)})` : ''}`] }, true);
         return {};
       }
       case 'Notification': {
-        if (b.notification_type === 'permission_prompt') log([{ kind: 'error', text: `⚠ ${label} is waiting for a permission answer: open the terminal to answer it.` }]);
+        if (b.notification_type === 'permission_prompt') log([{ kind: 'error', text: `⚠ ${label} está esperando una respuesta de permisos: abre el terminal para contestar.` }]);
         return {};
       }
       case 'StatusLine':
@@ -756,11 +756,11 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
   const exited = (exitCode: number) => {
     if (cli === 'claude' && opts.resumeSessionId && !begun && lostConversation(term.screen())) {
       cb.sessionId(null);
-      finish({ ok: false, text: '', errors: [`${label} couldn't find the conversation it was resuming, so the next session starts a new one.`] });
+      finish({ ok: false, text: '', errors: [`${label} no ha encontrado la conversación que estaba retomando, así que la próxima sesión empieza una nueva.`] });
       return;
     }
     const ok = exitCode === 0 && (lastText !== '' || (cli !== 'claude' && Date.now() - started > 20_000));
-    finish({ ok, text: lastText, errors: ok ? [] : [`${label} exited${exitCode ? ` with code ${exitCode}` : ''} before finishing.`] });
+    finish({ ok, text: lastText, errors: ok ? [] : [`${label} terminó${exitCode ? ` con código ${exitCode}` : ''} antes de acabar.`] });
   };
 
   const handle: SessionHandle = {
@@ -796,7 +796,7 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
   }
   if (opts.reattach) {
     // Its CLI didn't make it through the restart after all.
-    setTimeout(() => finish({ ok: false, text: '', errors: [`${label} stopped while the office restarted.`] }), 0);
+    setTimeout(() => finish({ ok: false, text: '', errors: [`${label} se detuvo mientras la oficina se reiniciaba.`] }), 0);
     return handle;
   }
 
@@ -805,12 +805,12 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
   // In a Box the CLI is the office's own pinned copy there, by its full path; here, the one found on this computer.
   const cmd = box ? { file: `${BOX_CLI_BIN}/${CLIS.find((c) => c.id === cli)!.command}`, args: [] as string[] } : commandFor(cli);
   if (box && cli === 'opencode') {
-    setTimeout(() => finish({ ok: false, text: '', errors: [`${label} can't run in a cloud machine yet: give this agent Claude Code or Codex.`] }), 0);
+    setTimeout(() => finish({ ok: false, text: '', errors: [`${label} aún no puede ejecutarse en una máquina en la nube: dale a este agente Claude Code o Codex.`] }), 0);
     return handle;
   }
   if (!box && (!terminalsAvailable || !cmd)) {
-    const why = !terminalsAvailable ? 'the terminal module could not be loaded on this machine' : `${label} isn't installed (no "${cli}" on PATH)`;
-    setTimeout(() => finish({ ok: false, text: '', errors: [`Could not start ${label}: ${why}.`] }), 0);
+    const why = !terminalsAvailable ? 'no se ha podido cargar el módulo de terminal en esta máquina' : `${label} no está instalado (no hay "${cli}" en el PATH)`;
+    setTimeout(() => finish({ ok: false, text: '', errors: [`No se ha podido arrancar ${label}: ${why}.`] }), 0);
     return handle;
   }
 
@@ -823,11 +823,11 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
   // The browser for a session. Its snapshots and unnamed screenshots go to the session's folder, not the worktree. In a
   // Box, Playwright attaches to the Box's own Chromium.
   const browser = !opts.browserTesting ? null : box ? (box.browser ? { command: `${BOX_CLI_BIN}/playwright-mcp`, args: ['--cdp-endpoint', BOX_CDP, '--output-dir', `${dir}/browser`] } : null) : playwrightMcp(path.join(dir, 'browser'));
-  const browserIssue = !opts.browserTesting ? null : box ? (box.browser ? null : "⚠ This cloud machine has no browser, so this session can't test in one.") : browserProblem(browser);
+  const browserIssue = !opts.browserTesting ? null : box ? (box.browser ? null : '⚠ Esta máquina en la nube no tiene navegador, así que esta sesión no puede probar en uno.') : browserProblem(browser);
   if (browserIssue) log([{ kind: 'error', text: browserIssue }]);
   let prompt = opts.prompt;
   if (opts.outputSchema) {
-    prompt += `\n\nWhen you are done, end your final message with your report as one JSON object in a \`\`\`json block, matching this JSON schema:\n${JSON.stringify(opts.outputSchema)}`;
+    prompt += `\n\nCuando termines, acaba tu último mensaje con tu informe como un único objeto JSON en un bloque \`\`\`json que cumpla este esquema JSON:\n${JSON.stringify(opts.outputSchema)}`;
   }
   let files: { settings: string; mcp: string | null; system: string };
   const boxFiles: [string, string][] = []; // written into the Box when the CLI starts
@@ -855,10 +855,10 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
     if (prompt.length > INLINE_PROMPT_MAX) {
       const file = p.join(dir, 'task.md');
       put(file, prompt);
-      prompt = `Your task is in ${file}. Read all of it first, then do what it says.`;
+      prompt = `Tu tarea está en ${file}. Léela entera primero y luego haz lo que dice.`;
     }
   } catch (err) {
-    setTimeout(() => finish({ ok: false, text: '', errors: [`Could not prepare ${label}: ${(err as Error).message}`] }), 0);
+    setTimeout(() => finish({ ok: false, text: '', errors: [`No se ha podido preparar ${label}: ${(err as Error).message}`] }), 0);
     return handle;
   }
   officePrompts.push(prompt.trim()); // as given: a long one is a pointer to its file
@@ -871,7 +871,7 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
     effort: opts.effort,
     resumeId: opts.resumeSessionId,
     sessionId,
-    name: opts.label ?? 'cubefarm',
+    name: opts.label ?? 'sareoffice',
     role: opts.role,
     additionalDirectories: opts.additionalDirectories,
     files,
@@ -887,7 +887,7 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
   // In a Box nothing of the office's own environment goes along (a Windows PATH, the manager's other secrets): only
   // what a Box needs and the credentials this CLI signs in with.
   const env: Record<string, string> = {};
-  if (box) Object.assign(env, BOX_ENV, box.env, launch.env, { CUBEFARM_STATUS: statusLine });
+  if (box) Object.assign(env, BOX_ENV, box.env, launch.env, { SAREOFFICE_STATUS: statusLine });
   else {
     for (const [k, v] of Object.entries(process.env)) {
       if (v === undefined) continue;
@@ -899,7 +899,7 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
   }
 
   if (cli === 'claude' && opts.resumeSessionId) cb.sessionId(sessionId);
-  term.note(`── ${label}${opts.label ? ` · ${opts.label}` : ''}${box ? ' · ☁ cloud machine' : ''} ──`);
+  term.note(`── ${label}${opts.label ? ` · ${opts.label}` : ''}${box ? ' · ☁ máquina en la nube' : ''} ──`);
   const resumeId = cli === 'claude' ? sessionId : (opts.resumeSessionId ?? null);
   const l: LiveCli = { agentId: opts.agentId ?? '', cli, term, proc: null, token, dir, resumeId, statusLine, shots: new Set(), session: { hook, exited }, ...(box ? { box: { api: box.api, boxId: box.boxId } } : {}) };
 
@@ -917,26 +917,26 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
       } else if (key === 'enter') {
         trustKeys += 1;
         trustedAt = Date.now(); // the question takes a moment to go: don't answer it twice
-        if (!review) log([{ kind: 'system', text: `✓ Trusted the worktree for ${label}.` }]);
+        if (!review) log([{ kind: 'system', text: `✓ Worktree marcado como de confianza para ${label}.` }]);
         else if (!hooksHinted) {
           hooksHinted = true;
-          log([{ kind: 'system', text: `ℹ To see ${label}'s steps here, trust the office's hooks once: in this terminal, type /hooks and press t. Until then the office shows its task.` }]);
+          log([{ kind: 'system', text: `ℹ Para ver aquí los pasos de ${label}, confía una vez en los hooks de la oficina: en este terminal, escribe /hooks y pulsa t. Hasta entonces la oficina muestra su tarea.` }]);
         }
         quietly(() => pty.write('\r'));
       }
       if (!nudged.has('login') && /Not logged in|run \/login|Select login method|Sign in with ChatGPT|Please login|Invalid API key/i.test(screen)) {
         nudged.add('login');
         // A cloud agent's CLI is signed in through the office's own sign-in, which then starts the task again.
-        if (box) return finish({ ok: false, text: '', errors: [`${label} isn't signed in in their cloud machine.`], signedOut: true });
-        log([{ kind: 'error', text: `⚠ ${label} needs you to sign in: open the terminal and sign in there, or run "${cli}" in a terminal of your own.` }]);
+        if (box) return finish({ ok: false, text: '', errors: [`${label} no tiene la sesión iniciada en su máquina en la nube.`], signedOut: true });
+        log([{ kind: 'error', text: `⚠ ${label} necesita que inicies sesión: abre el terminal e inicia sesión ahí, o ejecuta "${cli}" en un terminal tuyo.` }]);
       } else if (!nudged.has('setup') && !trustKey(screen) && Date.now() - trustedAt > 5000 && /Choose the text style|Press Enter to continue|Bypass Permissions mode|Settings Error/i.test(screen)) {
         // First-run screens only the manager should answer: the CLI waits for them in the terminal.
         nudged.add('setup');
-        log([{ kind: 'error', text: `⚠ ${label} is waiting on a setup screen: open the terminal to answer it.` }]);
+        log([{ kind: 'error', text: `⚠ ${label} está esperando en una pantalla de configuración: abre el terminal para contestar.` }]);
       }
     }, 1000);
     bootTimer = setTimeout(() => {
-      if (!done && !begun && cli === 'claude') log([{ kind: 'error', text: `⚠ ${label} hasn't started on the task yet. Open the terminal to see what it's waiting for.` }]);
+      if (!done && !begun && cli === 'claude') log([{ kind: 'error', text: `⚠ ${label} aún no ha empezado la tarea. Abre el terminal para ver qué está esperando.` }]);
     }, BOOT_MS);
   };
 
@@ -946,7 +946,7 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
     try {
       pty = spawnPty(cmd!.file, [...cmd!.args, ...launch.args], { cols: term.cols, rows: term.rows, cwd: opts.cwd, env }, metaOf(l));
     } catch (err) {
-      setTimeout(() => finish({ ok: false, text: '', errors: [`Could not start ${label}: ${(err as Error).message}`] }), 0);
+      setTimeout(() => finish({ ok: false, text: '', errors: [`No se ha podido arrancar ${label}: ${(err as Error).message}`] }), 0);
       return;
     }
     l.proc = pty;
@@ -970,7 +970,7 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
       remember(l);
       watchBoot(pty);
     } catch (err) {
-      finish({ ok: false, text: '', errors: [`Could not start ${label} in the cloud machine: ${(err as Error).message}`] });
+      finish({ ok: false, text: '', errors: [`No se ha podido arrancar ${label} en la máquina en la nube: ${(err as Error).message}`] });
     }
   };
 

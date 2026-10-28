@@ -8,22 +8,22 @@ const STALE = 'the fix was never pushed';
 
 describe('qaCardNote', () => {
   it.each([
-    ['queued', 'waiting for QA · round 2', undefined],
-    ['testing', '🔍 testing · round 2', undefined],
-    ['failed', '🔧 back to the developer', 'warn'],
-    ['fixing', '🔧 fixing · round 2', 'warn'],
-    ['needs-human', '⚠️ needs you', 'bad'],
-    ['passed', '✅ QA passed', 'good'],
+    ['queued', 'esperando QA · ronda 2', undefined],
+    ['testing', '🔍 probando · ronda 2', undefined],
+    ['failed', '🔧 vuelve al desarrollador', 'warn'],
+    ['fixing', '🔧 corrigiendo · ronda 2', 'warn'],
+    ['needs-human', '⚠️ te necesita', 'bad'],
+    ['passed', '✅ QA superado', 'good'],
   ] as const)('%s without a mergeNote', (status, note, tone) => {
     expect(qaCardNote(rec(status), pr, true)).toEqual({ note, tone });
   });
 
   it.each([
-    ['queued', 'waiting for QA · round 2', undefined],
-    ['testing', '🔍 testing · round 2', undefined],
-    ['failed', '🔧 back to the developer', 'warn'],
-    ['fixing', '🔧 fixing · round 2', 'warn'],
-    ['needs-human', `⚠️ needs you · ${STALE}`, 'bad'],
+    ['queued', 'esperando QA · ronda 2', undefined],
+    ['testing', '🔍 probando · ronda 2', undefined],
+    ['failed', '🔧 vuelve al desarrollador', 'warn'],
+    ['fixing', '🔧 corrigiendo · ronda 2', 'warn'],
+    ['needs-human', `⚠️ te necesita · ${STALE}`, 'bad'],
     ['passed', `QA ✓ · ${STALE}`, 'good'],
   ] as const)('%s with a mergeNote shows it only when it matters', (status, note, tone) => {
     expect(qaCardNote(rec(status, STALE), pr, true)).toEqual({ note, tone });
@@ -35,24 +35,24 @@ describe('qaCardNote', () => {
   });
 
   it('a needs-human PR the CEO is triaging is amber and says so, until it is escalated', () => {
-    expect(qaCardNote(rec('needs-human', STALE, 3, true), pr, true)).toEqual({ note: '🧭 CEO is looking', tone: 'warn' });
-    expect(qaCardNote(rec('needs-human', STALE, 3, false), pr, true)).toEqual({ note: `⚠️ needs you · ${STALE}`, tone: 'bad' });
+    expect(qaCardNote(rec('needs-human', STALE, 3, true), pr, true)).toEqual({ note: '🧭 el CEO lo está mirando', tone: 'warn' });
+    expect(qaCardNote(rec('needs-human', STALE, 3, false), pr, true)).toEqual({ note: `⚠️ te necesita · ${STALE}`, tone: 'bad' });
   });
 
   it('a first-round queued PR has no round', () => {
-    expect(qaCardNote(rec('queued', null, 1), pr, true).note).toBe('waiting for QA');
+    expect(qaCardNote(rec('queued', null, 1), pr, true).note).toBe('esperando QA');
   });
 
   it('a passed PR says why it is not merging yet', () => {
-    expect(qaCardNote(rec('passed'), { ...pr, mergeable: 'CONFLICTING' }, true)).toEqual({ note: 'QA ✓ · conflicts', tone: 'warn' });
-    expect(qaCardNote(rec('passed'), { ...pr, checks: 'failing' }, true)).toEqual({ note: 'QA ✓ · CI failing', tone: 'warn' });
-    expect(qaCardNote(rec('passed'), { ...pr, checks: 'pending' }, true).note).toBe('QA ✓ · waiting for checks');
-    expect(qaCardNote(rec('passed'), { ...pr, checks: 'pending' }, false).note).toBe('✅ QA passed');
+    expect(qaCardNote(rec('passed'), { ...pr, mergeable: 'CONFLICTING' }, true)).toEqual({ note: 'QA ✓ · conflictos', tone: 'warn' });
+    expect(qaCardNote(rec('passed'), { ...pr, checks: 'failing' }, true)).toEqual({ note: 'QA ✓ · CI falla', tone: 'warn' });
+    expect(qaCardNote(rec('passed'), { ...pr, checks: 'pending' }, true).note).toBe('QA ✓ · esperando checks');
+    expect(qaCardNote(rec('passed'), { ...pr, checks: 'pending' }, false).note).toBe('✅ QA superado');
   });
 
   it('an untested PR is amber, a draft says so', () => {
-    expect(qaCardNote(undefined, pr, true)).toEqual({ note: 'not tested yet', tone: 'warn' });
-    expect(qaCardNote(null, { ...pr, isDraft: true }, true).note).toBe('draft');
+    expect(qaCardNote(undefined, pr, true)).toEqual({ note: 'sin probar aún', tone: 'warn' });
+    expect(qaCardNote(null, { ...pr, isDraft: true }, true).note).toBe('borrador');
   });
 });
 
@@ -74,21 +74,21 @@ describe('testingLabel', () => {
   const now = 1_000_000_000;
 
   it('says who has it, its round and how long, longest wording first', () => {
-    expect(testingLabel('Marple', 2, now - 12 * 60_000, now)).toEqual({ who: '🔍 Marple · testing', meta: ['round 2 · 12 min', 'R2 · 12 min', '12 min'] });
+    expect(testingLabel('Marple', 2, now - 12 * 60_000, now)).toEqual({ who: '🔍 Marple · probando', meta: ['ronda 2 · 12 min', 'R2 · 12 min', '12 min'] });
   });
 
   it('shows no time without a usable start', () => {
     for (const since of [null, undefined, 0, Number.NaN, now + 10 * 60_000]) {
-      expect(testingLabel('Marple', 1, since, now).meta).toEqual(['round 1', 'R1']);
+      expect(testingLabel('Marple', 1, since, now).meta).toEqual(['ronda 1', 'R1']);
     }
   });
 
   it('a start a few seconds ahead (clock skew) reads as just started', () => {
-    expect(testingLabel('Marple', 1, now + 5_000, now).meta[0]).toBe('round 1 · <1 min');
+    expect(testingLabel('Marple', 1, now + 5_000, now).meta[0]).toBe('ronda 1 · <1 min');
   });
 
   it('copes with no tester or round', () => {
-    expect(testingLabel(undefined, 0, now - 60_000, now)).toEqual({ who: '🔍 testing', meta: ['1 min'] });
+    expect(testingLabel(undefined, 0, now - 60_000, now)).toEqual({ who: '🔍 probando', meta: ['1 min'] });
     expect(testingLabel(undefined, 0, null, now).meta).toEqual([]);
   });
 });

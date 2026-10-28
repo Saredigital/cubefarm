@@ -21,11 +21,11 @@ export interface Note {
 }
 
 const PLURAL: Record<NotifyEvent, string> = {
-  needsHuman: 'PRs need you',
-  ceoMessage: 'messages from the CEO',
-  hire: 'team changes wait for you',
-  agentError: 'agents need help',
-  usage: 'usage changes',
+  needsHuman: 'PRs que te necesitan',
+  ceoMessage: 'mensajes del CEO',
+  hire: 'cambios en el equipo pendientes de ti',
+  agentError: 'agentes que necesitan ayuda',
+  usage: 'cambios de uso',
   merge: 'merges',
 };
 const ICON: Record<NotifyEvent | 'test', string> = { needsHuman: '⚠️', ceoMessage: '💬', hire: '📄', agentError: '🛑', usage: '⏸', merge: '🔀', test: '🔔' };
@@ -60,9 +60,9 @@ export function summarize(held: Note[], dropped = 0): Note {
   const total = held.length + dropped;
   const shown = held.slice(0, SUMMARY_LINES);
   const lines = shown.map((n) => `• ${n.line}`);
-  if (total > shown.length) lines.push(`…and ${total - shown.length} more`);
-  const label = event === 'test' ? 'tests' : PLURAL[event];
-  return { event, title: `${ICON[event]} ${total} more ${label}`, body: lines.join('\n'), line: `${total} more ${label}` };
+  if (total > shown.length) lines.push(`…y ${total - shown.length} más`);
+  const label = event === 'test' ? 'pruebas' : PLURAL[event];
+  return { event, title: `${ICON[event]} ${total} ${label} más`, body: lines.join('\n'), line: `${total} ${label} más` };
 }
 
 // ---------- rate limit ----------
@@ -124,9 +124,9 @@ const httpUrl = (raw: unknown, what: string): URL => {
   try {
     u = new URL(s);
   } catch {
-    throw new HttpError(400, `That isn't a ${what} URL.`);
+    throw new HttpError(400, `Eso no es una URL de ${what}.`);
   }
-  if (s.length > 500 || !/^https?:$/.test(u.protocol)) throw new HttpError(400, `That isn't a ${what} URL.`);
+  if (s.length > 500 || !/^https?:$/.test(u.protocol)) throw new HttpError(400, `Eso no es una URL de ${what}.`);
   return u;
 };
 
@@ -138,10 +138,10 @@ export function parseWebhook(_channel: NotifyWebhook, body: unknown): WebhookSec
   const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
   const s = (k: string) => (typeof b[k] === 'string' ? (b[k] as string).trim() : '');
   if (!s('url')) return null;
-  const u = httpUrl(s('url'), 'ntfy topic');
-  if (!/^\/[\w-]{1,64}\/?$/.test(u.pathname)) throw new HttpError(400, 'Give the topic URL, e.g. https://ntfy.sh/my-office-a8f3 (a long, hard-to-guess topic name).');
+  const u = httpUrl(s('url'), 'tema de ntfy');
+  if (!/^\/[\w-]{1,64}\/?$/.test(u.pathname)) throw new HttpError(400, 'Indica la URL del tema, p. ej. https://ntfy.sh/mi-oficina-a8f3 (un nombre de tema largo y difícil de adivinar).');
   const token = s('token');
-  if (token && !/^[\w.-]{8,200}$/.test(token)) throw new HttpError(400, "That doesn't look like an ntfy access token (tk_…).");
+  if (token && !/^[\w.-]{8,200}$/.test(token)) throw new HttpError(400, 'Eso no parece un token de acceso de ntfy (tk_…).');
   return { url: u.toString().replace(/\/$/, ''), ...(token ? { token } : {}) };
 }
 
@@ -157,7 +157,7 @@ const last4 = (s: string) => s.slice(-4);
 export function webhookHint(channel: NotifyWebhook, w: WebhookSecrets[NotifyWebhook] | undefined): string {
   if (!w) return '';
   const host = new URL(w.url).host;
-  return `${host}/…${last4(w.url)}${channel === 'ntfy' && 'token' in w && w.token ? ' · with a token' : ''}`;
+  return `${host}/…${last4(w.url)}${channel === 'ntfy' && 'token' in w && w.token ? ' · con token' : ''}`;
 }
 
 /** The secret strings in `w`, for redacting anything that might echo them. */

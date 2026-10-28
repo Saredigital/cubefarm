@@ -10,8 +10,8 @@ export default defineConfig({
     // e2e/ is Playwright's (npm run test:e2e): it needs a browser and a running demo office.
     exclude: [...configDefaults.exclude, 'e2e/**'],
     environment: 'node',
-    // Anything a test imports must never see the live office's state (~/.cubefarm) or its ports.
+    // Anything a test imports must never see the live office's state (~/.sareoffice) or its ports.
     // Previews tests probe ports: keep them clear of the live office's preview ranges (6300-6499).
-    env: { SWARM_HOME: path.join(os.tmpdir(), `cubefarm-vitest-${process.pid}`), SWARM_PORT: '0', SWARM_PREVIEW_PORT: '9300' },
+    env: { SWARM_HOME: path.join(os.tmpdir(), `sareoffice-vitest-${process.pid}`), SWARM_PORT: '0', SWARM_PREVIEW_PORT: '9300' },
   },
 });

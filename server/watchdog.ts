@@ -174,29 +174,29 @@ export function forget(memory: WatchMemory, now: number) {
 
 const ago = (ms: number) => {
   const min = Math.max(1, Math.round(ms / 60_000));
-  return min < 90 ? `${min} minute${min === 1 ? '' : 's'}` : `${Math.round(min / 60)} hours`;
+  return min < 90 ? `${min} minuto${min === 1 ? '' : 's'}` : `${Math.round(min / 60)} horas`;
 };
 
 /** The doctor's words and buttons for a problem. name: an agent's name by id. */
 export function finding(p: Problem, name: (id: string | null) => string | null, work: WorkState | null, now: number): DoctorFinding {
-  const who = name(p.agentId) ?? 'Someone';
+  const who = name(p.agentId) ?? 'Alguien';
   const what = p.prNumber != null ? `PR #${p.prNumber}` : `#${p.issueNumber}`;
   const [text, fixes]: [string, DoctorFix[]] =
     p.kind === 'quiet'
-      ? [`${who} has been quiet for ${ago(now - p.since)} on ${what}, even after a nudge. Stop them, or put the work back in line?`, ['stop', 'requeue']]
+      ? [`${who} lleva ${ago(now - p.since)} sin responder en ${what}, incluso después de un aviso. ¿Lo paras o vuelves a poner el trabajo en cola?`, ['stop', 'requeue']]
       : p.kind === 'preparing'
-        ? [`${who} has been setting up a desk for ${what} for ${ago(now - p.since)}. Put the work back in line?`, ['requeue', 'stop']]
+        ? [`${who} lleva ${ago(now - p.since)} preparando un puesto para ${what}. ¿Vuelves a poner el trabajo en cola?`, ['requeue', 'stop']]
         : p.kind === 'stale'
-          ? [`${who}'s last task ${what} is already ${work === 'merged' ? 'merged' : 'closed'}. Clear the desk?`, ['clear']]
+          ? [`La última tarea de ${who}, ${what}, ya está ${work === 'merged' ? 'fusionada' : 'cerrada'}. ¿Despejas el puesto?`, ['clear']]
           : p.kind === 'qa-orphan'
-            ? [`PR #${p.prNumber} is marked as in QA, but nobody is testing it. Test it again?`, ['retry-qa', 'send-back']]
+            ? [`La PR #${p.prNumber} figura en QA, pero nadie la está probando. ¿La vuelves a probar?`, ['retry-qa', 'send-back']]
             : p.kind === 'fix-orphan'
-              ? [`PR #${p.prNumber} is waiting for a fix, but ${p.agentId ? `${who} is on something else` : 'nobody is on it'}. Hand it to a free agent?`, ['send-back', 'retry-qa']]
-              : [`Issue #${p.issueNumber} is still open, but PR #${p.prNumber}, which closes it, was merged ${ago(now - p.since)} ago. Close it?`, ['close-issue']];
+              ? [`La PR #${p.prNumber} espera una corrección, pero ${p.agentId ? `${who} está con otra cosa` : 'nadie se ha puesto con ella'}. ¿Se la das a un agente libre?`, ['send-back', 'retry-qa']]
+              : [`El issue #${p.issueNumber} sigue abierto, pero la PR #${p.prNumber}, que lo cierra, se fusionó hace ${ago(now - p.since)}. ¿Lo cierras?`, ['close-issue']];
   return { id: p.key, kind: p.kind, repoId: p.repoId, agentId: p.agentId, prNumber: p.prNumber, issueNumber: p.issueNumber, text, fixes, since: p.since };
 }
 
 /** The nudge a quiet session gets, typed into it like the manager's messages. */
 export function nudgeText(quietMs: number): string {
-  return `The office hasn't seen any output from you for ${ago(quietMs)}. If you're stuck, say what's blocking you; otherwise carry on and finish your task.`;
+  return `La oficina lleva ${ago(quietMs)} sin recibir ninguna respuesta tuya. Si estás bloqueado, explica por qué; si no, continúa y termina tu tarea.`;
 }

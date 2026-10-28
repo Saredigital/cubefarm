@@ -9,7 +9,7 @@ import { confirmDialog } from './Confirm';
 import { showTestNote } from '../notifications';
 import { currentPush, disablePush, enablePush, pushSupport } from '../pwa';
 
-const DOCS = 'https://github.com/leonvanzyl/cubefarm/blob/main/docs/pocket.md';
+const DOCS = 'https://github.com/Saredigital/cubefarm/blob/main/docs/pocket.md';
 
 type Field = { key: string; label: string; placeholder: string; secret: boolean; optional?: boolean };
 
@@ -17,10 +17,10 @@ const WEBHOOKS: { id: NotifyWebhook; label: string; help: string; fields: Field[
   {
     id: 'ntfy',
     label: 'ntfy',
-    help: 'Pick a long, hard-to-guess topic and subscribe to it in the ntfy app. Anyone who knows the topic can read it.',
+    help: 'Elige un tema largo y difícil de adivinar y suscríbete a él en la app de ntfy. Cualquiera que conozca el tema puede leerlo.',
     fields: [
-      { key: 'url', label: 'Topic URL', placeholder: 'https://ntfy.sh/my-office-7f3k9q', secret: true },
-      { key: 'token', label: 'Access token (optional)', placeholder: 'tk_…', secret: true, optional: true },
+      { key: 'url', label: 'URL del tema', placeholder: 'https://ntfy.sh/mi-oficina-7f3k9q', secret: true },
+      { key: 'token', label: 'Token de acceso (opcional)', placeholder: 'tk_…', secret: true, optional: true },
     ],
   },
 ];
@@ -34,7 +34,7 @@ function useTest(channel: NotifyChannel) {
     setState({ busy: true, result: null, ok: false });
     try {
       await api.testNotify(channel);
-      setState({ busy: false, result: '✓ Sent', ok: true });
+      setState({ busy: false, result: '✓ Enviado', ok: true });
     } catch (err) {
       setState({ busy: false, result: err instanceof Error ? err.message : String(err), ok: false });
     }
@@ -79,31 +79,31 @@ function WebhookRow({ hook, notify, save }: { hook: (typeof WEBHOOKS)[number]; n
         <b className="grow">{hook.label}</b>
         {view.set && (
           <label className="toggle small">
-            <input type="checkbox" checked={on} onChange={(e) => save({ channels: { ...notify.channels, [hook.id]: e.target.checked } })} /> On
+            <input type="checkbox" checked={on} onChange={(e) => save({ channels: { ...notify.channels, [hook.id]: e.target.checked } })} /> Activado
           </label>
         )}
       </div>
       {view.set && !editing ? (
         <div className="row wrap">
           <span className="grow small">
-            🔑 Saved <code>{view.hint}</code>
+            🔑 Guardado <code>{view.hint}</code>
           </span>
           <button className="btn btn-small" disabled={test.busy} onClick={() => void test.run()}>
-            {test.busy ? 'Sending…' : 'Test'}
+            {test.busy ? 'Enviando…' : 'Probar'}
           </button>
           <button className="btn btn-small btn-ghost" onClick={() => setEditing(true)}>
-            Replace
+            Sustituir
           </button>
           <button
             className="btn btn-small btn-ghost"
             disabled={busy}
             onClick={() =>
-              void confirmDialog({ tone: 'danger', title: `Remove the ${hook.label} settings?`, body: 'They are deleted from the office. Nothing more is sent there until you add them again.', confirm: 'Remove' }).then((ok) => {
+              void confirmDialog({ tone: 'danger', title: `¿Quitar los ajustes de ${hook.label}?`, body: 'Se borran de la oficina. No se envía nada más ahí hasta que los vuelvas a añadir.', confirm: 'Quitar' }).then((ok) => {
                 if (ok) void store({});
               })
             }
           >
-            Remove
+            Quitar
           </button>
           <TestResult result={test.result} ok={test.ok} />
         </div>
@@ -138,7 +138,7 @@ function WebhookRow({ hook, notify, save }: { hook: (typeof WEBHOOKS)[number]; n
           )}
           <div className="row">
             <button className="btn btn-small btn-good" disabled={busy || hook.fields.some((f) => !f.optional && !values[f.key]?.trim())}>
-              {busy ? 'Saving…' : 'Save'}
+              {busy ? 'Guardando…' : 'Guardar'}
             </button>
             {editing && (
               <button
@@ -150,7 +150,7 @@ function WebhookRow({ hook, notify, save }: { hook: (typeof WEBHOOKS)[number]; n
                   setError('');
                 }}
               >
-                Cancel
+                Cancelar
               </button>
             )}
           </div>
@@ -193,58 +193,58 @@ function ThisDevice({ notify, save }: { notify: Notify; save: Save }) {
     <>
       <div className="notify-hook">
         <div className="row wrap">
-          <b className="grow">Desktop notifications</b>
+          <b className="grow">Notificaciones de escritorio</b>
           <label className="toggle small">
-            <input type="checkbox" checked={notify.channels.desktop} onChange={(e) => save({ channels: { ...notify.channels, desktop: e.target.checked } })} /> On
+            <input type="checkbox" checked={notify.channels.desktop} onChange={(e) => save({ channels: { ...notify.channels, desktop: e.target.checked } })} /> Activado
           </label>
         </div>
-        <p className="muted small">From any browser with the office open in a background tab.</p>
+        <p className="muted small">Desde cualquier navegador con la oficina abierta en una pestaña en segundo plano.</p>
         <div className="row wrap">
-          {permission === 'granted' && <span className="small grow">✓ Allowed in this browser</span>}
-          {permission === 'denied' && <span className="small grow term-error">Blocked in this browser: allow notifications for this site in its settings.</span>}
-          {permission === 'unsupported' && <span className="small grow muted">This browser can't show notifications.</span>}
+          {permission === 'granted' && <span className="small grow">✓ Permitidas en este navegador</span>}
+          {permission === 'denied' && <span className="small grow term-error">Bloqueadas en este navegador: permite las notificaciones de este sitio en sus ajustes.</span>}
+          {permission === 'unsupported' && <span className="small grow muted">Este navegador no puede mostrar notificaciones.</span>}
           {permission === 'default' && (
             <button className="btn btn-small btn-good" onClick={() => void allow()}>
-              Allow in this browser
+              Permitir en este navegador
             </button>
           )}
           {permission === 'granted' && (
             <button className="btn btn-small" onClick={() => void showTestNote()}>
-              Test
+              Probar
             </button>
           )}
         </div>
       </div>
       <div className="notify-hook">
         <div className="row wrap">
-          <b className="grow">Push to my devices</b>
+          <b className="grow">Push a mis dispositivos</b>
           <label className="toggle small">
-            <input type="checkbox" checked={notify.channels.push} onChange={(e) => save({ channels: { ...notify.channels, push: e.target.checked } })} /> On
+            <input type="checkbox" checked={notify.channels.push} onChange={(e) => save({ channels: { ...notify.channels, push: e.target.checked } })} /> Activado
           </label>
         </div>
         <p className="muted small">
-          Reaches a phone or PC even with the office closed. {devices ? `${devices} device${devices === 1 ? '' : 's'} signed up.` : 'No devices signed up yet.'}
+          Llega a un móvil o a un PC aunque la oficina esté cerrada. {devices ? `${devices} ${devices === 1 ? 'dispositivo registrado' : 'dispositivos registrados'}.` : 'Aún no hay dispositivos registrados.'}
         </p>
         {support === 'insecure' && (
           <p className="small term-error">
-            Push needs HTTPS (or localhost on the office's own PC). Open the office through an HTTPS address such as Tailscale Serve: see <a href={DOCS}>docs/pocket.md</a>.
+            Las notificaciones push necesitan HTTPS (o localhost en el propio PC de la oficina). Abre la oficina con una dirección HTTPS, como Tailscale Serve: consulta <a href={DOCS}>docs/pocket.md</a>.
           </p>
         )}
-        {support === 'unsupported' && <p className="small muted">This browser has no Web Push. On an iPhone, add the office to the home screen first, then turn push on from there.</p>}
-        {support === 'dev' && <p className="small muted">Push works in a built office (npm run build), not under the dev server.</p>}
+        {support === 'unsupported' && <p className="small muted">Este navegador no tiene Web Push. En un iPhone, añade primero la oficina a la pantalla de inicio y activa el push desde ahí.</p>}
+        {support === 'dev' && <p className="small muted">El push funciona con la oficina compilada (npm run build), no con el servidor de desarrollo.</p>}
         {support === 'ok' && (
           <div className="row wrap">
             {here ? (
               <button className="btn btn-small btn-ghost" disabled={busy} onClick={() => void togglePush(false)}>
-                Stop push to this device
+                Dejar de enviar push a este dispositivo
               </button>
             ) : (
               <button className="btn btn-small btn-good" disabled={busy || here === null} onClick={() => void togglePush(true)}>
-                {busy ? 'Signing up…' : 'Push to this device'}
+                {busy ? 'Registrando…' : 'Enviar push a este dispositivo'}
               </button>
             )}
             <button className="btn btn-small" disabled={pushTest.busy || !devices} onClick={() => void pushTest.run()}>
-              Send test
+              Enviar prueba
             </button>
             <TestResult result={pushTest.result} ok={pushTest.ok} />
           </div>
@@ -266,9 +266,9 @@ export function NotifySettings() {
   const save: Save = (patch) => void api.updateSettings({ notify: { ...notify, ...patch } }).catch(() => undefined);
   return (
     <div className="card notify-settings">
-      <h3>🔔 Notifications</h3>
-      <p className="muted small">What the office tells you when you're not looking. At most one of each kind a minute; a burst arrives as one summary.</p>
-      <div className="notify-events" role="group" aria-label="Tell me when">
+      <h3>🔔 Notificaciones</h3>
+      <p className="muted small">Lo que te cuenta la oficina cuando no estás mirando. Como mucho una de cada tipo por minuto; una ráfaga llega como un solo resumen.</p>
+      <div className="notify-events" role="group" aria-label="Avísame cuando">
         {NOTIFY_EVENTS.map((e) => (
           <label key={e.id} className="toggle block">
             <input type="checkbox" checked={notify.events[e.id]} onChange={(ev) => save({ events: { ...notify.events, [e.id]: ev.target.checked } })} />
@@ -277,24 +277,24 @@ export function NotifySettings() {
         ))}
       </div>
       <label className="field">
-        <span>Office address for links (optional)</span>
+        <span>Dirección de la oficina para los enlaces (opcional)</span>
         <input
           type="url"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           onBlur={() => url.trim() !== notify.officeUrl && save({ officeUrl: url.trim() })}
-          placeholder="https://office.your-tailnet.ts.net"
+          placeholder="https://oficina.tu-tailnet.ts.net"
           inputMode="url"
         />
       </label>
-      <h4 className="notify-h">This device</h4>
+      <h4 className="notify-h">Este dispositivo</h4>
       <ThisDevice notify={notify} save={save} />
-      <h4 className="notify-h">Phone app</h4>
+      <h4 className="notify-h">App del móvil</h4>
       {WEBHOOKS.map((h) => (
         <WebhookRow key={h.id} hook={h} notify={notify} save={save} />
       ))}
       <p className="muted small">
-        The topic and token stay on the office's PC and are never shown again. Setup for each, and how to reach the office from your phone safely: <a href={DOCS}>docs/pocket.md</a>.
+        El tema y el token se quedan en el PC de la oficina y no se vuelven a mostrar. Cómo configurar cada uno, y cómo llegar a la oficina desde el móvil de forma segura: <a href={DOCS}>docs/pocket.md</a>.
       </p>
     </div>
   );

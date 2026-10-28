@@ -152,7 +152,7 @@ function rollDay(s: LedgerState, at: number, out: Effects) {
   const date = dayKey(at);
   if (s.day.date === date) return true;
   if (s.day.date > date) return false;
-  if (s.day.date && s.day.merges >= SPOTLESS_MERGES && s.day.qaFails === 0) unlock(s, out, 'clean-day', `${s.day.merges} merges on ${s.day.date}, no failed QA`, at);
+  if (s.day.date && s.day.merges >= SPOTLESS_MERGES && s.day.qaFails === 0) unlock(s, out, 'clean-day', `${s.day.merges} merges el ${s.day.date}, no failed QA`, at);
   s.day = { date, merges: 0, qaFails: 0 };
   out.changed = true;
   return true;
@@ -269,11 +269,11 @@ export function apply(s: LedgerState, ev: LedgerEvent): Effects {
       if (!markSeen(s, `coffee:${ev.id}`)) break;
       s.coffees++;
       out.changed = out.progress = true;
-      if (s.coffees >= COFFEE_ADDICT) unlock(s, out, 'coffee-addict', `${s.coffees} coffees`, ev.at);
+      if (s.coffees >= COFFEE_ADDICT) unlock(s, out, 'coffee-addict', `${s.coffees} cafés`, ev.at);
       break;
     }
     case 'full-house':
-      unlock(s, out, 'full-house', `${ev.people} people busy on ${ev.repoName}`, ev.at);
+      unlock(s, out, 'full-house', `${ev.people} personas trabajando en ${ev.repoName}`, ev.at);
       out.changed ||= out.unlocked.length > 0;
       break;
     case 'tick':
@@ -328,13 +328,13 @@ function merged(s: LedgerState, ev: Extract<LedgerEvent, { kind: 'merged' }>, ou
   }
   out.reward = { repoId: ev.repoId, prNumber: ev.pr, agentId: author, coins, reasons };
 
-  const where = `PR #${ev.pr} on ${ev.repoName}`;
+  const where = `PR #${ev.pr} en ${ev.repoName}`;
   unlock(s, out, 'first-merge', where, ev.at);
-  if (streak) unlock(s, out, 'hat-trick', `${where}: ${floor.streak.length} merges within an hour`, ev.at);
-  if (today && s.day.merges >= 10) unlock(s, out, 'ten-a-day', `${s.day.merges} merges on ${s.day.date}`, ev.at);
-  if (new Date(ev.at).getHours() < 5) unlock(s, out, 'night-owl', `${where} at ${pad(new Date(ev.at).getHours())}:${pad(new Date(ev.at).getMinutes())}`, ev.at);
+  if (streak) unlock(s, out, 'hat-trick', `${where}: ${floor.streak.length} merges en una hora`, ev.at);
+  if (today && s.day.merges >= 10) unlock(s, out, 'ten-a-day', `${s.day.merges} merges el ${s.day.date}`, ev.at);
+  if (new Date(ev.at).getHours() < 5) unlock(s, out, 'night-owl', `${where} a las ${pad(new Date(ev.at).getHours())}:${pad(new Date(ev.at).getMinutes())}`, ev.at);
   if (t.needsHuman) unlock(s, out, 'comeback', where, ev.at);
-  if (s.clean >= PERFECT_RUN) unlock(s, out, 'perfect-five', `${s.clean} clean merges in a row, the last ${where}`, ev.at);
+  if (s.clean >= PERFECT_RUN) unlock(s, out, 'perfect-five', `${s.clean} merges seguidos sin fallos, el último ${where}`, ev.at);
   if (s.merges >= 25) unlock(s, out, 'quarter-century', where, ev.at);
   if (s.merges >= 100) unlock(s, out, 'century', where, ev.at);
 }
@@ -345,13 +345,13 @@ export type CommandResult = { error: string } | { effects: Effects; price?: numb
 
 /** Buy `item` for a floor: refused without the coins, or when every slot it could go in is already spoken for. */
 export function buy(s: LedgerState, repoId: string, item: unknown): CommandResult {
-  if (!isDecorItem(item)) return { error: `There's no "${String(item)}" in the catalogue` };
+  if (!isDecorItem(item)) return { error: `No existe "${String(item)}" en el catálogo` };
   const def = catalogueItem(item)!;
   const floor = floorOf(s, repoId);
   const ofKind = Object.entries(floor.owned).reduce((n, [id, k]) => n + (catalogueItem(id)?.kind === def.kind ? (k ?? 0) : 0), 0);
-  if (ofKind >= slotsOfKind(def.kind)) return { error: `This floor has no room for another ${def.kind === 'wall' ? 'wall decoration' : def.kind === 'rug' ? 'rug' : `${def.kind} decoration`}` };
+  if (ofKind >= slotsOfKind(def.kind)) return { error: `No queda espacio en esta planta para otra decoración de este tipo` };
   const price = priceOf(item, floor.owned[item] ?? 0);
-  if (floor.coins < price) return { error: `${def.name} costs ${price} coins; this floor has ${floor.coins}` };
+  if (floor.coins < price) return { error: `${def.name} cuesta ${price} monedas; esta planta tiene ${floor.coins}` };
   floor.coins -= price;
   floor.owned[item] = (floor.owned[item] ?? 0) + 1;
   return { effects: { ...fx(), changed: true, progress: true }, price };
@@ -362,24 +362,24 @@ export function buy(s: LedgerState, repoId: string, item: unknown): CommandResul
  * null it goes back in the box.
  */
 export function place(s: LedgerState, repoId: string, repoName: string, x: { item: unknown; slot: string | null; from: string | null }, at: number): CommandResult {
-  if (!isDecorItem(x.item)) return { error: `There's no "${String(x.item)}" in the catalogue` };
+  if (!isDecorItem(x.item)) return { error: `No existe "${String(x.item)}" en el catálogo` };
   const item: DecorItem = x.item;
   const floor = floorOf(s, repoId);
-  if (x.from !== null && floor.placed[x.from] !== item) return { error: `The ${catalogueItem(item)!.name.toLowerCase()} isn't there any more` };
+  if (x.from !== null && floor.placed[x.from] !== item) return { error: `${catalogueItem(item)!.name} ya no está ahí` };
   if (x.slot === null) {
-    if (x.from === null) return { error: 'Nothing to put away' };
+    if (x.from === null) return { error: 'No hay nada que guardar' };
     delete floor.placed[x.from];
     return { effects: { ...fx(), changed: true, progress: true } };
   }
   const kind = slotKind(x.slot);
-  if (!kind) return { error: `There's no decoration spot "${x.slot}"` };
-  if (kind !== catalogueItem(item)!.kind) return { error: `The ${catalogueItem(item)!.name.toLowerCase()} doesn't go there` };
-  if (floor.placed[x.slot] && x.slot !== x.from) return { error: 'Something already stands there' };
-  if (x.from === null && stored(floor, item) < 1) return { error: `This floor's decor box has no ${catalogueItem(item)!.name.toLowerCase()}` };
+  if (!kind) return { error: `No existe el hueco de decoración "${x.slot}"` };
+  if (kind !== catalogueItem(item)!.kind) return { error: `${catalogueItem(item)!.name} no va ahí` };
+  if (floor.placed[x.slot] && x.slot !== x.from) return { error: 'Ya hay algo ahí' };
+  if (x.from === null && stored(floor, item) < 1) return { error: `La caja de decoración de esta planta no tiene ${catalogueItem(item)!.name.toLowerCase()}` };
   if (x.from !== null) delete floor.placed[x.from];
   floor.placed[x.slot] = item;
   const out: Effects = { ...fx(), changed: true, progress: true };
-  unlock(s, out, 'interior-designer', `${catalogueItem(item)!.name} on ${repoName}`, at);
+  unlock(s, out, 'interior-designer', `${catalogueItem(item)!.name} en ${repoName}`, at);
   if (DECOR_SLOTS.every((d) => floor.placed[d.id])) unlock(s, out, 'fully-furnished', repoName, at);
   return { effects: out };
 }
@@ -396,7 +396,7 @@ export function grant(s: LedgerState, repoId: string, coins: number): CommandRes
 export function addTenure(s: LedgerState, days: number, agentId?: string): CommandResult {
   if (!Number.isFinite(days)) return { error: 'Give a number of days' };
   const ids = agentId ? [agentId] : Object.keys(s.careers);
-  if (agentId && !s.careers[agentId]) return { error: `No career for ${agentId}` };
+  if (agentId && !s.careers[agentId]) return { error: `No hay historial profesional de ${agentId}` };
   const out = fx();
   for (const id of ids) careerOf(s, id, out)!.since -= days * DAY_MS;
   out.changed = true;

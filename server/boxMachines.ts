@@ -80,7 +80,7 @@ export class BoxMachines implements MachineProvider {
 
   private api(): BoxApi {
     const api = this.deps.api();
-    if (!api) throw new Error('Cloud agents need your Upstash Box API key: Settings → Cloud agents.');
+    if (!api) throw new Error('Los agentes en la nube necesitan tu clave API de Upstash Box: Ajustes → Agentes en la nube.');
     return api;
   }
 
@@ -146,7 +146,7 @@ export class BoxMachines implements MachineProvider {
         return this.ensure(machine, note);
       }
       if (info.status === 'paused') {
-        note?.('Waking their cloud machine…');
+        note?.('Despertando su máquina en la nube…');
         await this.api().resume(id);
       }
       this.setState(machine, 'ready');
@@ -163,13 +163,13 @@ export class BoxMachines implements MachineProvider {
         this.ids.delete(machine);
         id = null;
       } else if (info.status === 'paused') {
-        note?.('Waking their cloud machine…');
+        note?.('Despertando su máquina en la nube…');
         await api.resume(id);
       }
     }
     if (!id) {
       this.setState(machine, 'creating');
-      note?.('Creating their cloud machine (an Upstash Box)…');
+      note?.('Creando su máquina en la nube (una Upstash Box)…');
       const office = this.deps.office();
       const box = await api.create({ name: boxName(office, machine), labels: boxLabels(office, machine), size: this.deps.size() });
       id = box.id;
@@ -178,7 +178,7 @@ export class BoxMachines implements MachineProvider {
     this.setState(machine, 'setting-up');
     const git = await this.deps.git();
     const setup = await api.run(id, setupScript({ versions: this.deps.versions, rev: SETUP_REV, gitName: git.name, gitEmail: git.email }), { timeoutMs: SETUP_TIMEOUT_MS });
-    if (setup.code !== 0 || !setup.output.includes('CUBEFARM_SETUP_OK')) throw failure("Couldn't set up the cloud machine", setup.output, this.deps.secrets());
+    if (setup.code !== 0 || !setup.output.includes('SAREOFFICE_SETUP_OK')) throw failure('No se ha podido preparar la máquina en la nube', setup.output, this.deps.secrets());
     for (const [name, source] of Object.entries(BOX_HELPERS)) await api.write(id, `${BOX_BIN}/${name}`, source);
     await api.write(id, BOX_TMUX_CONF, TMUX_CONF);
     this.setState(machine, 'ready');
@@ -196,7 +196,7 @@ export class BoxMachines implements MachineProvider {
     const id = await this.ensure(machine, note);
     const r = await api.run(id, prepareDeskScript(fullName, base, branch), { env: await this.deps.githubEnv(), timeoutMs: 15 * 60_000 });
     const lines = r.output.trim().split('\n');
-    if (r.code !== 0) throw failure(`Couldn't set up the desk in ${fullName}'s cloud machine`, r.output, this.deps.secrets());
+    if (r.code !== 0) throw failure(`No se ha podido preparar el puesto en la máquina en la nube de ${fullName}`, r.output, this.deps.secrets());
     for (const l of lines.slice(0, -1)) if (/stale git lock|rebuilt/.test(l)) note?.(l.trim());
     await api.run(id, `node ${sq(`${BOX_BIN}/seed-claude.cjs`)} ${sq(boxDeskDir(fullName))}`);
     return boxDeskDir(fullName);
@@ -287,25 +287,25 @@ export class BoxMachines implements MachineProvider {
       // No credentials of any kind in an install's environment.
       const look = await api.run(id, depsScript(fullName, false), { timeoutMs: 60_000 });
       const first = depsOutcome(look.output, look.code);
-      if (first === 'failed') throw new Error("couldn't look at the desk's package.json");
+      if (first === 'failed') throw new Error('no se ha podido leer el package.json del puesto');
       if (first === 'none') return 'none';
       if (first === 'agent') {
-        cb.log(['No package-lock.json; leaving the dependencies to the agent.']);
+        cb.log(['No hay package-lock.json; las dependencias quedan en manos del agente.']);
         return 'agent';
       }
       if (first === 'skipped') {
-        cb.log(['Dependencies unchanged since the last install; skipping it.']);
+        cb.log(['Las dependencias no han cambiado desde la última instalación; se omite.']);
         return 'skipped';
       }
-      cb.log(['Installing dependencies in the cloud machine…', '$ npm ci']);
+      cb.log(['Instalando dependencias en la máquina en la nube…', '$ npm ci']);
       cb.installing();
       const r = await api.run(id, depsScript(fullName), { timeoutMs: 20 * 60_000 });
       const outcome = depsOutcome(r.output, r.code);
-      if (outcome === 'installed') cb.log(['Dependencies installed.']);
-      else cb.log([`⚠ Could not install the dependencies (${redact(r.output, this.deps.secrets()).trim().split('\n').slice(-2, -1)[0]?.slice(0, 300) ?? 'npm ci failed'}); the agent will run npm install itself.`]);
+      if (outcome === 'installed') cb.log(['Dependencias instaladas.']);
+      else cb.log([`⚠ No se han podido instalar las dependencias (${redact(r.output, this.deps.secrets()).trim().split('\n').slice(-2, -1)[0]?.slice(0, 300) ?? 'npm ci ha fallado'}); el agente ejecutará npm install por su cuenta.`]);
       return outcome === 'installed' ? 'installed' : 'failed';
     } catch (err) {
-      cb.log([`⚠ Could not install the dependencies (${(err as Error).message.split('\n')[0].slice(0, 300)}); the agent will run npm install itself.`]);
+      cb.log([`⚠ No se han podido instalar las dependencias (${(err as Error).message.split('\n')[0].slice(0, 300)}); el agente ejecutará npm install por su cuenta.`]);
       return 'failed';
     }
   }
@@ -324,7 +324,7 @@ export class BoxMachines implements MachineProvider {
     const id = await this.ensure(machine);
     const r = await this.api().run(id, signInCheckScript(cli), { timeoutMs: 60_000 });
     const out = signInOutcome(r.output);
-    if (out === null) throw new Error(`Couldn't ask ${cli === 'claude' ? 'Claude Code' : 'Codex'} in the cloud machine whether it's signed in.`);
+    if (out === null) throw new Error(`No se ha podido preguntar a ${cli === 'claude' ? 'Claude Code' : 'Codex'} en la máquina en la nube si tiene la sesión iniciada.`);
     return out;
   }
 

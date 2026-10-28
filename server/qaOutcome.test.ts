@@ -86,8 +86,8 @@ describe('qaGate: conflicts before QA', () => {
 describe('conflictFixInstructions', () => {
   it("keeps QA's findings and adds the merge", () => {
     expect(conflictFixInstructions('Make the toolbar wrap.\n', 'main')).toBe(
-      'Make the toolbar wrap.\n\nIt also conflicts with main: bring it up to date (git fetch origin && git merge origin/main) and resolve the conflicts so both this change and the newly merged work keep working.',
+      'Make the toolbar wrap.\n\nTambién tiene conflictos con main: actualízala (git fetch origin && git merge origin/main) y resuélvelos para que funcionen tanto este cambio como el trabajo recién fusionado.',
     );
-    expect(conflictFixInstructions('', 'trunk')).toMatch(/^It also conflicts with trunk: .*git merge origin\/trunk/);
+    expect(conflictFixInstructions('', 'trunk')).toMatch(/^También tiene conflictos con trunk: .*git merge origin\/trunk/);
   });
 });

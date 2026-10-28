@@ -51,13 +51,13 @@ describe('setupScript', () => {
   const script = setupScript({ versions, rev: 1, gitName: "Ada O'Neil", gitEmail: 'ada@example.com' });
 
   it('installs the pinned CLIs and tmux, once per set of versions', () => {
-    expect(script).toContain(`npm install -g --prefix '/workspace/home/.cubefarm/cli'`);
+    expect(script).toContain(`npm install -g --prefix '/workspace/home/.sareoffice/cli'`);
     expect(script).toContain(`'@anthropic-ai/claude-code@2.1.283' '@playwright/mcp@0.0.83' '@openai/codex@0.163.0'`);
     expect(script).not.toContain('sudo npm');
     expect(script).toContain('for t in tmux lsof gh');
     expect(script).toContain(`if [ -f '${setupMarker(versions, 1)}' ]`);
     expect(setupMarker(versions, 1)).not.toBe(setupMarker({ ...versions, claude: '2.1.300' }, 1));
-    expect(script.trim().endsWith('echo CUBEFARM_SETUP_OK')).toBe(true);
+    expect(script.trim().endsWith('echo SAREOFFICE_SETUP_OK')).toBe(true);
   });
 
   it("gives git a helper that reads GitHub's token from the environment, never from disk", () => {
@@ -86,12 +86,12 @@ describe('prepareDeskScript', () => {
     const s = prepareDeskScript('acme/web', { defaultBranch: 'main', pr: 7 }, 'qa/pr-7-ada');
     expect(s).toContain(`'+refs/pull/7/head:refs/remotes/origin/pr/7'`);
     expect(s).toContain(`REF='origin/pr/7'`);
-    expect(s).toContain('Could not fetch pull request #7 of acme/web.');
+    expect(s).toContain('No se ha podido traer la pull request #7 de acme/web.');
   });
 
   it('refuses names that could break out of the script', () => {
-    expect(() => prepareDeskScript('acme/web; rm -rf ~', { defaultBranch: 'main' }, 'b')).toThrow(/repository/);
-    expect(() => prepareDeskScript('acme/web', { defaultBranch: 'main' }, "x'; rm -rf ~")).toThrow(/branch/);
+    expect(() => prepareDeskScript('acme/web; rm -rf ~', { defaultBranch: 'main' }, 'b')).toThrow(/repositorio/);
+    expect(() => prepareDeskScript('acme/web', { defaultBranch: 'main' }, "x'; rm -rf ~")).toThrow(/rama/);
   });
 });
 
@@ -128,26 +128,26 @@ describe('the other desk scripts', () => {
 
   it("saves unpushed work as a patch before a Box goes, and stops only the agent's leftovers", () => {
     expect(leftoversScript('acme/web')).toContain('git format-patch -q -o "$T" HEAD --not --remotes');
-    expect(releaseScript(4105.7, 'acme/web')).toBe(`node '/workspace/home/.cubefarm/bin/release.cjs' 4105 '/workspace/home/work/acme__web' || true`);
+    expect(releaseScript(4105.7, 'acme/web')).toBe(`node '/workspace/home/.sareoffice/bin/release.cjs' 4105 '/workspace/home/work/acme__web' || true`);
   });
 });
 
 describe('signing a CLI in', () => {
   it("asks the Box's own CLI whether it's signed in, by its exit code only", () => {
-    expect(signInCheckScript('claude')).toBe(`if '/workspace/home/.cubefarm/cli/bin/claude' auth status --json >/dev/null 2>&1; then echo CUBEFARM_SIGNED_IN; else echo CUBEFARM_SIGNED_OUT; fi`);
-    expect(signInCheckScript('codex')).toContain(`'/workspace/home/.cubefarm/cli/bin/codex' login status >/dev/null 2>&1`);
+    expect(signInCheckScript('claude')).toBe(`if '/workspace/home/.sareoffice/cli/bin/claude' auth status --json >/dev/null 2>&1; then echo SAREOFFICE_SIGNED_IN; else echo SAREOFFICE_SIGNED_OUT; fi`);
+    expect(signInCheckScript('codex')).toContain(`'/workspace/home/.sareoffice/cli/bin/codex' login status >/dev/null 2>&1`);
   });
 
   it('reads what the check said, and nothing when it never ran', () => {
-    expect(signInOutcome('CUBEFARM_SIGNED_IN\n')).toBe(true);
-    expect(signInOutcome('some noise\nCUBEFARM_SIGNED_OUT')).toBe(false);
+    expect(signInOutcome('SAREOFFICE_SIGNED_IN\n')).toBe(true);
+    expect(signInOutcome('some noise\nSAREOFFICE_SIGNED_OUT')).toBe(false);
     expect(signInOutcome('bash: line 1: claude: not found')).toBeNull();
     expect(signInOutcome('')).toBeNull();
   });
 
   it("runs each CLI's own login, the one that works without a browser on the Box", () => {
-    expect(signInCommand('claude')).toEqual({ file: '/workspace/home/.cubefarm/cli/bin/claude', args: ['auth', 'login'] });
-    expect(signInCommand('codex')).toEqual({ file: '/workspace/home/.cubefarm/cli/bin/codex', args: ['login', '--device-auth'] });
+    expect(signInCommand('claude')).toEqual({ file: '/workspace/home/.sareoffice/cli/bin/claude', args: ['auth', 'login'] });
+    expect(signInCommand('codex')).toEqual({ file: '/workspace/home/.sareoffice/cli/bin/codex', args: ['login', '--device-auth'] });
     expect(signOutScript('claude')).toContain(`claude' auth logout`);
     expect(signOutScript('codex')).toContain(`codex' logout`);
   });

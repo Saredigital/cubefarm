@@ -36,8 +36,8 @@ describe('previewEnvTooBig', () => {
 
   it('refuses one character over, saying how big it got and what the ceiling is', () => {
     const msg = previewEnvTooBig(envOf(80, PREVIEW_ENV_MAX_CHARS + 1));
-    expect(msg).toContain('16,001 characters');
+    expect(msg).toContain('16.001 caracteres');
     expect(msg).toContain('80 variables');
-    expect(msg).toContain('16,000');
+    expect(msg).toContain('16.000');
   });
 });

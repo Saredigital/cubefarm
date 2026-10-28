@@ -7,33 +7,63 @@ import { WebSocketServer } from 'ws';
 import { z } from 'zod';
 import { CLIP_MAX_BYTES, CLIP_TOO_BIG } from '../shared/clipLimits.ts';
 import { DAY_PARTS } from '../shared/speech.ts';
-import { DEMO, DEMO_SCALE, PORT, STATE_FILE, VERSION, WORKSPACE_ROOT } from './config.ts';
+import { DEMO, DEMO_SCALE, HOME_DIR, PORT, STATE_FILE, VERSION, WORKSPACE_ROOT } from './config.ts';
+import { mountCompanyMail } from './mail/router.ts';
+import { CompanyStore } from './company/store.ts';
+import { createCompanyRouter } from './company/router.ts';
+import { createCompanySocialRouter } from './company-social/router.ts';
 import { MACHINES_DIR } from './workspace.ts';
 import { realBackend } from './backend.ts';
 import { handleHook, handleMcp, setOfficeUrl } from './cliRunner.ts';
 import { createDemoBackend } from './demo.ts';
-import { parseRange } from './journal.ts';
 import { underLauncher } from './officeUpdate.ts';
 import { serviceWorkerSource, swVersion } from './pwa.ts';
 import { screenStatus } from './screenReply.ts';
 import { parseSendBackNote } from './sendBack.ts';
-import { PresenceHub } from './presence.ts';
+import { hostsOf, refusal } from './originGuard.ts';
 import { HttpError, Swarm } from './swarm.ts';
 
 const swarm = new Swarm(DEMO ? createDemoBackend(DEMO_SCALE) : realBackend);
-// Who else is in the 3D office (shared presence): relayed between tabs over /ws, never saved. The demo adds fake visitors.
-const presence = new PresenceHub({ demo: DEMO });
 // Sessions the office picks back up while it starts need the address their CLIs call back on before it listens.
 if (PORT) setOfficeUrl(`http://127.0.0.1:${PORT}`);
 await swarm.init();
 
 const app = express();
+// Only the office's own page may talk to it (originGuard.ts): a web page open in the same browser must not reach the
+// agents' terminals. Extra names the office is reached by (a Tailscale Serve address) come from its settings or the env.
+const guard = { extraHosts: () => [...hostsOf(process.env.SAREOFFICE_ALLOWED_HOSTS), ...hostsOf(swarm.officeAddress())] };
+app.use((req, res, next) => {
+  const why = refusal({ host: req.headers.host, origin: req.headers.origin }, guard);
+  if (!why) return next();
+  res.status(403).json({ error: why });
+});
 // Agent CLIs calling back: hooks (a tool result can be a large screenshot, hence the limit) and the CEO's office tools.
 // The token in the path is the session's; unknown tokens get an empty answer.
 app.post('/api/hooks/:token', express.json({ limit: '64mb' }), (req, res) => void res.json(handleHook(String(req.params.token), req.body)));
 app.post('/api/mcp/:token', express.json({ limit: '4mb' }), (req, res, next) => void handleMcp(String(req.params.token), req, res).catch(next));
 app.all('/api/mcp/:token', (_req, res) => void res.status(405).set('Allow', 'POST').end());
+if (DEMO) app.use('/api/company/social/assets', (req, _res, next) => {
+  try { companyMail.security.authority(req, { csrf: req.method !== 'GET' }); next(); } catch (error) { next(error); }
+}, express.json({ limit: '17mb' }));
 app.use(express.json({ limit: '1mb' }));
+
+// Company data has its own authenticated surface and never enters the office's shared snapshot.
+// Real mail/specialist execution remains on the separate protected broker, outside the coding CLIs' identity.
+const companyMail = mountCompanyMail(app, { demo: DEMO, stateDir: path.join(HOME_DIR, DEMO ? 'demo-company-mail' : 'company-mail') });
+const companyStore = new CompanyStore(path.join(HOME_DIR, DEMO ? 'demo-company' : 'company'), swarm.snapshot(), STATE_FILE);
+const company = createCompanyRouter({ security: companyMail.security, store: companyStore, demo: DEMO,
+  resolveSources: (authority, provenance) => companyMail.mail.context(authority, provenance),
+  createMailDraft: (authority, input) => {
+    const source = companyMail.mail.read(authority, input.messageId!);
+    return companyMail.mail.createDraft(authority, { ...input, to: input.to ?? (source.replyTo?.length ? source.replyTo : [source.from]) });
+  } });
+const companySocial = DEMO ? createCompanySocialRouter({
+  security: companyMail.security, stateDir: path.join(HOME_DIR, 'demo-company'), demo: true, companyStore,
+  encryptionKey: fs.readFileSync(path.join(HOME_DIR, 'demo-company-mail', 'demo-mail.key')),
+  sourcePermissionVersion: provenance => companyMail.mail.permissionFingerprint(provenance),
+}) : undefined;
+if (companySocial) app.use('/api/company/social', companySocial.router);
+app.use('/api/company', company.router);
 
 type Handler = (req: Request, res: Response) => Promise<unknown> | unknown;
 const route = (fn: Handler) => async (req: Request, res: Response, next: NextFunction) => {
@@ -46,7 +76,7 @@ const route = (fn: Handler) => async (req: Request, res: Response, next: NextFun
 };
 const num = (v: unknown) => {
   const n = Number(v);
-  if (!Number.isInteger(n) || n <= 0) throw new HttpError(400, `Invalid number: ${v}`);
+  if (!Number.isInteger(n) || n <= 0) throw new HttpError(400, `Número no válido: ${v}`);
   return n;
 };
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
@@ -118,13 +148,11 @@ app.post(
   '/api/repos/:repo/preview',
   route((req) => {
     const pr = req.body?.pr;
-    if (pr !== undefined && pr !== null && (typeof pr !== 'number' || !Number.isInteger(pr) || pr <= 0)) throw new HttpError(400, 'pr must be a positive integer');
+    if (pr !== undefined && pr !== null && (typeof pr !== 'number' || !Number.isInteger(pr) || pr <= 0)) throw new HttpError(400, 'pr debe ser un entero positivo');
     return swarm.startPreview(repoId(req), pr ?? null);
   }),
 );
 app.delete('/api/repos/:repo/preview', route((req) => swarm.stopPreview(repoId(req))));
-// A finished ping-pong game, for the floor's leaderboard
-app.post('/api/repos/:repo/pong', route((req) => swarm.recordPong(repoId(req), req.body ?? {})));
 // The PR theatre: open PRs running beside the floor's app, and what the app viewer has on screen
 app.post('/api/repos/:repo/pr-previews/:n', route((req) => swarm.startPrPreview(repoId(req), num(req.params.n), req.body?.restart === true)));
 app.delete('/api/repos/:repo/pr-previews/:n', route((req) => swarm.stopPrPreview(repoId(req), num(req.params.n))));
@@ -132,7 +160,7 @@ app.post(
   '/api/previews/watch',
   route((req) => {
     const viewer = str(req.body?.viewer);
-    if (!/^[A-Za-z0-9-]{8,64}$/.test(viewer)) throw new HttpError(400, 'viewer must be an id of 8-64 letters, digits or dashes');
+    if (!/^[A-Za-z0-9-]{8,64}$/.test(viewer)) throw new HttpError(400, 'viewer debe ser un id de 8 a 64 letras, dígitos o guiones');
     const repo = req.body?.repoId == null ? null : str(req.body.repoId);
     const pr = req.body?.pr == null ? null : num(req.body.pr);
     return swarm.watchPreview(viewer, repo || null, repo ? pr : null);
@@ -193,7 +221,7 @@ app.patch('/api/settings', route((req) => swarm.updateSettings(req.body ?? {})))
 // Phone messages read aloud (docs/voice.md). The key goes in and never comes back out.
 const parse = <T>(schema: z.ZodType<T>, value: unknown): T => {
   const r = schema.safeParse(value);
-  if (!r.success) throw new HttpError(400, r.error.issues.map((i) => `${i.path.join('.') || 'request'}: ${i.message}`).join('; '));
+  if (!r.success) throw new HttpError(400, r.error.issues.map((i) => `${i.path.join('.') || 'petición'}: ${i.message}`).join('; '));
   return r.data;
 };
 const sendAudio = (res: Response, audio: Buffer, cache = 'private, max-age=3600') => {
@@ -242,7 +270,7 @@ app.post(
 );
 app.get(
   '/api/voice/sample',
-  route(async (req, res) => sendAudio(res, await swarm.voice.sampleAudio(parse(z.object({ voiceId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/, 'not a voice id').optional() }), req.query).voiceId))),
+  route(async (req, res) => sendAudio(res, await swarm.voice.sampleAudio(parse(z.object({ voiceId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/, 'no es un id de voz').optional() }), req.query).voiceId))),
 );
 app.get(
   '/api/voice/standup',
@@ -267,17 +295,6 @@ app.post('/api/doctor/fix', route((req) => swarm.doctorFix(req.body?.id, req.bod
 app.post('/api/doctor/ignore', route((req) => swarm.doctorIgnore(req.body?.id)));
 app.post('/api/doctor/demo', route((req) => swarm.demoDoctor(req.body?.action)));
 
-// The journal, for the time-lapse replay (read-only); the demo can write itself a sample day.
-app.get('/api/journal/days', route(() => swarm.journal.days()));
-app.get(
-  '/api/journal/events',
-  route((req) => {
-    const { from, to, seek } = parseRange(req.query, Date.now());
-    return swarm.journal.read(from, to, seek);
-  }),
-);
-app.post('/api/journal/sample', route(() => swarm.journalSample()));
-
 // The CEO and the manager's phone
 app.post('/api/ceo/message', route((req) => swarm.messageCeo(str(req.body.text))));
 app.post('/api/ceo/review', route(() => swarm.requestReview()));
@@ -299,12 +316,6 @@ app.post('/api/requests/:id/reject', route((req) => swarm.rejectRequest(String(r
 // The demo office only: the CEO grows (or shrinks) a floor's team on demand.
 app.post('/api/demo/proposals', route((req) => swarm.demoPropose(req.body?.kind, req.body?.floor)));
 
-// Office progression (#210): the lobby kiosk, a floor's decorations, the player's coffees, and the demo's coins and
-// tenure for QA.
-app.post('/api/repos/:repo/decor/buy', route((req) => swarm.buyDecoration(repoId(req), req.body?.item)));
-app.post('/api/repos/:repo/decor/place', route((req) => swarm.placeDecoration(repoId(req), req.body ?? {})));
-app.post('/api/progress/coffee', route((req) => swarm.drankCoffee(req.body?.id)));
-app.post('/api/progress/demo', route((req) => swarm.demoProgress(req.body ?? {})));
 
 // Serve the built client: the published package, or `npm start` after `npm run build`.
 const dist = path.resolve(import.meta.dirname, '../dist');
@@ -333,12 +344,13 @@ const server = http.createServer(app);
 // Two sockets: /ws carries the office's state to every tab, /ws/term?agent=<id> one agent's terminal to whoever opened it.
 const wss = new WebSocketServer({ noServer: true });
 const terms = new WebSocketServer({ noServer: true });
-wss.on('connection', (ws) => {
-  swarm.addClient(ws);
-  presence.attach(ws);
-});
+wss.on('connection', (ws) => swarm.addClient(ws));
 terms.on('connection', (ws, req) => swarm.attachTerminal(new URL(req.url ?? '', 'http://localhost').searchParams.get('agent') ?? '', ws));
 server.on('upgrade', (req, socket, head) => {
+  if (refusal({ host: req.headers.host, origin: req.headers.origin }, guard)) {
+    socket.write('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
+    return void socket.destroy();
+  }
   const { pathname } = new URL(req.url ?? '', 'http://localhost');
   const target = pathname === '/ws' ? wss : pathname === '/ws/term' ? terms : null;
   if (!target) return void socket.destroy();
@@ -348,7 +360,7 @@ server.on('upgrade', (req, socket, head) => {
 server.listen(PORT, '127.0.0.1', () => {
   setOfficeUrl(`http://127.0.0.1:${(server.address() as AddressInfo).port}`);
   const scale = DEMO_SCALE ? `, ${DEMO_SCALE.floors} floors × ${DEMO_SCALE.agents} people` : '';
-  console.log(`\n  🏢 cubefarm ${VERSION} on http://localhost:${PORT}${DEMO ? `  (DEMO MODE: fake GitHub + fake agents${scale})` : ''}`);
+  console.log(`\n  🏢 sareoffice ${VERSION} on http://localhost:${PORT}${DEMO ? `  (DEMO MODE: fake GitHub + fake agents${scale})` : ''}`);
   console.log(`     state: ${STATE_FILE}`);
   console.log(`     workspaces: ${WORKSPACE_ROOT}`);
   console.log(`     agents' machines: ${DEMO ? '(pretend ones, in the demo)' : MACHINES_DIR}\n`);
@@ -361,10 +373,16 @@ const shutdown = (signal: string) => {
   if (closing) return;
   closing = true;
   console.log(`\n  ${signal}: stopping floor previews…`);
-  const force = setTimeout(() => process.exit(0), 15_000);
-  presence.stop();
-  void swarm
-    .shutdown(signal === 'restart')
+  // The demo social scheduler drains a bounded provider call before releasing its lease.
+  // Forced shutdown intentionally leaves the lease and durable attempt for conservative recovery.
+  const force = setTimeout(() => process.exit(1), companySocial ? 45_000 : 15_000);
+  server.close();
+  company.close();
+  companyMail.close();
+  void Promise.all([
+    swarm.shutdown(signal === 'restart'),
+    companySocial?.close().catch(() => {}),
+  ])
     .catch((err) => console.error(err))
     .finally(() => {
       clearTimeout(force);

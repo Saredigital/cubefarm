@@ -3,7 +3,7 @@
 // one (ptyClient.ts's Pty): a TTY exec session attached to that tmux, reattached after a dropped connection. The CLI's
 // hooks can't reach the office, so they append to the session's events file in the Box (boxHelpers.ts); BoxPty reads it
 // from the byte offset the office last handled and hands each event on, which also replays what happened while the
-// office was away. The CLI's exit is an event too (the launcher's CubefarmExit): only that, or tmux being gone, ends it.
+// office was away. The CLI's exit is an event too (the launcher's SareofficeExit): only that, or tmux being gone, ends it.
 
 import { BOX_ENV } from './cloud.ts';
 import { sq, tmuxAlive, tmuxAttach, tmuxKill, tmuxList, tmuxSocket, tmuxStart } from './boxScripts.ts';
@@ -90,12 +90,12 @@ export function finishedTurn(events: Record<string, unknown>[]): boolean {
   events.forEach((e, i) => {
     if (e.hook_event_name === 'UserPromptSubmit') last = i;
   });
-  return events.slice(last + 1).some((e) => TURN_ENDS.includes(String(e.hook_event_name)) || e.hook_event_name === 'CubefarmExit');
+  return events.slice(last + 1).some((e) => TURN_ENDS.includes(String(e.hook_event_name)) || e.hook_event_name === 'SareofficeExit');
 }
 
 /** The CLI's exit code, when the events hold its exit. */
 export function exitCode(events: Record<string, unknown>[]): number | null {
-  const exit = events.filter((e) => e.hook_event_name === 'CubefarmExit').pop();
+  const exit = events.filter((e) => e.hook_event_name === 'SareofficeExit').pop();
   return exit ? Number(exit.code) || 0 : null;
 }
 
@@ -171,7 +171,7 @@ export class BoxPty implements Pty {
   replay(events: Record<string, unknown>[], at: { offset: number; turnAt: number }) {
     void hooksOpen.then(() => {
       if (this.stopped) return;
-      for (const e of events) if (e.hook_event_name !== 'CubefarmExit') this.o.event(e);
+      for (const e of events) if (e.hook_event_name !== 'SareofficeExit') this.o.event(e);
       this.lines = new EventLines(at.offset, at.turnAt);
       this.o.save(at.offset, at.turnAt, this.meta);
       // Its session finishes on its own a few seconds after a finished turn; the exit follows that.
@@ -247,7 +247,7 @@ export class BoxPty implements Pty {
     if (this.stopped || this.exited) return;
     let exit: number | null = null;
     for (const e of this.lines.push(text)) {
-      if (e.hook_event_name === 'CubefarmExit') exit = Number(e.code) || 0;
+      if (e.hook_event_name === 'SareofficeExit') exit = Number(e.code) || 0;
       else this.o.event(e);
     }
     this.o.save(this.lines.offset, this.lines.turnAt, this.meta);

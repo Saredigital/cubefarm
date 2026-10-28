@@ -6,10 +6,10 @@ import { agentsOnRepo, kanbanFor, useStore, type Agent } from '../store';
 import { CEO_ID, type RepoView } from '../../../shared/types';
 import { agentLabel, signInFor } from '../ui/floorRows';
 import { MessageBox } from '../ui/MessageBox';
-import { toolVerb } from '../world/draw';
+import { toolVerb } from '../ui/toolVerb';
 import { agentActions, assignChoices, doing } from './pocketData';
 
-const STATUS_LABEL: Record<string, string> = { idle: 'free', preparing: 'setting up', working: 'working', done: 'done', error: 'needs help', stopped: 'stopped' };
+const STATUS_LABEL: Record<string, string> = { idle: 'libre', preparing: 'preparando', working: 'trabajando', done: 'terminado', error: 'necesita ayuda', stopped: 'detenido' };
 
 export function Status({ status }: { status: string }) {
   return <span className={`status status-${status}`}>{STATUS_LABEL[status] ?? status}</span>;
@@ -72,22 +72,22 @@ function AgentCard({ agent, repo }: { agent: Agent; repo: RepoView }) {
         <Status status={agent.status} />
       </div>
       {agent.lastError && !working && <div className="term-error small pk-error">⚠️ {agent.lastError}</div>}
-      {signIn && <div className="small pk-sign-in">🔑 Waiting for you to sign {signIn} in, in their terminal.</div>}
+      {signIn && <div className="small pk-sign-in">🔑 Esperando a que inicies sesión en {signIn}, en su terminal.</div>}
       <div className="pk-actions">
         {signIn && (
           <button className="btn btn-small btn-good" onClick={() => openOverlay({ kind: 'terminal', agentId: agent.id })}>
-            🔑 Sign in
+            🔑 Iniciar sesión
           </button>
         )}
         {can.stop && (
           <button className="btn btn-small btn-bad" disabled={busy} onClick={() => void run(() => api.stop(agent.id))}>
-            ■ Stop
+            ■ Detener
           </button>
         )}
         {can.assign && (
           <>
-            <select className="pk-assign" value={pick} aria-label={`Give ${agent.name} an issue or a pull request to test`} onChange={(e) => setPick(e.target.value)} disabled={busy || choices.length === 0}>
-              <option value="">{choices.length ? 'Pick an issue or a PR…' : 'Nothing to pick up'}</option>
+            <select className="pk-assign" value={pick} aria-label={`Dale a ${agent.name} un issue o una pull request para probar`} onChange={(e) => setPick(e.target.value)} disabled={busy || choices.length === 0}>
+              <option value="">{choices.length ? 'Elige un issue o una PR…' : 'No hay nada que coger'}</option>
               {choices.map((c) => (
                 <option key={c.key} value={c.key}>
                   {c.kind === 'qa' ? '🔍 PR ' : ''}#{c.number} {c.title}
@@ -101,18 +101,18 @@ function AgentCard({ agent, repo }: { agent: Agent; repo: RepoView }) {
                 chosen && void run(() => (chosen.kind === 'qa' ? api.sendToQa(repo.id, chosen.number, agent.id) : api.assign(agent.id, chosen.number))).then((ok) => ok && setPick(''))
               }
             >
-              {chosen?.kind === 'qa' ? '🔍 Test' : '▶ Start'}
+              {chosen?.kind === 'qa' ? '🔍 Probar' : '▶ Empezar'}
             </button>
           </>
         )}
         {can.clear && (
           <button className="btn btn-small" disabled={busy} onClick={() => void run(() => api.reset(agent.id))}>
-            ↺ Clear desk
+            ↺ Despejar puesto
           </button>
         )}
         {can.message && (
           <button className={`btn btn-small ${writing ? 'btn-ghost' : ''}`} aria-expanded={writing} onClick={() => setWriting(!writing)}>
-            💬 Message
+            💬 Mensaje
           </button>
         )}
         <button className="btn btn-small btn-ghost" onClick={() => openOverlay({ kind: 'terminal', agentId: agent.id })}>
@@ -131,11 +131,11 @@ function AgentCard({ agent, repo }: { agent: Agent; repo: RepoView }) {
             value={text}
             onChange={setText}
             autoFocus
-            aria-label={`Message ${agent.name}`}
-            placeholder={working ? `Tell ${agent.name} something while they work…` : `Ask ${agent.name} for a follow-up…`}
+            aria-label={`Mensaje para ${agent.name}`}
+            placeholder={working ? `Dile algo a ${agent.name} mientras trabaja…` : `Pide a ${agent.name} un seguimiento…`}
           />
           <button className="btn btn-small btn-good" disabled={busy || !text.trim()}>
-            Send
+            Enviar
           </button>
         </form>
       )}
@@ -157,14 +157,14 @@ function CeoCard() {
         </span>
         <div className="grow">
           <b>{ceo.name}</b> <span className="muted small">CEO</span>
-          <div className="small pk-ellipsis">{working ? (info.job?.label ?? 'Working') : info.queue.length ? `Up next: ${info.queue.map((j) => j.label).join(' → ')}` : 'Free'}</div>
+          <div className="small pk-ellipsis">{working ? (info.job?.label ?? 'Trabajando') : info.queue.length ? `A continuación: ${info.queue.map((j) => j.label).join(' → ')}` : 'Libre'}</div>
         </div>
         <Status status={ceo.status} />
       </div>
       {working && (
         <div className="pk-actions">
           <button className="btn btn-small btn-bad" disabled={busy} onClick={() => void run(() => api.stop(ceo.id))}>
-            ■ Stop
+            ■ Detener
           </button>
         </div>
       )}
@@ -180,16 +180,16 @@ export function Team({ focusRepo }: { focusRepo: string | null }) {
   return (
     <div className="pk-page">
       <CeoCard />
-      {repos.length === 0 && <p className="muted">No floors yet, so no team.</p>}
+      {repos.length === 0 && <p className="muted">Aún no hay plantas, así que no hay equipo.</p>}
       {repos.map((repo) => {
         const team = agentsOnRepo(agents, repo.id);
         return (
           <section key={repo.id} ref={repo.id === focusRepo ? focus : undefined} className="pk-section" style={{ ['--accent' as string]: repo.color }}>
             <h3 className="pk-h">
               <span className="floor-badge">{repo.floor}</span> {repo.fullName.split('/')[1]}
-              <span className="muted small"> · {team.length} {team.length === 1 ? 'agent' : 'agents'}</span>
+              <span className="muted small"> · {team.length} {team.length === 1 ? 'agente' : 'agentes'}</span>
             </h3>
-            {team.length === 0 && <p className="muted small">Nobody works here yet.</p>}
+            {team.length === 0 && <p className="muted small">Aquí aún no trabaja nadie.</p>}
             {team.map((a) => (
               <AgentCard key={a.id} agent={a} repo={repo} />
             ))}

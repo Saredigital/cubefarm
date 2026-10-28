@@ -13,6 +13,6 @@ export const previewEnvChars = (env: Record<string, string>): number => Object.e
 export function previewEnvTooBig(env: Record<string, string>): string | null {
   const chars = previewEnvChars(env);
   if (chars <= PREVIEW_ENV_MAX_CHARS) return null;
-  const n = (x: number) => x.toLocaleString('en-US');
-  return `The preview env is ${n(chars)} characters (${n(Object.keys(env).length)} variables, each counted as KEY=value), over the ${n(PREVIEW_ENV_MAX_CHARS)} a floor's preview may take. Keep only the variables the app needs to run.`;
+  const n = (x: number) => x.toLocaleString('es-ES');
+  return `El entorno de la vista previa ocupa ${n(chars)} caracteres (${n(Object.keys(env).length)} variables, cada una contada como KEY=value), más de los ${n(PREVIEW_ENV_MAX_CHARS)} que admite la vista previa de una planta. Deja solo las variables que la app necesita para arrancar.`;
 }

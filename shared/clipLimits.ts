@@ -18,7 +18,7 @@ const TYPES: Record<string, string> = {
   'audio/x-wav': 'wav',
 };
 
-export const CLIP_TOO_BIG = 'That recording is too long to transcribe: keep it under 60 seconds.';
+export const CLIP_TOO_BIG = 'Esa grabación es demasiado larga para transcribirla: que dure menos de 60 segundos.';
 
 /** A Content-Type's audio type without its parameters ('audio/webm;codecs=opus' → 'audio/webm'), or '' when it isn't one we take. */
 export function clipType(contentType: string | undefined): string {
@@ -31,8 +31,8 @@ export const clipExtension = (type: string) => TYPES[clipType(type)] ?? 'webm';
 
 /** Why a clip can't be transcribed (an HTTP status and words for the manager), or null when it can. */
 export function clipProblem(clip: { bytes: number; ms: number; type: string | undefined }): { status: 400 | 413 | 415; message: string } | null {
-  if (!clipType(clip.type)) return { status: 415, message: `The office can't transcribe ${clip.type ? `"${clip.type.split(';')[0]}"` : 'that'} audio: send WebM, Ogg, MP4, MP3 or WAV.` };
-  if (!(clip.bytes > 0)) return { status: 400, message: 'The recording was empty.' };
+  if (!clipType(clip.type)) return { status: 415, message: `La oficina no puede transcribir ${clip.type ? `audio "${clip.type.split(';')[0]}"` : 'ese audio'}: envía WebM, Ogg, MP4, MP3 o WAV.` };
+  if (!(clip.bytes > 0)) return { status: 400, message: 'La grabación estaba vacía.' };
   if (clip.bytes > CLIP_MAX_BYTES || (Number.isFinite(clip.ms) && clip.ms > CLIP_MAX_MS + CLIP_SLACK_MS)) return { status: 413, message: CLIP_TOO_BIG };
   return null;
 }

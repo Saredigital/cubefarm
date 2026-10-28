@@ -58,20 +58,20 @@ export const DEFAULT_PREVIEW: PreviewConfig = { command: null, env: {} };
 export function parsePreviewPatch(command: unknown, env: unknown): Partial<PreviewConfig> {
   const out: Partial<PreviewConfig> = {};
   if (command !== undefined) {
-    if (command !== null && typeof command !== 'string') throw new HttpError(400, 'previewCommand must be a string or null');
+    if (command !== null && typeof command !== 'string') throw new HttpError(400, 'previewCommand debe ser un texto o null');
     const c = (command ?? '').trim();
-    if (c.length > 2000) throw new HttpError(400, 'previewCommand is too long');
+    if (c.length > 2000) throw new HttpError(400, 'previewCommand es demasiado largo');
     out.command = c || null;
   }
   if (env !== undefined) {
     if (env === null) out.env = {};
     else {
-      if (typeof env !== 'object' || Array.isArray(env)) throw new HttpError(400, 'previewEnv must be an object of string values');
+      if (typeof env !== 'object' || Array.isArray(env)) throw new HttpError(400, 'previewEnv debe ser un objeto con valores de texto');
       const entries = Object.entries(env as Record<string, unknown>);
       for (const [k, v] of entries) {
-        if (typeof v !== 'string') throw new HttpError(400, `previewEnv.${k} must be a string`);
-        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(k)) throw new HttpError(400, `"${k}" is not a valid environment variable name`);
-        if (/^(ANTHROPIC_|CLAUDE)/i.test(k)) throw new HttpError(400, `${k} can't be set on a preview: Claude credentials never reach the apps the office runs`);
+        if (typeof v !== 'string') throw new HttpError(400, `previewEnv.${k} debe ser un texto`);
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(k)) throw new HttpError(400, `"${k}" no es un nombre de variable de entorno válido`);
+        if (/^(ANTHROPIC_|CLAUDE)/i.test(k)) throw new HttpError(400, `${k} no se puede poner en una vista previa: las credenciales de Claude nunca llegan a las apps que ejecuta la oficina`);
       }
       const checked = Object.fromEntries(entries) as Record<string, string>;
       const tooBig = previewEnvTooBig(checked);
@@ -161,7 +161,7 @@ export class Previews {
 
   /** Start the floor's preview on the default branch or an open PR, replacing whatever it is running now. */
   async start(f: PreviewFloor, title: string, pr?: number | null): Promise<PreviewView> {
-    if (pr !== undefined && pr !== null && (!Number.isInteger(pr) || pr <= 0)) throw new HttpError(400, `Invalid pull request number: ${pr}`);
+    if (pr !== undefined && pr !== null && (!Number.isInteger(pr) || pr <= 0)) throw new HttpError(400, `Número de pull request no válido: ${pr}`);
     if (pr) await this.checkOpen(f, pr);
     const r = this.run(f.id);
     const gen = ++r.gen;
@@ -173,7 +173,7 @@ export class Previews {
     Object.assign(r, { port, ref, pr: pr ?? null, commit: null, startedAt: Date.now(), error: null, log: [] });
     if (await portOpen(port)) {
       if (gen !== r.gen) return this.view(f);
-      Object.assign(r, { status: 'error', error: `Port ${port} is already in use by another program. The office won't stop it; free the port and try again.` });
+      Object.assign(r, { status: 'error', error: `Otro programa ya está usando el puerto ${port}. La oficina no lo va a detener; libera el puerto y vuelve a intentarlo.` });
       this.hooks.emit(f.id);
       throw new HttpError(409, r.error!);
     }
@@ -262,7 +262,7 @@ export class Previews {
    * the PR's latest head). With every slot taken, the one nobody has watched the longest stops first.
    */
   async startPr(f: PreviewFloor, pr: number, title: string, restart = false): Promise<PrPreviewView> {
-    if (!Number.isInteger(pr) || pr <= 0) throw new HttpError(400, `Invalid pull request number: ${pr}`);
+    if (!Number.isInteger(pr) || pr <= 0) throw new HttpError(400, `Número de pull request no válido: ${pr}`);
     await this.checkOpen(f, pr);
     const key = prKey(f.id, pr);
     const known = this.prRuns.get(key);
@@ -288,7 +288,7 @@ export class Previews {
     const port = await this.prPort(run);
     if (gen !== run.gen) return this.prView(run);
     if (!port) {
-      Object.assign(run, { status: 'error', error: `No free port for PR #${pr}'s preview: every port in its range (from ${prPortCandidates(PREVIEW_PORT, run.slot)[0]}) is in use.` });
+      Object.assign(run, { status: 'error', error: `No hay ningún puerto libre para la vista previa de la PR #${pr}: todos los puertos de su rango (desde el ${prPortCandidates(PREVIEW_PORT, run.slot)[0]}) están en uso.` });
       this.emitPr(run);
       throw new HttpError(409, run.error!);
     }
@@ -333,7 +333,7 @@ export class Previews {
     for (const key of closedPrs(this.prInfos(), f.id, pulls)) {
       const r = this.prRuns.get(key)!;
       const state = pulls.find((p) => p.number === r.pr)?.state;
-      this.hooks.note(`PR #${r.pr}'s preview stopped: the PR ${state === 'MERGED' ? 'was merged' : 'was closed'}.`);
+      this.hooks.note(`Vista previa de la PR #${r.pr} detenida: la PR se ha ${state === 'MERGED' ? 'fusionado' : 'cerrado'}.`);
       void this.endPr(r);
     }
   }
@@ -341,7 +341,7 @@ export class Previews {
   /** A sync proxy (compare mode's synced scrolling) in front of the floor's running app (pr null) or a running PR preview. */
   async syncUrl(f: PreviewFloor, pr: number | null): Promise<string> {
     const r = pr ? this.prRuns.get(prKey(f.id, pr)) : this.runs.get(f.id);
-    if (!r?.port || r.status !== 'running') throw new HttpError(409, `${pr ? `PR #${pr}'s preview` : "The floor's app"} isn't running`);
+    if (!r?.port || r.status !== 'running') throw new HttpError(409, `${pr ? `La vista previa de la PR #${pr}` : 'La app de la planta'} no está en marcha`);
     return `http://localhost:${await this.sync.open(r.port)}`;
   }
 
@@ -386,9 +386,9 @@ export class Previews {
     const free = freeSlot([...this.prRuns.values()]);
     if (free) return free;
     const key = pickEviction(this.prInfos(), this.screen());
-    if (!key) throw new HttpError(409, `${MAX_PR_PREVIEWS} PR previews are on screen already, the most that run at once. Close one of them first.`);
+    if (!key) throw new HttpError(409, `Ya hay ${MAX_PR_PREVIEWS} vistas previas de PRs en pantalla, el máximo a la vez. Cierra primero una de ellas.`);
     const old = this.prRuns.get(key)!;
-    this.hooks.note(`PR #${old.pr}'s preview stopped to make room: at most ${MAX_PR_PREVIEWS} PR previews run at once.`);
+    this.hooks.note(`Vista previa de la PR #${old.pr} detenida para hacer sitio: pueden ejecutarse como mucho ${MAX_PR_PREVIEWS} vistas previas de PR a la vez.`);
     // The same floor takes its worktree over as it is (so the install can be skipped); another floor's is cleared away.
     void this.endPr(old, undefined, old.repoId !== f.id);
     return old.slot;
@@ -487,8 +487,8 @@ export class Previews {
   private async checkOpen(f: PreviewFloor, pr: number) {
     const known = this.hooks.pulls(f.id).find((p) => p.number === pr);
     const state = known?.state ?? (await this.backend.prDetails(f.fullName, pr).then((d) => d.state).catch(() => null));
-    if (!state) throw new HttpError(404, `${f.fullName} has no pull request #${pr}`);
-    if (state !== 'OPEN') throw new HttpError(400, `Pull request #${pr} is ${state.toLowerCase()}, not open`);
+    if (!state) throw new HttpError(404, `${f.fullName} no tiene la pull request #${pr}`);
+    if (state !== 'OPEN') throw new HttpError(400, `La pull request #${pr} está ${state === 'MERGED' ? 'fusionada' : state === 'CLOSED' ? 'cerrada' : String(state).toLowerCase()}, no abierta`);
   }
 
   /** Log lines arrive in bursts (npm install); send them at most once a second. */

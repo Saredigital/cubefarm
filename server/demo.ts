@@ -13,7 +13,6 @@ import { DAY_MS, emptyHistory, HOUR_MS, prune, startOfDay, type OpsHistory } fro
 import { takeLastUpdate, underLauncher, type OfficeHost } from './officeUpdate.ts';
 import type { UsageWarning } from './pacing.ts';
 import { VoiceApiError, type VoiceApi } from './voice.ts';
-import type { WeatherApi } from './weather.ts';
 import type { NotifyTransport } from './notifier.ts';
 import { CloudError, type BoxApi, type BoxInfo } from './box.ts';
 import type { CloudBackend } from './backend.ts';
@@ -105,58 +104,58 @@ function seed(fullName: string, description: string, titles: [string, string][])
   repos.set(fullName, r);
 }
 
-seed('demo-co/pixel-todo', 'A cheerful todo app', [
-  ['Add dark mode toggle', 'Users want a dark theme. Persist the choice in localStorage.'],
-  ['Todos should support due dates', 'Add an optional due date and highlight overdue items.'],
-  ['Drag and drop to reorder', 'Let users reorder todos by dragging.'],
-  ['Empty state illustration', 'Show a friendly illustration when the list is empty.'],
-  ['Keyboard shortcuts', 'N for new todo, / to search, ? for help.'],
-  ['Fix: completed count off by one', 'The footer shows one more completed item than there is.'],
+seed('demo-co/pixel-todo', 'Una alegre app de tareas', [
+  ['Añadir un interruptor de modo oscuro', 'Los usuarios quieren un tema oscuro. Guarda la elección en localStorage.'],
+  ['Las tareas deberían admitir fechas límite', 'Añade una fecha límite opcional y resalta las tareas vencidas.'],
+  ['Arrastrar y soltar para reordenar', 'Deja que los usuarios reordenen las tareas arrastrándolas.'],
+  ['Ilustración para la lista vacía', 'Muestra una ilustración amable cuando la lista esté vacía.'],
+  ['Atajos de teclado', 'N para una tarea nueva, / para buscar, ? para la ayuda.'],
+  ['Corregir: el contador de completadas va uno por encima', 'El pie muestra una tarea completada más de las que hay.'],
 ]);
-seed('demo-co/weather-api', 'Tiny weather REST API', [
-  ['Add /forecast endpoint', 'Return a 5-day forecast for a city.'],
-  ['Rate limit anonymous callers', '60 requests per minute per IP.'],
-  ['OpenAPI spec', 'Publish an OpenAPI 3.1 document at /openapi.json.'],
+seed('demo-co/weather-api', 'Pequeña API REST del tiempo', [
+  ['Añadir el endpoint /forecast', 'Devuelve la previsión de 5 días de una ciudad.'],
+  ['Limitar las llamadas anónimas', '60 peticiones por minuto por IP.'],
+  ['Especificación OpenAPI', 'Publica un documento OpenAPI 3.1 en /openapi.json.'],
 ]);
 
 // ---------- the big company (--floors / --agents, #228) ----------
 
 const PRODUCTS: [string, string][] = [
-  ['pixel-todo', 'A cheerful todo app'],
-  ['weather-api', 'Tiny weather REST API'],
-  ['recipe-box', 'Recipes with a shopping list'],
-  ['budget-buddy', 'Personal budgets and bills'],
-  ['chat-lite', 'A small team chat'],
-  ['photo-wall', 'Shared photo albums'],
-  ['fit-log', 'Workouts and streaks'],
-  ['book-club', 'Reading lists for friends'],
-  ['trip-planner', 'Itineraries and packing lists'],
-  ['beat-maker', 'A browser drum machine'],
-  ['garden-diary', 'What to plant and when'],
-  ['habit-hero', 'Daily habits, gently tracked'],
-  ['invoice-flow', 'Invoices for freelancers'],
-  ['pet-pals', 'Vet visits and walks'],
-  ['study-cards', 'Flashcards with spaced repetition'],
-  ['parking-spot', 'Find and share parking'],
-  ['meal-prep', 'Weekly meal plans'],
-  ['job-board', 'A tiny job board'],
-  ['event-hub', 'Meetups and RSVPs'],
-  ['link-short', 'A link shortener with stats'],
+  ['pixel-todo', 'Una alegre app de tareas'],
+  ['weather-api', 'Pequeña API REST del tiempo'],
+  ['recipe-box', 'Recetas con lista de la compra'],
+  ['budget-buddy', 'Presupuestos y facturas personales'],
+  ['chat-lite', 'Un pequeño chat de equipo'],
+  ['photo-wall', 'Álbumes de fotos compartidos'],
+  ['fit-log', 'Entrenamientos y rachas'],
+  ['book-club', 'Listas de lectura entre amigos'],
+  ['trip-planner', 'Itinerarios y listas de equipaje'],
+  ['beat-maker', 'Una caja de ritmos en el navegador'],
+  ['garden-diary', 'Qué plantar y cuándo'],
+  ['habit-hero', 'Hábitos diarios, con seguimiento amable'],
+  ['invoice-flow', 'Facturas para autónomos'],
+  ['pet-pals', 'Visitas al veterinario y paseos'],
+  ['study-cards', 'Tarjetas de estudio con repetición espaciada'],
+  ['parking-spot', 'Encuentra y comparte aparcamiento'],
+  ['meal-prep', 'Menús semanales'],
+  ['job-board', 'Un pequeño portal de empleo'],
+  ['event-hub', 'Quedadas y confirmaciones de asistencia'],
+  ['link-short', 'Un acortador de enlaces con estadísticas'],
 ];
 
 const FEATURES = [
-  'Add dark mode', 'Search with filters', 'Export to CSV', 'Keyboard shortcuts', 'Offline support', 'Undo and redo',
-  'Email reminders', 'Drag and drop to reorder', 'Share links', 'Profile pictures', 'Paginate long lists', 'Rate limiting',
-  'An audit log', 'Two-factor login', 'Bulk edit', 'Tags and colours', 'An activity feed', 'Translations',
-  'Accessibility pass', 'Friendly empty states', 'Loading skeletons', 'Fix the flaky date test', 'Speed up the build',
-  'Clearer error messages',
+  'Añadir modo oscuro', 'Búsqueda con filtros', 'Exportar a CSV', 'Atajos de teclado', 'Funcionar sin conexión', 'Deshacer y rehacer',
+  'Recordatorios por correo', 'Arrastrar y soltar para reordenar', 'Compartir enlaces', 'Fotos de perfil', 'Paginar las listas largas', 'Limitar las peticiones',
+  'Un registro de auditoría', 'Inicio de sesión en dos pasos', 'Edición masiva', 'Etiquetas y colores', 'Un feed de actividad', 'Traducciones',
+  'Repaso de accesibilidad', 'Estados vacíos amables', 'Esqueletos de carga', 'Arreglar el test de fechas inestable', 'Acelerar la build',
+  'Mensajes de error más claros',
 ];
 
 /** The big company's floors: `floors` products, each with a long backlog (topped up as it shrinks, see listIssues). */
 function seedBigCompany(floors: number) {
   repos.clear();
   for (let f = 0; f < floors; f++) {
-    const [name, description] = PRODUCTS[f] ?? [`project-${f + 1}`, `Project number ${f + 1}`];
+    const [name, description] = PRODUCTS[f] ?? [`project-${f + 1}`, `Proyecto número ${f + 1}`];
     seed(`demo-co/${name}`, description, []);
     topUp(repos.get(`demo-co/${name}`)!, 30);
   }
@@ -167,8 +166,8 @@ function topUp(r: FakeRepo, open: number) {
   while (r.issues.length < open) {
     const n = r.nextNumber++;
     const feature = FEATURES[n % FEATURES.length];
-    const title = n > FEATURES.length ? `${feature} (part ${Math.ceil(n / FEATURES.length)})` : feature;
-    r.issues.push(issue(n, title, `Users of ${r.fullName.split('/')[1]} asked for this: ${feature.toLowerCase()}.`, r.fullName));
+    const title = n > FEATURES.length ? `${feature} (parte ${Math.ceil(n / FEATURES.length)})` : feature;
+    r.issues.push(issue(n, title, `Los usuarios de ${r.fullName.split('/')[1]} lo han pedido: ${feature.toLowerCase()}.`, r.fullName));
   }
 }
 
@@ -203,21 +202,21 @@ function issueScript(opts: SessionOptions, cb: SessionCallbacks, issueNumber: nu
   const file = ['src/App.tsx', 'src/components/TodoList.tsx', 'src/api/routes.ts', 'src/styles.css'][issueNumber % 4];
   const port = 5200 + (issueNumber % 50);
   return [
-    [{ kind: 'text', text: `● I'll start by getting familiar with the codebase for "${issueTitle}".` }],
-    [{ kind: 'tool', tool: 'Glob', text: '⏺ Glob src/**/*.{ts,tsx}' }, { kind: 'result', text: '  ⎿ Found 23 files' }],
-    [{ kind: 'tool', tool: 'Read', text: `⏺ Read ${file}` }, { kind: 'result', text: '  ⎿ Read 184 lines' }],
-    [{ kind: 'thinking', text: '✻ Thinking…' }],
+    [{ kind: 'text', text: `● Empiezo familiarizándome con el código para "${issueTitle}".` }],
+    [{ kind: 'tool', tool: 'Glob', text: '⏺ Glob src/**/*.{ts,tsx}' }, { kind: 'result', text: '  ⎿ 23 ficheros encontrados' }],
+    [{ kind: 'tool', tool: 'Read', text: `⏺ Read ${file}` }, { kind: 'result', text: '  ⎿ 184 líneas leídas' }],
+    [{ kind: 'thinking', text: '✻ Pensando…' }],
     [
-      { kind: 'tool', tool: 'TodoWrite', text: '⏺ Update todo list' },
-      { kind: 'result', text: '  ◐ Understand current behaviour' },
-      { kind: 'result', text: '  ☐ Implement the change' },
-      { kind: 'result', text: '  ☐ Add tests' },
-      { kind: 'result', text: '  ☐ Verify in the browser' },
+      { kind: 'tool', tool: 'TodoWrite', text: '⏺ Actualizar la lista de tareas' },
+      { kind: 'result', text: '  ◐ Entender el comportamiento actual' },
+      { kind: 'result', text: '  ☐ Implementar el cambio' },
+      { kind: 'result', text: '  ☐ Añadir tests' },
+      { kind: 'result', text: '  ☐ Comprobarlo en el navegador' },
     ],
-    [{ kind: 'tool', tool: 'Grep', text: '⏺ Grep "useTodos"' }, { kind: 'result', text: '  ⎿ Found 6 matches in 4 files' }],
-    [{ kind: 'text', text: "● The state lives in a single hook. I'll extend it and keep the API backwards compatible." }],
-    [{ kind: 'tool', tool: 'Edit', text: `⏺ Edit ${file}` }, { kind: 'result', text: '  ⎿ Updated' }],
-    [{ kind: 'tool', tool: 'Write', text: '⏺ Write src/__tests__/feature.test.ts' }, { kind: 'result', text: '  ⎿ Saved' }],
+    [{ kind: 'tool', tool: 'Grep', text: '⏺ Grep "useTodos"' }, { kind: 'result', text: '  ⎿ 6 coincidencias en 4 ficheros' }],
+    [{ kind: 'text', text: '● El estado vive en un único hook. Lo amplío y mantengo la API retrocompatible.' }],
+    [{ kind: 'tool', tool: 'Edit', text: `⏺ Edit ${file}` }, { kind: 'result', text: '  ⎿ Actualizado' }],
+    [{ kind: 'tool', tool: 'Write', text: '⏺ Write src/__tests__/feature.test.ts' }, { kind: 'result', text: '  ⎿ Guardado' }],
     [{ kind: 'tool', tool: 'Bash', text: '⏺ $ npm test -- --run' }],
     [
       { kind: 'result', text: '  ⎿ ✓ src/__tests__/feature.test.ts (4 tests) 38ms' },
@@ -228,8 +227,8 @@ function issueScript(opts: SessionOptions, cb: SessionCallbacks, issueNumber: nu
     () => cb.browserUrl(`http://localhost:${port}/`),
     [{ kind: 'tool', tool: 'mcp__playwright__browser_navigate', text: `⏺ 🌐 navigate http://localhost:${port}/` }, { kind: 'result', text: `  ⎿ Page URL: http://localhost:${port}/` }],
     () => cb.screenshot(Buffer.from(screenshotSvg(issueTitle, `localhost:${port}`, hue)), 'image/svg+xml'),
-    [{ kind: 'tool', tool: 'mcp__playwright__browser_take_screenshot', text: '⏺ 🌐 take_screenshot' }, { kind: 'result', text: '  ⎿ Took a screenshot of the current page' }],
-    [{ kind: 'text', text: '● Looks right in the browser. A production build, then the PR.' }],
+    [{ kind: 'tool', tool: 'mcp__playwright__browser_take_screenshot', text: '⏺ 🌐 take_screenshot' }, { kind: 'result', text: '  ⎿ Captura de la página actual guardada' }],
+    [{ kind: 'text', text: '● En el navegador se ve bien. Una build de producción y luego la PR.' }],
     [{ kind: 'tool', tool: 'Bash', text: '⏺ $ npm run build' }, { kind: 'result', text: '  ⎿ ✓ built in 1.62s' }],
     [{ kind: 'tool', tool: 'Bash', text: `⏺ $ git commit -am "feat: ${issueTitle.toLowerCase()}"` }, { kind: 'result', text: `  ⎿ [${branch} 3f2a91c] feat: ${issueTitle.toLowerCase()}` }],
     [{ kind: 'tool', tool: 'Bash', text: '⏺ $ git push -u origin HEAD' }, { kind: 'result', text: '  ⎿ branch set up to track origin' }],
@@ -241,7 +240,7 @@ function qaScript(cb: SessionCallbacks, pr: number, title: string, round: number
   const port = 5600 + (pr % 50);
   const hue = (pr * 41) % 360;
   // With GitHub checks on the PR, QA reads what they cover instead of re-running the suite.
-  const verify: Step[] = checks.endsWith(': none')
+  const verify: Step[] = /: (?:none|ninguno)$/.test(checks)
     ? [
         [{ kind: 'tool', tool: 'Bash', text: '⏺ $ npm ci && npm test -- --run' }],
         [
@@ -251,43 +250,43 @@ function qaScript(cb: SessionCallbacks, pr: number, title: string, round: number
         [{ kind: 'tool', tool: 'Bash', text: '⏺ $ npm run lint && npm run build' }, { kind: 'result', text: '  ⎿ ✓ built in 1.84s' }],
       ]
     : [
-        [{ kind: 'tool', tool: 'Read', text: '⏺ Read .github/workflows/ci.yml' }, { kind: 'result', text: '  ⎿ Read 41 lines' }],
-        [{ kind: 'text', text: '● CI already runs the tests, lint and build, so I only need a build to start the app.' }],
+        [{ kind: 'tool', tool: 'Read', text: '⏺ Read .github/workflows/ci.yml' }, { kind: 'result', text: '  ⎿ 41 líneas leídas' }],
+        [{ kind: 'text', text: '● La CI ya ejecuta los tests, el lint y la build, así que solo necesito una build para arrancar la app.' }],
         [{ kind: 'tool', tool: 'Bash', text: '⏺ $ npm ci && npm run build' }, { kind: 'result', text: '  ⎿ ✓ built in 1.84s' }],
       ];
   return [
-    [{ kind: 'text', text: `● Testing PR #${pr} "${title}" (round ${round}). ${checks}. First, the acceptance criteria from the issue.` }],
+    [{ kind: 'text', text: `● Probando la PR #${pr} "${title}" (ronda ${round}). ${checks}. Primero, los criterios de aceptación del issue.` }],
     [{ kind: 'tool', tool: 'Bash', text: '⏺ $ git diff origin/main...HEAD --stat' }, { kind: 'result', text: '  ⎿  3 files changed, 82 insertions(+), 9 deletions(-)' }],
     ...verify,
     [{ kind: 'tool', tool: 'Bash', text: `⏺ $ npm run preview -- --port ${port} &` }, { kind: 'result', text: `  ⎿ Local: http://localhost:${port}/` }],
     () => cb.browserUrl(`http://localhost:${port}/`),
     [{ kind: 'tool', tool: 'mcp__playwright__browser_navigate', text: `⏺ 🌐 navigate http://localhost:${port}/` }, { kind: 'result', text: `  ⎿ Page URL: http://localhost:${port}/` }],
     () => cb.screenshot(Buffer.from(screenshotSvg(`QA · ${title}`, `localhost:${port}`, hue)), 'image/svg+xml'),
-    [{ kind: 'tool', tool: 'mcp__playwright__browser_take_screenshot', text: '⏺ 🌐 take_screenshot' }, { kind: 'result', text: '  ⎿ Took a screenshot of the current page' }],
-    [{ kind: 'tool', tool: 'mcp__playwright__browser_click', text: '⏺ 🌐 click "Add todo" button' }, { kind: 'result', text: '  ⎿ Clicked' }],
+    [{ kind: 'tool', tool: 'mcp__playwright__browser_take_screenshot', text: '⏺ 🌐 take_screenshot' }, { kind: 'result', text: '  ⎿ Captura de la página actual guardada' }],
+    [{ kind: 'tool', tool: 'mcp__playwright__browser_click', text: '⏺ 🌐 click "Añadir tarea"' }, { kind: 'result', text: '  ⎿ Clic realizado' }],
     [{ kind: 'tool', tool: 'mcp__playwright__browser_resize', text: '⏺ 🌐 resize 375x740' }, { kind: 'result', text: '  ⎿ Resized' }],
-    () => cb.screenshot(Buffer.from(screenshotSvg(`QA · mobile · ${title}`, `localhost:${port}`, (hue + 40) % 360)), 'image/svg+xml'),
-    [{ kind: 'tool', tool: 'mcp__playwright__browser_take_screenshot', text: '⏺ 🌐 take_screenshot' }, { kind: 'result', text: '  ⎿ Took a screenshot of the current page' }],
-    [{ kind: 'tool', tool: 'mcp__playwright__browser_console_messages', text: '⏺ 🌐 console_messages' }, { kind: 'result', text: '  ⎿ No errors' }],
+    () => cb.screenshot(Buffer.from(screenshotSvg(`QA · móvil · ${title}`, `localhost:${port}`, (hue + 40) % 360)), 'image/svg+xml'),
+    [{ kind: 'tool', tool: 'mcp__playwright__browser_take_screenshot', text: '⏺ 🌐 take_screenshot' }, { kind: 'result', text: '  ⎿ Captura de la página actual guardada' }],
+    [{ kind: 'tool', tool: 'mcp__playwright__browser_console_messages', text: '⏺ 🌐 console_messages' }, { kind: 'result', text: '  ⎿ Sin errores' }],
   ];
 }
 
 function fixScript(pr: number, pushes: boolean, nudged: boolean): Step[] {
   if (nudged) {
     return [
-      [{ kind: 'text', text: `● Checking whether PR #${pr} still needs a change.` }],
+      [{ kind: 'text', text: `● Compruebo si la PR #${pr} todavía necesita un cambio.` }],
       pushes
-        ? [{ kind: 'tool', tool: 'Bash', text: '⏺ $ git commit -am "fix: wrap toolbar on narrow screens" && git push origin HEAD' }, { kind: 'result', text: '  ⎿ pushed' }]
+        ? [{ kind: 'tool', tool: 'Bash', text: '⏺ $ git commit -am "fix: la barra de herramientas salta de línea en pantallas estrechas" && git push origin HEAD' }, { kind: 'result', text: '  ⎿ pushed' }]
         : [{ kind: 'tool', tool: 'Bash', text: '⏺ $ git fetch origin && git diff origin/main --stat -- src/styles.css' }, { kind: 'result', text: '  ⎿ (no differences)' }],
     ];
   }
   return [
-    [{ kind: 'text', text: `● Reading the QA report for PR #${pr}. The toolbar overflows on phones; I'll let it wrap.` }],
-    [{ kind: 'tool', tool: 'Read', text: '⏺ Read src/styles.css' }, { kind: 'result', text: '  ⎿ Read 212 lines' }],
-    [{ kind: 'tool', tool: 'Edit', text: '⏺ Edit src/styles.css' }, { kind: 'result', text: '  ⎿ Updated' }],
+    [{ kind: 'text', text: `● Leo el informe de QA de la PR #${pr}. La barra de herramientas se desborda en el móvil; haré que salte de línea.` }],
+    [{ kind: 'tool', tool: 'Read', text: '⏺ Read src/styles.css' }, { kind: 'result', text: '  ⎿ 212 líneas leídas' }],
+    [{ kind: 'tool', tool: 'Edit', text: '⏺ Edit src/styles.css' }, { kind: 'result', text: '  ⎿ Actualizado' }],
     [{ kind: 'tool', tool: 'Bash', text: '⏺ $ npm test -- --run' }, { kind: 'result', text: '  ⎿ Test Files  8 passed (8)' }],
     pushes
-      ? [{ kind: 'tool', tool: 'Bash', text: '⏺ $ git commit -am "fix: wrap toolbar on narrow screens" && git push origin HEAD' }, { kind: 'result', text: '  ⎿ pushed' }]
+      ? [{ kind: 'tool', tool: 'Bash', text: '⏺ $ git commit -am "fix: la barra de herramientas salta de línea en pantallas estrechas" && git push origin HEAD' }, { kind: 'result', text: '  ⎿ pushed' }]
       : [{ kind: 'tool', tool: 'Bash', text: '⏺ $ git status --short' }, { kind: 'result', text: '  ⎿  M src/styles.css' }],
     ...(pushes ? [[{ kind: 'tool', tool: 'Bash', text: `⏺ $ gh pr checks ${pr} --watch` }, { kind: 'result', text: '  ⎿ All checks were successful' }] as LogEntry[]] : []),
   ];
@@ -315,7 +314,7 @@ function fakeSession(opts: SessionOptions, cb: SessionCallbacks, fullName: strin
   const forgetSignOut = () => {
     if (signOut && signOuts.get(opts.agentId!) === signOut) signOuts.delete(opts.agentId!);
   };
-  const nudged = /^You pushed nothing/.test(opts.prompt); // the office's nudge after a fix that pushed nothing
+  const nudged = /^(?:You pushed nothing|No has subido nada)/.test(opts.prompt); // the office's nudge after a fix that pushed nothing
   const resumedFix = opts.resumeSessionId?.startsWith('demo-fix-') ?? false;
   // The task picks the script; a session started without one (a follow-up) is read from its prompt.
   const fixPrompt = !opts.task && /FAILED|taking over pull request|git push origin HEAD:/.test(opts.prompt);
@@ -326,7 +325,7 @@ function fakeSession(opts: SessionOptions, cb: SessionCallbacks, fullName: strin
   const issueMatch = opts.prompt.match(/#(\d+):\s*(.+)/);
   const number = kind === 'issue' ? Number(issueMatch?.[1] ?? 0) : pull.number;
   const title = (kind === 'issue' ? issueMatch?.[2]?.trim() : pull.title) ?? 'follow-up';
-  const round = Number(opts.prompt.match(/QA round (\d+)/)?.[1] ?? 1);
+  const round = Number(opts.prompt.match(/(?:QA round|[Rr]onda de QA) (\d+)/)?.[1] ?? 1);
   // Now and then a QA fix ends without pushing, so the office's nudge can be seen; half the nudged answer NO CHANGE NEEDED.
   const pushes = kind !== 'fix' || !(nudged || /FAILED|taking over pull request/.test(opts.prompt)) || Math.random() > (nudged ? 0.5 : 0.25);
 
@@ -334,7 +333,7 @@ function fakeSession(opts: SessionOptions, cb: SessionCallbacks, fullName: strin
     { kind: 'system', text: `✻ Claude Code (demo) · ${opts.model} · ${opts.effort} effort` },
     { kind: 'system', text: `  cwd ${opts.cwd}` },
   ];
-  const checks = opts.prompt.match(/^GitHub checks right now: .*$/m)?.[0] ?? 'GitHub checks right now: none';
+  const checks = opts.prompt.match(/^(?:GitHub checks right now|Checks de GitHub ahora mismo): .*$/m)?.[0] ?? 'Checks de GitHub ahora mismo: ninguno';
   const body = kind === 'qa' ? qaScript(cb, number, title, round, checks) : kind === 'fix' ? fixScript(number, pushes, nudged) : issueScript(opts, cb, number, title);
   const script = [header, ...body];
 
@@ -346,7 +345,7 @@ function fakeSession(opts: SessionOptions, cb: SessionCallbacks, fullName: strin
     cb.tool(null);
     cb.log([{ kind: 'error', text: 'API Error: 401 · Login expired · Please run /login (demo)' }]);
     const name = CLIS.find((c) => c.id === (opts.cli ?? 'claude'))?.label ?? 'Claude Code';
-    cb.finished({ ok: false, text: '', costUsd: 0.1, turns: i, errors: [`${name} stopped: authentication failed`], signedOut: true });
+    cb.finished({ ok: false, text: '', costUsd: 0.1, turns: i, errors: [`${name} se ha detenido: ha fallado la autenticación`], signedOut: true });
   };
 
   const finish = () => {
@@ -357,7 +356,7 @@ function fakeSession(opts: SessionOptions, cb: SessionCallbacks, fullName: strin
     if (kind === 'qa') {
       // Most first rounds pass; some fail so the fix loop can be seen in action.
       const pass = round > 1 || Math.random() > 0.35;
-      cb.log([{ kind: 'text', text: pass ? '● Everything checks out. Writing up the report.' : '● The toolbar overflows on a 375px screen. Failing this round.' }]);
+      cb.log([{ kind: 'text', text: pass ? '● Todo cuadra. Redacto el informe.' : '● La barra de herramientas se desborda en una pantalla de 375px. Suspendo esta ronda.' }]);
       cb.finished({
         ok: true,
         text: '',
@@ -367,21 +366,21 @@ function fakeSession(opts: SessionOptions, cb: SessionCallbacks, fullName: strin
         structured: {
           verdict: pass ? 'pass' : 'fail',
           summary: pass
-            ? 'The change does what the issue asks: the feature works on desktop and mobile, all 41 tests pass, and lint and build are clean.'
-            : 'The feature works on desktop, but on a 375px-wide screen the toolbar overflows and the new button is cut off.',
+            ? 'El cambio hace lo que pide el issue: la funcionalidad va bien en escritorio y en móvil, pasan los 41 tests, y el lint y la build están limpios.'
+            : 'La funcionalidad va bien en escritorio, pero en una pantalla de 375px de ancho la barra de herramientas se desborda y el botón nuevo queda cortado.',
           checks: [
-            { name: 'Unit tests', result: 'pass', details: '41 passed, 0 failed' },
-            { name: 'Lint + build', result: 'pass', details: 'No lint errors; production build succeeds' },
-            { name: 'Feature works on desktop', result: 'pass', details: 'Clicked through the new flow at 1280x800' },
-            { name: 'Mobile layout (375px)', result: pass ? 'pass' : 'fail', details: pass ? 'Layout wraps correctly' : 'Toolbar overflows horizontally; button unreachable' },
-            { name: 'Console errors', result: 'pass', details: 'None' },
+            { name: 'Tests unitarios', result: 'pass', details: '41 pasados, 0 fallidos' },
+            { name: 'Lint + build', result: 'pass', details: 'Sin errores de lint; la build de producción funciona' },
+            { name: 'Funciona en escritorio', result: 'pass', details: 'Recorrido el flujo nuevo a 1280x800' },
+            { name: 'Diseño móvil (375px)', result: pass ? 'pass' : 'fail', details: pass ? 'El diseño salta de línea correctamente' : 'La barra se desborda en horizontal; no se llega al botón' },
+            { name: 'Errores de consola', result: 'pass', details: 'Ninguno' },
           ],
           commands: [
-            { command: 'npm test -- --run', result: '41 passed' },
-            { command: 'npm run lint && npm run build', result: 'clean, built in 1.84s' },
+            { command: 'npm test -- --run', result: '41 pasados' },
+            { command: 'npm run lint && npm run build', result: 'limpio, build en 1.84s' },
           ],
-          screenshots: ['Desktop view after the change', 'Mobile view at 375px'],
-          fixInstructions: pass ? undefined : 'Make the toolbar wrap (flex-wrap: wrap) below 480px so every button stays visible.',
+          screenshots: ['Vista de escritorio tras el cambio', 'Vista móvil a 375px'],
+          fixInstructions: pass ? undefined : 'Haz que la barra de herramientas salte de línea (flex-wrap: wrap) por debajo de 480px para que todos los botones sigan visibles.',
         },
       });
       return;
@@ -395,10 +394,10 @@ function fakeSession(opts: SessionOptions, cb: SessionCallbacks, fullName: strin
         runChecks(pr, false);
       }
       const text = pushes
-        ? `● Fixed PR #${number} and pushed. Ready for another QA round.`
+        ? `● PR #${number} corregida y subida. Lista para otra ronda de QA.`
         : nudged
-          ? 'NO CHANGE NEEDED: main already makes the toolbar wrap, so the PR is right as it is.'
-          : '● The toolbar wraps on narrow screens now. Ready for another QA round.';
+          ? 'NO CHANGE NEEDED: main ya hace que la barra de herramientas salte de línea, así que la PR está bien como está.'
+          : '● La barra de herramientas ya salta de línea en pantallas estrechas. Lista para otra ronda de QA.';
       cb.log([{ kind: 'text', text }]);
       cb.finished({ ok: true, text, costUsd, turns, errors: [] });
       return;
@@ -431,7 +430,7 @@ function fakeSession(opts: SessionOptions, cb: SessionCallbacks, fullName: strin
       runChecks(repo.pulls[0]);
       cb.log([{ kind: 'result', text: `  ⎿ ${url}` }]);
     }
-    cb.log([{ kind: 'text', text: `● Opened ${url || 'the pull request'}. It closes #${number} and includes tests.` }]);
+    cb.log([{ kind: 'text', text: `● He abierto ${url || 'la pull request'}. Cierra el #${number} e incluye tests.` }]);
     cb.finished({ ok: true, text: url, costUsd, turns, errors: [] });
   };
 
@@ -458,7 +457,7 @@ function fakeSession(opts: SessionOptions, cb: SessionCallbacks, fullName: strin
       timers.push(
         setTimeout(() => {
           if (stopped || stalled) return;
-          cb.log([{ kind: 'text', text: `● Got it — "${text.slice(0, 60)}". Adjusting my approach.` }]);
+          cb.log([{ kind: 'text', text: `● Entendido: "${text.slice(0, 60)}". Ajusto el enfoque.` }]);
         }, 1500),
       );
     },
@@ -515,7 +514,7 @@ function inTerminal(opts: SessionOptions, cb: SessionCallbacks, start: (cb: Sess
           line = '';
           term.write('\r\n');
           if (text && handle) {
-            cb.log([{ kind: 'manager', text: `▶ Typed in the terminal: ${text}` }]);
+            cb.log([{ kind: 'manager', text: `▶ Escrito en el terminal: ${text}` }]);
             handle.send(text);
           }
         } else if (ch === '\x7f' || ch === '\b') {
@@ -537,7 +536,7 @@ function inTerminal(opts: SessionOptions, cb: SessionCallbacks, start: (cb: Sess
     },
     finished: (r) => {
       term.bind(null);
-      term.note(`── ${name} session ended ──`);
+      term.note(`── sesión de ${name} terminada ──`);
       cb.finished(r);
     },
   });
@@ -598,7 +597,7 @@ let sessionsStarted = 0;
 function fakeUsageWarning(cb: SessionCallbacks) {
   setTimeout(() => {
     const resetsAt = Date.now() + USAGE_WARNING_MS;
-    cb.log([{ kind: 'error', text: `⚠ Subscription usage warning (five_hour) · resets ${new Date(resetsAt).toLocaleTimeString()} (demo)` }]);
+    cb.log([{ kind: 'error', text: `⚠ Aviso de uso de la suscripción (five_hour) · se reinicia a las ${new Date(resetsAt).toLocaleTimeString('es-ES')} (demo)` }]);
     cb.usageWarning?.({ resetsAt, rateLimitType: 'five_hour', utilization: 0.82 });
   }, 3000);
 }
@@ -638,7 +637,7 @@ export function createDemoBackend(scale: DemoScale | null = null): Backend {
   };
   const folderOf = (dir: string) => {
     const f = folders.get(dir.replace(/\\/g, '/').split('/').pop() ?? '');
-    if (!f) throw new Error(`${dir} is not a folder`);
+    if (!f) throw new Error(`${dir} no es una carpeta`);
     return f;
   };
   return {
@@ -648,7 +647,7 @@ export function createDemoBackend(scale: DemoScale | null = null): Backend {
       [...repos.values()].map((r) => ({ nameWithOwner: r.fullName, description: r.description, visibility: 'PUBLIC', updatedAt: now() })),
     repoMeta: async (fullName) => {
       const r = repos.get(fullName);
-      if (!r) throw new Error(`Unknown demo repo ${fullName}`);
+      if (!r) throw new Error(`Repo de demo desconocido: ${fullName}`);
       return { nameWithOwner: fullName, description: r.description, url: `https://github.com/${fullName}`, defaultBranch: 'main' };
     },
     setLocalPath: () => undefined,
@@ -659,7 +658,7 @@ export function createDemoBackend(scale: DemoScale | null = null): Backend {
       return f.github ?? newRepo(f.name, opts.description);
     },
     createProject: async (_root, name, opts) => {
-      if (folders.has(name)) throw new Error(`/demo/projects/${name} already exists. Pick another name, or connect that folder instead.`);
+      if (folders.has(name)) throw new Error(`/demo/projects/${name} ya existe. Elige otro nombre o conecta esa carpeta.`);
       return { fullName: newRepo(name, opts.description), path: `/demo/projects/${name}` };
     },
     listIssues: async (fullName) => {
@@ -674,7 +673,7 @@ export function createDemoBackend(scale: DemoScale | null = null): Backend {
     },
     createIssue: async (fullName, title, body, labels = []) => {
       const r = repos.get(fullName);
-      if (!r) throw new Error('Unknown repo');
+      if (!r) throw new Error('Repo desconocido');
       const n = takeNumber(r);
       r.issues.push(issue(n, title, body, fullName, labels));
       return n;
@@ -685,15 +684,15 @@ export function createDemoBackend(scale: DemoScale | null = null): Backend {
     },
     editIssue: async (fullName, number, edit) => {
       const i = repos.get(fullName)?.issues.find((x) => x.number === number);
-      if (!i) throw new Error(`Unknown issue #${number}`);
+      if (!i) throw new Error(`Issue #${number} desconocido`);
       if (edit.body !== undefined) i.body = edit.body;
       i.labels = [...i.labels.filter((l) => !edit.removeLabels?.includes(l)), ...(edit.addLabels ?? []).filter((l) => !i.labels.includes(l))];
     },
     mergePull: async (fullName, number, _method, headSha) => {
       const r = repos.get(fullName);
       const pr = r?.pulls.find((p) => p.number === number);
-      if (!r || !pr) throw new Error('Unknown PR');
-      if (headSha && pr.headSha !== headSha) throw new Error('Head branch was modified. Review and try the merge again.');
+      if (!r || !pr) throw new Error('PR desconocida');
+      if (headSha && pr.headSha !== headSha) throw new Error('La rama de la PR ha cambiado. Revísala y vuelve a intentar el merge.');
       mergedSinceSync.set(fullName, (mergedSinceSync.get(fullName) ?? 0) + 1);
       pr.state = 'MERGED';
       // Now and then a merge leaves another open PR conflicting, so conflict fixes (before QA and after it) can be seen.
@@ -707,13 +706,13 @@ export function createDemoBackend(scale: DemoScale | null = null): Backend {
     },
     closeIssue: async (fullName, number) => {
       const r = repos.get(fullName);
-      if (!r?.issues.some((i) => i.number === number)) throw new Error(`Issue #${number} is not open`);
+      if (!r?.issues.some((i) => i.number === number)) throw new Error(`El issue #${number} no está abierto`);
       closedIssues.add(`${fullName}#${number}`);
       r.issues = r.issues.filter((i) => i.number !== number);
     },
     updateBranch: async (fullName, number) => {
       const pr = repos.get(fullName)?.pulls.find((p) => p.number === number);
-      if (!pr) throw new Error('Unknown PR');
+      if (!pr) throw new Error('PR desconocida');
       Object.assign(pr, { headSha: fakeSha(), mergeState: 'CLEAN' });
       runChecks(pr, false);
     },
@@ -758,11 +757,11 @@ export function createDemoBackend(scale: DemoScale | null = null): Backend {
           pendingChecks: [],
         };
       }
-      if (!pr) throw new Error(`Unknown PR #${number}`);
+      if (!pr) throw new Error(`PR #${number} desconocida`);
       return {
         number,
         title: pr.title,
-        body: `Implements the change.\n\nCloses #${pr.closesIssues[0] ?? '?'}`,
+        body: `Implementa el cambio.\n\nCloses #${pr.closesIssues[0] ?? '?'}`,
         url: pr.url,
         headRefName: pr.headRefName,
         headSha: pr.headSha,
@@ -821,13 +820,13 @@ export function createDemoBackend(scale: DemoScale | null = null): Backend {
     },
     installDeps: async (dir, cb) => {
       if (installedDesks.has(dir)) {
-        cb.log(['Dependencies unchanged since the last install; skipping it.']);
+        cb.log(['Las dependencias no han cambiado desde la última instalación; me la salto.']);
         return 'skipped';
       }
-      cb.log(['Installing dependencies…', '$ npm ci']);
+      cb.log(['Instalando dependencias…', '$ npm ci']);
       cb.installing();
       await new Promise((r) => setTimeout(r, 1500));
-      cb.log(['Dependencies installed.']);
+      cb.log(['Dependencias instaladas.']);
       installedDesks.add(dir);
       return 'installed';
     },
@@ -849,7 +848,6 @@ export function createDemoBackend(scale: DemoScale | null = null): Backend {
     previews: demoPreviews,
     office: demoOffice,
     voice: demoVoice,
-    weather: demoWeather,
     notify: demoNotify,
     cloud: demoCloud(),
     seedOps: (ids, at) => demoPastWeek(ids, at),
@@ -940,10 +938,10 @@ const demoOffice: OfficeHost = {
  */
 function placeholderPage(title: string, hue: number, at: string, pr: { number: number; title: string } | null) {
   const safe = (s: string) => s.replace(/[<>&"]/g, '');
-  const rows = Array.from({ length: 24 }, (_, i) => `<li>Todo ${i + 1}: ${['water the plants', 'reply to Sam', 'book the dentist', 'buy coffee', 'fix the bike', 'plan the trip'][i % 6]}</li>`);
-  if (pr) rows.splice(2, 0, `<li class="new">✨ New in PR #${pr.number}: ${safe(pr.title)}</li>`);
+  const rows = Array.from({ length: 24 }, (_, i) => `<li>Tarea ${i + 1}: ${['regar las plantas', 'contestar a Sam', 'pedir cita al dentista', 'comprar café', 'arreglar la bici', 'planear el viaje'][i % 6]}</li>`);
+  if (pr) rows.splice(2, 0, `<li class="new">✨ Nuevo en la PR #${pr.number}: ${safe(pr.title)}</li>`);
   return `<!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safe(title)}</title><link rel="icon" href="data:,">
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safe(title)}</title><link rel="icon" href="data:,">
 <style>
   body { margin: 0; font-family: 'Segoe UI', Arial, sans-serif; background: hsl(${hue},60%,96%); color: #222; }
   nav { position: sticky; top: 0; display: flex; gap: 18px; align-items: center; padding: 12px 24px; background: hsl(${hue},70%,55%); color: #fff; }
@@ -960,20 +958,20 @@ function placeholderPage(title: string, hue: number, at: string, pr: { number: n
   li.new { font-weight: 700; color: hsl(${hue},60%,32%); background: #fff3c4; border-radius: 6px; padding: 0 6px; }
 </style></head>
 <body>
-<nav><a href="/">Home</a><a href="/about">About</a><span class="at">${safe(at)}</span></nav>
-${pr ? `<div class="pr">🧪 This is PR #${pr.number}'s build: ${safe(pr.title)}</div>` : ''}
+<nav><a href="/">Inicio</a><a href="/about">Acerca de</a><span class="at">${safe(at)}</span></nav>
+${pr ? `<div class="pr">🧪 Esta es la build de la PR #${pr.number}: ${safe(pr.title)}</div>` : ''}
 <main>
   <h1>${safe(title)}</h1>
-  <p>${at === '/about' ? 'About this app: a placeholder served by the demo office.' : 'A placeholder app served by the demo office.'}</p>
-  <button id="btn" type="button">Click me</button>
-  <span id="count">Clicked 0 times</span>
+  <p>${at === '/about' ? 'Acerca de esta app: una página provisional que sirve la oficina de demo.' : 'Una app provisional que sirve la oficina de demo.'}</p>
+  <button id="btn" type="button">Púlsame</button>
+  <span id="count">Pulsado 0 veces</span>
   <ol>${rows.join('')}</ol>
 </main>
 <script>
   let n = 0;
   document.getElementById('btn').addEventListener('click', () => {
     n++;
-    document.getElementById('count').textContent = 'Clicked ' + n + (n === 1 ? ' time' : ' times');
+    document.getElementById('count').textContent = 'Pulsado ' + n + (n === 1 ? ' vez' : ' veces');
   });
 </script>
 </body></html>`;
@@ -1009,7 +1007,7 @@ const demoPreviews: PreviewBackend = {
       cb.log([`HEAD is now at ${sha} (${job.pr ? `PR #${job.pr}` : job.defaultBranch})`]);
       if (!job.command && bareRepos.has(job.fullName)) {
         stopped = true;
-        cb.failed('Nothing to run: this floor has no preview command and no package.json.', true);
+        cb.failed('No hay nada que ejecutar: esta planta no tiene comando de vista previa ni package.json.', true);
         return;
       }
       cb.status('installing');
@@ -1021,9 +1019,9 @@ const demoPreviews: PreviewBackend = {
       const program = job.command?.trim().split(/\s+/)[0] ?? 'npm';
       if (!DEMO_PROGRAMS.includes(program.toLowerCase())) {
         later(400, () => {
-          cb.log([`'${program}' is not recognized as an internal or external command,`, 'operable program or batch file.']);
+          cb.log([`"${program}" no se reconoce como un comando interno o externo,`, 'programa o archivo por lotes ejecutable.']);
           stopped = true;
-          cb.failed(`The app exited (code 1) before it listened on port ${job.port}.`);
+          cb.failed(`La app terminó (código 1) antes de escuchar en el puerto ${job.port}.`);
         });
         return;
       }
@@ -1036,7 +1034,7 @@ const demoPreviews: PreviewBackend = {
       server.once('error', (err) => {
         if (stopped) return;
         stopped = true;
-        cb.failed(`Could not listen on port ${job.port}: ${err.message}`);
+        cb.failed(`No se pudo escuchar en el puerto ${job.port}: ${err.message}`);
       });
       server.listen(job.port, '127.0.0.1', () => {
         if (stopped) return void server?.close();
@@ -1070,18 +1068,18 @@ interface Profile {
 
 const PROFILES: Record<string, Profile> = {
   'pixel-todo': {
-    summary: 'Todo web app · React + Vite + TypeScript',
-    qa: '- Add, complete, edit and delete todos; they survive a reload\n- Keyboard only: every action reachable, focus always visible\n- Phone width (375px): nothing overflows or gets cut off\n- No errors in the browser console',
+    summary: 'App web de tareas · React + Vite + TypeScript',
+    qa: '- Añadir, completar, editar y borrar tareas; sobreviven a una recarga\n- Solo con teclado: todas las acciones accesibles, el foco siempre visible\n- Ancho de móvil (375px): nada se desborda ni queda cortado\n- Sin errores en la consola del navegador',
   },
   'weather-api': {
-    summary: 'REST API · Node + Express',
-    qa: '- Every endpoint: happy path, bad input (400), unknown city (404)\n- Response shapes match the OpenAPI document\n- Rate limiting returns 429 with Retry-After\n- Tests and lint pass',
+    summary: 'API REST · Node + Express',
+    qa: '- Cada endpoint: caso normal, entrada errónea (400), ciudad desconocida (404)\n- Las respuestas encajan con el documento OpenAPI\n- La limitación de peticiones devuelve 429 con Retry-After\n- Los tests y el lint pasan',
   },
 };
 
 const GENERIC: Profile = {
-  summary: 'Web project · early stage',
-  qa: '- The app builds and starts\n- The changed feature works end to end in the browser\n- Phone width: nothing overflows\n- No console errors',
+  summary: 'Proyecto web · fase inicial',
+  qa: '- La app compila y arranca\n- La funcionalidad cambiada funciona de principio a fin en el navegador\n- Ancho de móvil: nada se desborda\n- Sin errores en la consola',
 };
 
 /** A floor in company_status, as far as the demo CEO reads it. */
@@ -1104,6 +1102,8 @@ interface DemoStatus {
 /** The team a floor will have once the changes waiting for the manager are decided. */
 const plannedSize = (t: DemoFloor['team']) => t.size + t.pendingHires - t.pendingLetGos;
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+/** An office tool's refusal (ceo.ts prefixes it "Rechazado: "; "Refused: " before the translation). */
+const isRefused = (out: string) => /^(?:Rechazado|Refused)\b/.test(out);
 
 /** The demo CEO grows a floor up to this many agents on its own (the real CEO's "rarely more than 4 to 6"). */
 const DEMO_GROW_TO = 6;
@@ -1119,7 +1119,7 @@ export function demoGrow(f: DemoFloor, ready: number): { size: number; reason: s
   if (waiting <= 0 || size <= now) return null;
   return {
     size,
-    reason: `${plural(ready, 'issue')} ${ready === 1 ? 'is' : 'are'} ready to start on floor ${f.floor} and ${plural(f.team.free, 'agent')} ${f.team.free === 1 ? 'is' : 'are'} free: with ${size} agents they're worked on side by side instead of waiting.`,
+    reason: `${plural(ready, 'issue')} ${ready === 1 ? 'está listo' : 'están listos'} para empezar en la planta ${f.floor} y ${plural(f.team.free, 'agente')} ${f.team.free === 1 ? 'está libre' : 'están libres'}: con ${size} agentes se trabajan a la vez en lugar de esperar.`,
   };
 }
 
@@ -1130,7 +1130,7 @@ export function demoShrink(f: DemoFloor): { size: number; reason: string } | nul
   if (idle < 2 || f.capacity.issuesReadyToStart > 0 || f.capacity.prsAwaitingQa > 0) return null;
   const size = Math.max(1, now - (idle - 1));
   if (size >= now) return null;
-  return { size, reason: `${idle} of ${f.team.size} agents on floor ${f.floor} are idle with nothing ready to start or test; ${size} can keep up with what comes in.` };
+  return { size, reason: `${idle} de los ${f.team.size} agentes de la planta ${f.floor} están parados sin nada listo para empezar ni probar; con ${size} basta para lo que va llegando.` };
 }
 
 /** A scripted CEO that uses the real office tools, so team changes, profiles and issues behave exactly as in the real thing. */
@@ -1152,50 +1152,50 @@ function ceoSession(opts: SessionOptions, cb: SessionCallbacks): SessionHandle {
     const agents = s.floors.reduce((n, f) => n + f.team.size, 0);
     const free = s.floors.reduce((n, f) => n + f.team.free, 0);
     const issues = s.floors.reduce((n, f) => n + f.backlog.length, 0);
-    cb.log([{ kind: 'result', text: `  ⎿ ${s.floors.length} floors · ${agents} agents · ${free} free · ${issues} open issues · ${s.pendingChanges.length} team changes pending` }]);
+    cb.log([{ kind: 'result', text: `  ⎿ ${plural(s.floors.length, 'planta')} · ${plural(agents, 'agente')} · ${free} ${free === 1 ? 'libre' : 'libres'} · ${plural(issues, 'issue')} ${issues === 1 ? 'abierto' : 'abiertos'} · ${plural(s.pendingChanges.length, 'cambio')} de equipo ${s.pendingChanges.length === 1 ? 'pendiente' : 'pendientes'}` }]);
     return s;
   };
   const use = async (name: string, args: Record<string, unknown>) => {
     await step([{ kind: 'tool', tool: `mcp__office__${name}`, text: `⏺ ${describeOfficeTool(name, args)}` }]);
     const out = await office.call(name, args);
-    cb.log([{ kind: out.startsWith('Refused') ? 'error' : 'result', text: `  ⎿ ${out.split('\n')[0].slice(0, 170)}` }]);
+    cb.log([{ kind: isRefused(out) ? 'error' : 'result', text: `  ⎿ ${out.split('\n')[0].slice(0, 170)}` }]);
     return out;
   };
   const read = (file: string, lines: number) => step([{ kind: 'tool', tool: 'Read', text: `⏺ Read ${file}` }, { kind: 'result', text: `  ⎿ Read ${lines} lines` }]);
-  const think = (text: string) => step([{ kind: 'thinking', text: '✻ Thinking…' }, { kind: 'text', text: `● ${text}` }], 1800);
+  const think = (text: string) => step([{ kind: 'thinking', text: '✻ Pensando…' }, { kind: 'text', text: `● ${text}` }], 1800);
   const short = (s: string, n = 48) => (s.length > n ? `${s.slice(0, n - 1).trim()}…` : s);
-  const refused = (out: string) => out.replace(/^Refused: /, '');
+  const refused = (out: string) => out.replace(/^(?:Rechazado|Refused): /, '');
   /** What happens next, by Settings → Team changes; `added`: new agents (negative: agents leaving). */
   const after = (s: DemoStatus, added: number) => {
-    const who = added === 1 ? 'The new agent' : 'The new agents';
-    if (/auto|straight away/i.test(s.company.scaling)) return added > 0 ? `${who} ${added === 1 ? 'is' : 'are'} on the way up.` : 'Idle agents leave first; anyone busy finishes their task.';
-    return added > 0 ? `${who} ${added === 1 ? 'waits' : 'wait'} in the lobby for you to set up and hire.` : "It's an envelope on the desk of whoever I picked to leave, waiting for your decision.";
+    const who = added === 1 ? 'El agente nuevo' : 'Los agentes nuevos';
+    if (/auto|straight away/i.test(s.company.scaling)) return added > 0 ? `${who} ${added === 1 ? 'ya está' : 'ya están'} en el equipo.` : 'Los agentes parados se van primero; quien esté ocupado termina su tarea.';
+    return added > 0 ? `${who} ${added === 1 ? 'espera en Aprobaciones a que lo configures y aceptes' : 'esperan en Aprobaciones a que los configures y aceptes'}.` : 'La salida de quien he elegido espera tu decisión en Aprobaciones.';
   };
   /** scale_team with the call made, and a sentence on how it went. */
   const scale = async (s: DemoStatus, f: DemoFloor, call: { size: number; reason: string }) => {
     const out = await use('scale_team', { floor: f.floor, ...call });
-    return out.startsWith('Refused')
-      ? `I wanted floor ${f.floor} at ${plural(call.size, 'agent')}, but the office said no: ${refused(out)}`
-      : `Floor ${f.floor} goes from ${f.team.size} to ${plural(call.size, 'agent')}: ${call.reason} ${after(s, call.size - plannedSize(f.team))}`;
+    return isRefused(out)
+      ? `Quería la planta ${f.floor} con ${plural(call.size, 'agente')}, pero la oficina ha dicho que no: ${refused(out)}`
+      : `La planta ${f.floor} pasa de ${f.team.size} a ${plural(call.size, 'agente')}: ${call.reason} ${after(s, call.size - plannedSize(f.team))}`;
   };
 
   /** Files the brief's first three issues; returns the skeleton's number. */
   const planIssues = async (floor: number, mission: string) => {
     const first = await use('file_issue', {
       floor,
-      title: 'Set up the project skeleton',
-      body: `Scaffold the app so the rest of the milestone has something to build on.\n\nBrief: ${mission}\n\nAcceptance criteria:\n- The dev server starts\n- A placeholder home page renders\n- Lint, tests and build scripts exist`,
+      title: 'Montar el esqueleto del proyecto',
+      body: `Prepara la base de la app para que el resto del hito tenga sobre qué construir.\n\nEncargo: ${mission}\n\nCriterios de aceptación:\n- El servidor de desarrollo arranca\n- Se muestra una página de inicio provisional\n- Existen los scripts de lint, tests y build`,
     });
     const n = Number(first.match(/#(\d+)/)?.[1] ?? 0);
     await use('file_issue', {
       floor,
-      title: `Build the core: ${short(mission, 60)}`,
-      body: `${n ? `Depends on #${n}\n\n` : ''}Implement the heart of the brief.\n\nAcceptance criteria:\n- The main flow works end to end\n- Covered by tests`,
+      title: `Construir el núcleo: ${short(mission, 60)}`,
+      body: `${n ? `Depends on #${n}\n\n` : ''}Implementa el corazón del encargo.\n\nCriterios de aceptación:\n- El flujo principal funciona de principio a fin\n- Cubierto por tests`,
     });
     await use('file_issue', {
       floor,
-      title: 'Polish: phone layout and empty states',
-      body: `${n ? `Depends on #${n}\n\n` : ''}Make every screen work at 375px and add friendly empty states.`,
+      title: 'Pulido: diseño móvil y estados vacíos',
+      body: `${n ? `Depends on #${n}\n\n` : ''}Haz que todas las pantallas funcionen a 375px y añade estados vacíos amables.`,
     });
     return n;
   };
@@ -1204,81 +1204,81 @@ function ceoSession(opts: SessionOptions, cb: SessionCallbacks): SessionHandle {
     async onboard(floor: number, fullName: string) {
       const s = await status();
       const f = s.floors.find((x) => x.floor === floor);
-      if (!f) return 'That floor has gone, so there was nothing to onboard.';
+      if (!f) return 'Esa planta ya no existe, así que no había nada que incorporar.';
       const p = PROFILES[fullName.split('/')[1] ?? ''] ?? GENERIC;
       await read(`${f.repo}/README.md`, 48);
-      await step([{ kind: 'tool', tool: 'Glob', text: '⏺ Glob src/**/*' }, { kind: 'result', text: '  ⎿ Found 23 files' }]);
+      await step([{ kind: 'tool', tool: 'Glob', text: '⏺ Glob src/**/*' }, { kind: 'result', text: '  ⎿ 23 ficheros encontrados' }]);
       await read('package.json', 36);
-      await think(`${p.summary}. Let me size the team for the work in sight.`);
+      await think(`${p.summary}. Voy a dimensionar el equipo para el trabajo que hay a la vista.`);
       await use('set_floor_profile', { floor, summary: p.summary, qa_brief: p.qa });
       const ready = f.capacity.issuesReadyToStart;
       const grow = demoGrow(f, ready);
-      const team = grow ? await scale(s, f, grow) : `Its ${plural(f.team.size, 'agent')} can keep up with the ${plural(ready, 'issue')} ready to start.`;
-      const next = f.brief ? ' Your brief is next on my list: I plan it as soon as this is done.' : f.backlog.length === 0 ? ' The backlog is empty: tell me what you would like built and I will plan it.' : '';
-      return [`Floor ${floor}: ${p.summary}. I wrote a QA brief for it.`, team, next].filter(Boolean).join(' ');
+      const team = grow ? await scale(s, f, grow) : `Su equipo de ${plural(f.team.size, 'agente')} da abasto con ${plural(ready, 'issue')} ${ready === 1 ? 'listo' : 'listos'} para empezar.`;
+      const next = f.brief ? ' Tu encargo es lo siguiente en mi lista: lo planifico en cuanto termine con esto.' : f.backlog.length === 0 ? ' El backlog está vacío: dime qué quieres que se construya y lo planifico.' : '';
+      return [`Planta ${floor}: ${p.summary}. Le he escrito unas pautas de QA.`, team, next].filter(Boolean).join(' ');
     },
     async plan(floor: number, mission: string) {
       const s = await status();
       const f = s.floors.find((x) => x.floor === floor);
-      if (!f) return 'That floor has gone, so there was nothing to plan.';
+      if (!f) return 'Esa planta ya no existe, así que no había nada que planificar.';
       await read(`${f.repo}/README.md`, 12);
-      await think("Foundation first, so the parallel work doesn't collide.");
+      await think('Primero los cimientos, para que el trabajo en paralelo no choque.');
       const n = await planIssues(floor, mission);
       const grow = demoGrow(f, f.capacity.issuesReadyToStart + (n ? 1 : 0));
       const team = grow ? ` ${await scale(s, f, grow)}` : '';
-      return `I turned the brief into three issues on floor ${floor}. #${n} sets up the skeleton; the other two say "Depends on #${n}", so nobody starts them early.${team}`;
+      return `He convertido el encargo en tres issues en la planta ${floor}. El #${n} monta el esqueleto; los otros dos dicen "Depends on #${n}", así que nadie los empieza antes de tiempo.${team}`;
     },
     async review() {
       const s = await status();
-      await think('Checking each floor for work waiting on free agents, and agents waiting on work.');
+      await think('Reviso cada planta en busca de trabajo que espera agentes libres y de agentes que esperan trabajo.');
       for (const f of s.floors) {
         const call = demoShrink(f) ?? demoGrow(f, f.capacity.issuesReadyToStart);
         if (call) return scale(s, f, call);
       }
       const issues = s.floors.reduce((n, f) => n + f.backlog.length, 0);
       const prs = s.floors.reduce((n, f) => n + f.pullRequests.length, 0);
-      return `All ${s.floors.length} floors look healthy: ${issues} open issues and ${prs} pull requests in flight. No changes needed.`;
+      return `${s.floors.length === 1 ? 'La planta está sana' : `Las ${s.floors.length} plantas están sanas`}: ${plural(issues, 'issue')} ${issues === 1 ? 'abierto' : 'abiertos'} y ${plural(prs, 'pull request')} en marcha. No hace falta ningún cambio.`;
     },
     // A stuck PR: read what QA and GitHub say, then act through the real triage tools, as the real CEO would.
     async triage(floor: number, pr: number, facts: string) {
-      await step([{ kind: 'tool', tool: 'Read', text: `⏺ Read PR #${pr}'s QA report` }, { kind: 'result', text: '  ⎿ Read 38 lines' }]);
+      await step([{ kind: 'tool', tool: 'Read', text: `⏺ Read informe de QA de la PR #${pr}` }, { kind: 'result', text: '  ⎿ 38 líneas leídas' }]);
       const conflict = /mergeable: CONFLICTING/.test(facts);
-      const red = /GitHub checks: failing/.test(facts);
-      const again = !/triage 1 of/.test(facts);
-      await think(conflict ? 'It only conflicts with main; the change itself is fine.' : red ? 'A red check that looks like a flake.' : again ? 'Stuck a second time. This needs a call from the manager.' : 'The fix sessions stalled, not the code. Another QA round should settle it.');
+      const red = /checks[^:\n]*: failing/i.test(facts);
+      const again = !/(?:triage|triaje) 1 (?:of|de)/i.test(facts);
+      await think(conflict ? 'Solo tiene conflictos con main; el cambio en sí está bien.' : red ? 'Un check en rojo que parece un fallo puntual.' : again ? 'Atascada por segunda vez. Esto necesita una decisión del responsable.' : 'Se atascaron las sesiones de corrección, no el código. Otra ronda de QA debería resolverlo.');
       const [tool, args, done] = conflict
-        ? ['send_back', { note: 'Merge main and keep both changes working; QA already liked the rest.' }, 'went back for a fix: merging main']
+        ? ['send_back', { note: 'Haz merge de main y mantén los dos cambios funcionando; a QA ya le gustó el resto.' }, 'Ha vuelto a corrección para hacer merge de main']
         : red
-          ? ['rerun_checks', {}, 'had its failed checks re-run']
+          ? ['rerun_checks', {}, 'Se han relanzado sus checks fallidos']
           : again
-            ? ['escalate', { reason: 'It got stuck twice for the same reason; worth a look at the issue itself.' }, 'is with you now']
-            : ['retry_qa', {}, 'is back in the QA queue'];
+            ? ['escalate', { reason: 'Se ha atascado dos veces por el mismo motivo; merece la pena revisar el propio issue.' }, 'Ahora está en tus manos']
+            : ['retry_qa', {}, 'Vuelve a estar en la cola de QA'];
       const out = await use(tool, { floor, pr, ...args });
-      if (!out.startsWith('Refused')) return `PR #${pr} on floor ${floor} was stuck. It ${done}.`;
-      await use('escalate', { floor, pr, reason: `I tried ${tool}, but the office refused: ${refused(out)}` });
-      return `PR #${pr} on floor ${floor} is stuck and I couldn't move it, so it's with you now.`;
+      if (!isRefused(out)) return `La PR #${pr} de la planta ${floor} estaba atascada. ${done}.`;
+      await use('escalate', { floor, pr, reason: `He probado ${tool}, pero la oficina lo ha rechazado: ${refused(out)}` });
+      return `La PR #${pr} de la planta ${floor} está atascada y no he podido moverla, así que ahora está en tus manos.`;
     },
     async chat(text: string) {
       const s = await status();
-      await think('Reading your message.');
+      await think('Leyendo tu mensaje.');
       // "close #3, superseded by #5": through the real tool.
-      const close = text.match(/\bclose #(\d+)[\s,:;.-]*(.*)/i);
+      const close = text.match(/\b(?:close|cierra|cerrar)\s+(?:el\s+)?#(\d+)[\s,:;.-]*(.*)/i);
       const closeFloor = close && (s.floors.find((f) => f.backlog.some((i) => i.number === Number(close[1]))) ?? s.floors[0]);
       if (close && closeFloor) {
-        const reason = close[2].trim() || 'No longer wanted.';
+        const reason = close[2].trim() || 'Ya no hace falta.';
         const out = await use('close_issue', { floor: closeFloor.floor, number: Number(close[1]), reason });
-        return out.startsWith('Refused') ? `I couldn't close #${close[1]}: ${refused(out)}` : `Done: ${out} I left "${short(reason, 80)}" on it as a comment.`;
+        return isRefused(out) ? `No he podido cerrar el #${close[1]}: ${refused(out)}` : `Hecho: ${out} He dejado "${short(reason, 80)}" como comentario.`;
       }
       // Asked for a bigger team: one more agent where the most work waits, through the real tool.
-      if (/\b(hire|hiring|grow|team|bigger)\b/i.test(text)) {
-        if (!s.floors.length) return 'There are no floors yet: add a project first, and I will size its team.';
+      if (/\b(hire|hiring|grow|team|bigger|contrat|equipo|crece|crecer|ampli|mpl[ií]a)|más agentes/i.test(text)) {
+        if (!s.floors.length) return 'Todavía no hay plantas: añade primero un proyecto y dimensionaré su equipo.';
         const room = s.floors.filter((f) => plannedSize(f.team) < f.team.max);
-        if (!room.length) return `Every floor is at its most agents (${s.floors[0].team.max}). Raise it in Settings → Most agents per floor, and I'll grow the busiest one.`;
+        if (!room.length) return `Todas las plantas están en su máximo de agentes (${s.floors[0].team.max}). Súbelo en Ajustes → Máximo de agentes por planta y haré crecer la más ocupada.`;
         const f = room.sort((a, b) => b.capacity.issuesReadyToStart - b.team.free - (a.capacity.issuesReadyToStart - a.team.free) || a.floor - b.floor)[0];
         const ready = f.capacity.issuesReadyToStart;
         return scale(s, f, {
           size: plannedSize(f.team) + 1,
-          reason: `You asked for a bigger team, and floor ${f.floor} has the most work waiting: ${plural(ready, 'issue')} ready to start, ${plural(f.team.free, 'agent')} free.`,
+          reason: `Has pedido un equipo más grande, y la planta ${f.floor} es la que más trabajo tiene esperando: ${plural(ready, 'issue')} ${ready === 1 ? 'listo' : 'listos'} para empezar, ${plural(f.team.free, 'agente')} ${f.team.free === 1 ? 'libre' : 'libres'}.`,
         });
       }
       const agents = s.floors.reduce((n, f) => n + f.team.size, 0);
@@ -1287,43 +1287,44 @@ function ceoSession(opts: SessionOptions, cb: SessionCallbacks): SessionHandle {
       // Real CEOs answer in Markdown, so the demo one does too: every element the phone renders.
       const rows = s.floors.map((f) => `| ${f.floor} | \`${f.repo.split('/').pop()}\` | ${f.team.size} | ${f.backlog.length} | ${f.pullRequests.length} |`);
       return [
-        `**Quick status:** ${s.floors.length} floor${s.floors.length === 1 ? '' : 's'}, ${agents} agents and ${issues} open issues.`,
+        `**Estado rápido:** ${plural(s.floors.length, 'planta')}, ${plural(agents, 'agente')} y ${plural(issues, 'issue')} ${issues === 1 ? 'abierto' : 'abiertos'}.`,
         '',
-        '- The team is *heads down* on the backlog',
-        `- ${pending ? `**${pending}** team change${pending === 1 ? ' is' : 's are'} waiting for your decision` : 'No team changes waiting on you'}`,
-        '  - QA re-tests every PR after a fix',
+        '- El equipo está *a tope* con el backlog',
+        `- ${pending ? `**${pending}** ${pending === 1 ? 'cambio de equipo espera' : 'cambios de equipo esperan'} tu decisión` : 'Ningún cambio de equipo espera tu decisión'}`,
+        '  - QA vuelve a probar cada PR después de una corrección',
         '',
-        '| Floor | Repo | Agents | Issues | PRs |',
+        '| Planta | Repo | Agentes | Issues | PRs |',
         '| ---: | --- | ---: | ---: | ---: |',
-        ...(rows.length ? rows : ['| – | no projects yet | 0 | 0 | 0 |']),
+        ...(rows.length ? rows : ['| – | aún no hay proyectos | 0 | 0 | 0 |']),
         '',
-        'What I would do next:',
+        'Lo que haría a continuación:',
         '',
-        '1. Merge anything that passed QA',
-        '2. Run `npm run build` on each floor before the next milestone',
-        '3. Grow a team only where work keeps waiting for free agents',
+        '1. Fusionar todo lo que haya pasado QA',
+        '2. Ejecutar `npm run build` en cada planta antes del próximo hito',
+        '3. Hacer crecer un equipo solo donde el trabajo siga esperando agentes libres',
         '',
         '```bash',
-        'SWARM_HOME=/tmp/cubefarm-demo SWARM_PORT=5260 node --import tsx server/index.ts --demo',
+        'SWARM_HOME=/tmp/sareoffice-demo SWARM_PORT=5260 node --import tsx server/index.ts --demo',
         '```',
         '',
-        `> I'm the demo CEO, so I can't act on "${short(text)}", but the real one would. See the [Claude Code docs](https://docs.claude.com/en/docs/claude-code/overview).`,
+        `> Soy el CEO de la demo, así que no puedo actuar sobre "${short(text)}", pero el de verdad lo haría. Echa un vistazo a la [documentación de Claude Code](https://docs.claude.com/en/docs/claude-code/overview).`,
       ].join('\n');
     },
   };
 
   const prompt = opts.prompt;
-  const where = prompt.match(/[Ff]loor (\d+) \(([^,)]+)/);
-  const triage = prompt.match(/^Triage: pull request #(\d+) on floor (\d+)/);
+  // The office's CEO prompts (ceo.ts), in Spanish or, from before the translation, in English.
+  const where = prompt.match(/(?:[Ff]loor|[Pp]lanta) (\d+) \(([^,)]+)/);
+  const triage = prompt.match(/^(?:Triage: pull request|Triaje: la pull request) #(\d+) (?:on floor|de la planta) (\d+)/);
   const run = triage
     ? () => scripts.triage(Number(triage[2]), Number(triage[1]), prompt)
-    : /no longer needs triage/.test(prompt)
-      ? async () => 'Nothing to do.'
-      : /just joined the company/.test(prompt)
+    : /no longer needs triage|ya no necesita triaje|Responde "Nada que hacer\."|Reply "Nothing to do\."/.test(prompt)
+      ? async () => 'Nada que hacer.'
+      : /just joined the company|acaba de incorporarse a la empresa/.test(prompt)
         ? () => scripts.onboard(Number(where?.[1]), where?.[2] ?? '')
-        : /has a brief for floor/.test(prompt)
+        : /has a brief for floor|tiene un encargo para la planta/.test(prompt)
           ? () => scripts.plan(Number(where?.[1]), prompt.match(/"""([\s\S]*?)"""/)?.[1]?.trim() ?? '')
-          : /Periodic review/.test(prompt)
+          : /Periodic review|Revisión periódica/.test(prompt)
             ? () => scripts.review()
             : () => scripts.chat(prompt.split('\n').slice(1).join(' ').trim() || prompt);
 
@@ -1354,8 +1355,8 @@ function ceoSession(opts: SessionOptions, cb: SessionCallbacks): SessionHandle {
         setTimeout(() => {
           if (stopped || done) return;
           const said = text.split('\n').slice(1).join(' ').trim() || text;
-          cb.log([{ kind: 'text', text: `● Noted: "${short(said, 70)}"` }]);
-          cb.turn?.(`Noted, I'll factor that in: "${short(said, 90)}"`);
+          cb.log([{ kind: 'text', text: `● Anotado: "${short(said, 70)}"` }]);
+          cb.turn?.(`Anotado, lo tendré en cuenta: "${short(said, 90)}"`);
         }, 1500),
       );
     },
@@ -1407,7 +1408,7 @@ const demoVoices = [
 ];
 
 /** What the demo's Speech to Text hears in any recording (docs/voice.md). */
-export const DEMO_TRANSCRIPT = "What's everyone working on?";
+export const DEMO_TRANSCRIPT = '¿En qué está trabajando todo el mundo?';
 
 /** No network: any key works except one containing "bad", three voices, a chime for every message, and one fixed transcript. */
 const demoVoice: VoiceApi = {
@@ -1433,51 +1434,12 @@ const demoVoice: VoiceApi = {
  */
 const demoNotify: NotifyTransport = {
   demoWebhooks: {
-    ntfy: { url: 'https://ntfy.sh/cubefarm-demo-office' },
+    ntfy: { url: 'https://ntfy.sh/sareoffice-demo-office' },
   },
   post: async ({ channel, url, text }) => {
     const ok = !/bad/i.test(url);
     console.log(`🔔 demo ${channel}${ok ? '' : ' (fails: "bad" address)'} would get: ${text.replace(/\n/g, ' ⏎ ')}`);
     return ok ? 200 : 404;
-  },
-};
-
-// ---------- weather ----------
-
-/** A weather word in the demo's city ("Rainytown", "Snow Hill") picks that weather: these WMO codes. */
-const DEMO_SKIES: [RegExp, number][] = [
-  [/storm|thunder/i, 95],
-  [/snow/i, 75],
-  [/fog|mist/i, 45],
-  [/heavy|pour/i, 65],
-  [/rain|drizzle/i, 61],
-  [/cloud|grey|gray/i, 3],
-  [/sun|clear/i, 0],
-];
-/** Any other city gets these in turn, a new one every 15 minutes. */
-const DEMO_ROTATION = [0, 2, 61, 3, 45, 63, 95, 1, 71];
-const demoPlaces = new Map<string, { code: number | null; offline: boolean }>();
-
-/**
- * No network: any city is found ("Atlantis" and "Nowhere" aren't), at made-up coordinates. A weather word in its name
- * picks the weather; "offline" in it makes every reading fail, to see the office fall back to the calm cycle.
- */
-const demoWeather: WeatherApi = {
-  geocode: async (city) => {
-    await new Promise((r) => setTimeout(r, 200));
-    if (/atlantis|nowhere/i.test(city)) return null;
-    const h = [...city.toLowerCase()].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
-    const lat = Math.round(((h % 12000) / 100 - 60) * 100) / 100;
-    const lon = Math.round((((h >>> 8) % 34000) / 100 - 170) * 100) / 100;
-    demoPlaces.set(`${lat},${lon}`, { code: DEMO_SKIES.find(([re]) => re.test(city))?.[1] ?? null, offline: /offline/i.test(city) });
-    return { name: `${city} (demo)`, lat, lon };
-  },
-  current: async (lat, lon) => {
-    const p = demoPlaces.get(`${lat},${lon}`);
-    if (p?.offline) throw Object.assign(new Error('fetch failed'), { cause: { code: 'ENOTFOUND' } });
-    if (p?.code != null) return { code: p.code, wind: p.code === 95 ? 55 : 12 };
-    const slot = Math.floor(Date.now() / (15 * 60_000)) + Math.abs(Math.round(lat + lon));
-    return { code: DEMO_ROTATION[slot % DEMO_ROTATION.length], wind: 10 };
   },
 };
 
@@ -1501,7 +1463,7 @@ function demoBoxes(logins: Map<string, Set<string>>): BoxApi {
   const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
   const box = (id: string) => {
     const b = boxes.get(id);
-    if (!b) throw new CloudError('That Box is gone.', 'gone');
+    if (!b) throw new CloudError('Esa Box ya no existe.', 'gone');
     return b;
   };
   return {
@@ -1527,14 +1489,14 @@ function demoBoxes(logins: Map<string, Set<string>>): BoxApi {
     run: async (id, script) => {
       box(id).status = 'running';
       const cli = /claude'? auth /.test(script) ? 'claude' : 'codex';
-      if (script.includes('CUBEFARM_SIGNED_IN')) return { code: 0, output: logins.get(id)?.has(cli) ? 'CUBEFARM_SIGNED_IN' : 'CUBEFARM_SIGNED_OUT' };
+      if (script.includes('SAREOFFICE_SIGNED_IN')) return { code: 0, output: logins.get(id)?.has(cli) ? 'SAREOFFICE_SIGNED_IN' : 'SAREOFFICE_SIGNED_OUT' };
       if (/auth logout|' logout/.test(script)) {
         logins.get(id)?.delete(cli);
         return { code: 0, output: '' };
       }
-      if (script.includes('CUBEFARM_SETUP_OK')) {
+      if (script.includes('SAREOFFICE_SETUP_OK')) {
         await wait(3500);
-        return { code: 0, output: 'CUBEFARM_SETUP_OK' };
+        return { code: 0, output: 'SAREOFFICE_SETUP_OK' };
       }
       if (script.includes('git worktree add')) {
         await wait(900);
@@ -1553,7 +1515,7 @@ function demoBoxes(logins: Map<string, Set<string>>): BoxApi {
     write: async () => undefined,
     files: async () => [],
     session: async () => {
-      throw new CloudError("The demo's Boxes have no terminals: its sessions are fake.", 'other');
+      throw new CloudError('Las Boxes de la demo no tienen terminal: sus sesiones son de mentira.', 'other');
     },
     browser: async () => true,
   };
@@ -1583,7 +1545,7 @@ function demoCloud(): CloudBackend {
 }
 
 /** Where the demo's sign-ins send the manager: nowhere real. */
-const DEMO_SIGN_IN = { claude: 'https://example.com/cubefarm-demo/claude-sign-in', codex: 'https://example.com/cubefarm-demo/codex-device' };
+const DEMO_SIGN_IN = { claude: 'https://example.com/sareoffice-demo/claude-sign-in', codex: 'https://example.com/sareoffice-demo/codex-device' };
 
 /**
  * The demo's sign-in in a cloud agent's terminal, drawn as each CLI's own one looks, with a made-up link: Enter (after
@@ -1592,10 +1554,10 @@ const DEMO_SIGN_IN = { claude: 'https://example.com/cubefarm-demo/claude-sign-in
 function demoSignIn(o: { boxId: string; cli: 'claude' | 'codex'; term: AgentTerminal }, logins: Map<string, Set<string>>, exited: (code: number) => void): BoxSignIn {
   const { term } = o;
   const claude = o.cli === 'claude';
-  term.note(`── Signing ${claude ? 'Claude Code' : 'Codex'} in · ☁ cloud machine (demo) ──`);
+  term.note(`── Iniciando sesión en ${claude ? 'Claude Code' : 'Codex'} · ☁ máquina en la nube (demo) ──`);
   term.write(
     (claude
-      ? ['Opening browser to sign in…', `If the browser didn't open, visit: ${DEMO_SIGN_IN.claude}`, '', '\x1b[2m(demo) Paste anything and press Enter.\x1b[0m', 'Paste code here if prompted > ']
+      ? ['Opening browser to sign in…', `If the browser didn't open, visit: ${DEMO_SIGN_IN.claude}`, '', '\x1b[2m(demo) Pega cualquier cosa y pulsa Enter.\x1b[0m', 'Paste code here if prompted > ']
       : [
           'Welcome to Codex (demo)',
           '',
@@ -1607,7 +1569,7 @@ function demoSignIn(o: { boxId: string; cli: 'claude' | 'codex'; term: AgentTerm
           '2. Enter this one-time code (expires in 15 minutes)',
           '   DEMO-0000',
           '',
-          '\x1b[2m(demo) Press Enter here once you have.\x1b[0m',
+          '\x1b[2m(demo) Pulsa Enter aquí cuando lo hayas hecho.\x1b[0m',
         ]
     ).join('\r\n'),
   );
@@ -1639,7 +1601,7 @@ function demoSignIn(o: { boxId: string; cli: 'claude' | 'codex'; term: AgentTerm
     stop: () => {
       if (over) return;
       close();
-      term.note('── sign-in closed ──');
+      term.note('── inicio de sesión cerrado ──');
     },
   };
 }

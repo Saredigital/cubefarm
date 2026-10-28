@@ -20,9 +20,9 @@ describe('parseOfficeArgs', () => {
 });
 
 describe('swarmHome and clientPort', () => {
-  it('uses SWARM_HOME, else ~/.cubefarm', () => {
+  it('uses SWARM_HOME, else ~/.sareoffice', () => {
     expect(swarmHome({ SWARM_HOME: path.join('x', 'home') }, 'h')).toBe(path.join('x', 'home'));
-    expect(swarmHome({}, path.join('users', 'me'))).toBe(path.join('users', 'me', '.cubefarm'));
+    expect(swarmHome({}, path.join('users', 'me'))).toBe(path.join('users', 'me', '.sareoffice'));
   });
 
   it('uses SWARM_CLIENT_PORT, else 5317', () => {
@@ -52,13 +52,13 @@ describe('refusal', () => {
   });
 
   it('refuses another branch or a detached HEAD', () => {
-    expect(refusal({ ...ok, branch: 'feature-x' })).toMatch(/branch feature-x, not main/);
-    expect(refusal({ ...ok, branch: '' })).toMatch(/detached HEAD/);
+    expect(refusal({ ...ok, branch: 'feature-x' })).toMatch(/rama feature-x, no en main/);
+    expect(refusal({ ...ok, branch: '' })).toMatch(/HEAD separado/);
   });
 
   it('refuses local changes and local commits', () => {
-    expect(refusal({ ...ok, dirty: true })).toMatch(/local changes/);
-    expect(refusal({ ...ok, ahead: 2 })).toMatch(/2 local commits/);
+    expect(refusal({ ...ok, dirty: true })).toMatch(/cambios locales/);
+    expect(refusal({ ...ok, ahead: 2 })).toMatch(/2 commits locales que no están en origin\/main/);
   });
 });
 

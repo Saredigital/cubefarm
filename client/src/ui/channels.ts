@@ -7,12 +7,12 @@ import type { PreviewStatus, PreviewView, PrPreviewView, PullInfo, QaStatus, QaV
 export type Channel = number | null;
 
 export const QA_BADGE: Record<QaStatus, string> = {
-  queued: '⏳ QA queued',
-  testing: '🔍 QA testing',
-  passed: '✅ QA passed',
-  failed: '❌ QA failed',
-  fixing: '🔧 being fixed',
-  'needs-human': '🙋 needs you',
+  queued: '⏳ en cola de QA',
+  testing: '🔍 QA probando',
+  passed: '✅ QA superado',
+  failed: '❌ QA fallido',
+  fixing: '🔧 en corrección',
+  'needs-human': '🙋 te necesita',
 };
 
 /** A PR's QA state in a few words, '' when QA hasn't seen it. */
@@ -21,7 +21,7 @@ export const qaBadge = (qa?: Pick<QaView, 'status'> | null) => (qa ? QA_BADGE[qa
 /** Shorten to max characters with an ellipsis. */
 const clip = (s: string, max: number) => (s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s);
 
-/** "PR #212 · Outside 5 · ✅ QA passed" */
+/** "PR #212 · Outside 5 · ✅ QA superado" */
 export function channelLabel(pull: Pick<PullInfo, 'number' | 'title'>, qa?: Pick<QaView, 'status'> | null, max = 32): string {
   return [`PR #${pull.number}`, clip(pull.title.trim(), max), qaBadge(qa)].filter(Boolean).join(' · ');
 }

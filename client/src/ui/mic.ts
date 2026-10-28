@@ -15,7 +15,6 @@ import { HANDS_FREE_IDLE, handsFree, type HandsFree, type HandsFreeEvent, type R
 import { closesMic, HOLD_MS, isTalkKey, type KeyPlace } from './micKeys';
 import { freshEars, heardLevel, heardWords, listenRules, sendsWhenDone, verdict, type Ears, type MicMode } from './micSilence';
 import { cantListen, micErrorLine, phrasesText, withTranscript, type MicCaps, type Phrase } from './micText';
-import { holdMusicDuck } from './music';
 import { getAudioPrefs, listenChime, setMicOpen, subscribeAudio } from './sfx';
 
 export type MicState = 'idle' | 'listening' | 'transcribing' | 'error';
@@ -316,15 +315,13 @@ function explain(line: string, id: string) {
   setTimeout(() => useMic.getState().state === 'error' && !session && set({ state: 'idle', target: null }), 3000);
 }
 
-/** While the mic listens: the jukebox, other sounds and the CEO's voice dip, the browser's voice pauses, cues wait. */
+/** While the mic listens: other sounds and the CEO's voice dip, the browser's voice pauses, cues wait. */
 function quiet(): () => void {
-  const unduck = holdMusicDuck();
   setMicOpen(true);
   const synth = typeof speechSynthesis !== 'undefined' ? speechSynthesis : null;
   const paused = !!synth?.speaking && !synth.paused;
   if (paused) synth!.pause();
   return () => {
-    unduck();
     setMicOpen(false);
     if (paused) synth!.resume();
   };
@@ -516,14 +513,14 @@ export function replyEnded() {
   if (listening().handsFree && !micAllowed && r.phoneChat && !askedToAllow) {
     // The browser hasn't been asked for the mic yet, and hands-free never asks out of the blue.
     askedToAllow = true;
-    useStore.getState().pushToast('info', '🎧 Hold 🎙️ once to let the office use your microphone, then hands-free can listen.');
+    useStore.getState().pushToast('info', '🎧 Mantén pulsado el 🎙️ una vez para que la oficina pueda usar tu micrófono; después el modo manos libres podrá escuchar.');
   }
   step({ type: 'reply-ended', now: performance.now(), room: r });
 }
 
 /** Why hands-free can't be turned on now, or ''. */
 export function handsFreeProblem(ceoName: string): string {
-  return micProblem() || (useStore.getState().settings.voice.provider === 'off' ? `Hands-free needs ${ceoName}'s voice: turn on Speak messages in Settings → Voice.` : '');
+  return micProblem() || (useStore.getState().settings.voice.provider === 'off' ? `El modo manos libres necesita la voz de ${ceoName}: activa Leer los mensajes en Ajustes → Voz.` : '');
 }
 
 /** The hands-free switch (the phone's 🎧, Settings → Voice). Turning it on asks for the mic now, from the click. */

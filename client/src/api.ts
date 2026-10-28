@@ -1,16 +1,8 @@
 import { useStore } from './store';
-import type { PongResult } from '../../shared/pong';
 import type { AgentStyle } from '../../shared/looks';
 import type { AgentCli, AgentPromptView, AgentView, CloudView, DoctorFinding, DoctorFix, EffortLevel, GhRepoSummary, NotifyChannel, NotifyChannelsView, NotifyWebhook, OfficeUpdateView, PreviewView, ProjectFolderView, PrPreviewView, RepoView, SwarmSettings, UsageView, VoiceCacheView, VoiceOption, MachineHost } from '../../shared/types';
-import type { JournalChunk, JournalDayView } from '../../shared/journal';
-import type { DecorItem, ProgressView } from '../../shared/progress';
 
 async function call<T = unknown>(method: string, url: string, body?: unknown, toast = true): Promise<T> {
-  // The time-lapse shows a recorded day: nothing in it can be acted on.
-  if (method !== 'GET' && useStore.getState().replaying) {
-    useStore.getState().pushToast('info', '▶ Replaying: live actions are off. Press Esc to go back to the live office.');
-    throw new Error('The time-lapse is playing');
-  }
   const res = await fetch(url, {
     method,
     headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
@@ -128,8 +120,6 @@ export const api = {
   messageCeo: (text: string) => call('POST', '/api/ceo/message', { text }),
   ceoReview: () => call('POST', '/api/ceo/review'),
   phoneRead: (at: number) => call('POST', '/api/phone/read', { at }),
-  /** A finished ping-pong game on a floor, for its leaderboard (shared/pong.ts parsePongResult). */
-  pongResult: (repoId: string, result: PongResult) => call('POST', `${r(repoId)}/pong`, result),
   /** Decides a team change: a hire with the manager's changes to the new agent, if any. */
   approveRequest: (id: string, overrides: AgentSetupPatch & { name?: string; note?: string } = {}) => call('POST', `/api/requests/${id}/approve`, overrides),
   rejectRequest: (id: string, note?: string) => call('POST', `/api/requests/${id}/reject`, { note }),
@@ -140,9 +130,6 @@ export const api = {
   voices: () => call<VoiceOption[]>('GET', '/api/voice/voices'),
   voiceSample: (voiceId: string) => clip(`/api/voice/sample?voiceId=${encodeURIComponent(voiceId)}`),
   clearVoiceCache: () => call<VoiceCacheView>('DELETE', '/api/voice/cache'),
-  journalDays: () => call<JournalDayView[]>('GET', '/api/journal/days'),
-  journalEvents: (from: number, to: number, seek: boolean) => call<JournalChunk>('GET', `/api/journal/events?from=${Math.floor(from)}&to=${Math.ceil(to)}${seek ? '&seek=1' : ''}`),
-  journalSample: () => call<{ day: string }>('POST', '/api/journal/sample'),
   /** Saves (or with empty fields removes) a chat app's webhook. No toast: the settings show why it was refused. */
   setWebhook: (channel: NotifyWebhook, body: Record<string, string>) => call<NotifyChannelsView>('PUT', `/api/notify/webhooks/${channel}`, body, false),
   testNotify: (channel: NotifyChannel) => call<{ ok: true; sent: number }>('POST', '/api/notify/test', { channel }, false),
@@ -156,10 +143,4 @@ export const api = {
   pushKey: () => call<{ publicKey: string }>('GET', '/api/notify/push/key'),
   pushSubscribe: (subscription: PushSubscriptionJSON) => call<NotifyChannelsView>('POST', '/api/notify/push/devices', { subscription }),
   pushUnsubscribe: (endpoint: string) => call<NotifyChannelsView>('DELETE', '/api/notify/push/devices', { endpoint }),
-  // office progression (#210)
-  buyDecor: (repoId: string, item: DecorItem) => call<ProgressView>('POST', `${r(repoId)}/decor/buy`, { item }),
-  placeDecor: (repoId: string, body: { item: DecorItem; slot: string | null; from: string | null }) => call<ProgressView>('POST', `${r(repoId)}/decor/place`, body),
-  drankCoffee: (id: string) => call<{ coffees: number }>('POST', '/api/progress/coffee', { id }, false),
-  /** Demo only: coins for a floor, or days of tenure for one agent (or everyone). */
-  demoProgress: (body: { action: 'coins'; repoId: string; coins: number } | { action: 'tenure'; days: number; agentId?: string }) => call<ProgressView>('POST', '/api/progress/demo', body),
 };

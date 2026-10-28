@@ -6,7 +6,7 @@ import type { WebSocket } from 'ws';
 import type { ServerEvent } from '../shared/types.ts';
 
 // A whole office writes its state, secrets and voice cache: a folder of its own, so other tests' files are left alone.
-const home = fs.mkdtempSync(path.join(os.tmpdir(), 'cubefarm-scale-'));
+const home = fs.mkdtempSync(path.join(os.tmpdir(), 'sareoffice-scale-'));
 process.env.SWARM_HOME = home;
 const { createDemoBackend } = await import('./demo.ts');
 const { Swarm } = await import('./swarm.ts');

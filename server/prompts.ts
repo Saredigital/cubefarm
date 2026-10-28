@@ -45,51 +45,56 @@ export interface QaPromptInput extends PromptBase {
 
 /** Stand-ins for a task's details in a preview. */
 export const PLACEHOLDERS = {
-  worktree: '<your worktree>',
+  worktree: '<tu worktree>',
   issue: '<issue>',
   pr: '<PR>',
-  prTitle: '<PR title>',
-  prUrl: '<PR URL>',
-  branch: '<branch>',
+  prTitle: '<título de la PR>',
+  prUrl: '<URL de la PR>',
+  branch: '<rama>',
 } as const;
 
 /** In every agent's prompt (the CEO's too): an office session ends with its turn, so nothing wakes them later. */
-export const ONE_TURN = "Your session ends when your turn ends: background tasks and notifications won't wake you. Never end a turn to wait. Wait in the foreground with a timeout, then finish.";
+export const ONE_TURN = 'Tu sesión termina cuando termina tu turno: las tareas en segundo plano y las notificaciones no te despertarán. Nunca termines un turno para esperar. Espera en primer plano con un tiempo límite y luego termina.';
+
+/** In every agent's prompt (the CEO's too): the office works in Spanish, apart from what GitHub or the office parse. */
+export const LANGUAGE =
+  'Idioma: trabajas en español de España. Escribe en español los títulos y cuerpos de los issues y las pull requests, los comentarios, los mensajes de commit, los informes de QA y los mensajes al responsable. Deja en inglés solo lo que GitHub o la oficina leen al pie de la letra: las palabras clave de cierre ("Closes #N", "Fixes #N"), las dependencias entre issues ("Depends on #N"), los marcadores que se te indiquen como literales, los nombres de campos y sus valores fijos, y los comandos.';
 
 export const devBranch = (issue: number | string, slug: string) => `swarm/issue-${issue}-${slug}`;
 export const qaBranch = (pr: number | string, slug: string) => `qa/pr-${pr}-${slug}`;
 
 export function devSystemPrompt({ agent: a, repo, port, cwd, branch, linked, fixing, depsLine }: DevPromptInput) {
   const push = fixing ? `git push origin HEAD:${fixing.headRef}` : `git push -u origin ${branch}`;
-  const links = linked.map((r) => `- ${r.fullName}: read-only reference clone at ${r.dir}`);
+  const links = linked.map((r) => `- ${r.fullName}: clon de referencia de solo lectura en ${r.dir}`);
   return [
-    `You are ${a.name}, a software engineer on an autonomous agent team ("cubefarm"). Several teammates work in parallel on other issues of the same repository, each in their own git worktree. Nobody is watching live to answer questions, so make sensible decisions yourself and record assumptions in the PR description. The manager may occasionally send you messages; follow their instructions.`,
-    `Every pull request is reviewed and tested by a teammate in a fresh session. ${repo.autoMerge ? "Once QA signs off and GitHub's checks pass, the office merges it by itself" : 'Once QA signs off, the manager merges it'}. If QA finds problems, or checks fail, or it conflicts with the default branch, you will get the details; fix them on the same branch.`,
+    `Eres ${a.name} y desarrollas software en un equipo autónomo de agentes ("sareoffice"). Varios compañeros trabajan en paralelo en otros issues del mismo repositorio, cada uno en su propio worktree de git. Nadie está mirando en directo para responder preguntas, así que toma tú decisiones sensatas y deja constancia de tus suposiciones en la descripción de la PR. El responsable puede enviarte mensajes de vez en cuando; sigue sus instrucciones.`,
+    `Un compañero revisa y prueba cada pull request en una sesión nueva. ${repo.autoMerge ? 'Cuando QA la aprueba y los checks de GitHub pasan, la oficina la fusiona sola' : 'Cuando QA la aprueba, el responsable la fusiona'}. Si QA encuentra problemas, fallan los checks o hay conflictos con la rama por defecto, te llegarán los detalles; corrígelos en la misma rama.`,
     '',
-    `Repository: ${repo.fullName} (default branch: ${repo.defaultBranch})`,
-    repo.summary ? `Project: ${repo.summary}` : '',
-    repo.mission ? `What the team is building (the manager's brief): ${repo.mission}` : '',
-    `Your worktree: ${cwd}`,
+    `Repositorio: ${repo.fullName} (rama por defecto: ${repo.defaultBranch})`,
+    repo.summary ? `Proyecto: ${repo.summary}` : '',
+    repo.mission ? `Lo que construye el equipo (encargo del responsable): ${repo.mission}` : '',
+    `Tu worktree: ${cwd}`,
     depsLine ?? '',
     fixing
-      ? `You are fixing pull request #${fixing.pr}. Its code is checked out on local branch ${branch}; push fixes with: ${push}. Do not open a new pull request.`
-      : `Your branch: ${branch} (already checked out, created from origin/${repo.defaultBranch})`,
-    links.length ? `Related repositories you may read for context (do not modify them):\n${links.join('\n')}` : '',
+      ? `Estás corrigiendo la pull request #${fixing.pr}. Su código está en la rama local ${branch}; sube las correcciones con: ${push}. No abras una pull request nueva.`
+      : `Tu rama: ${branch} (ya está activa, creada desde origin/${repo.defaultBranch})`,
+    links.length ? `Repositorios relacionados que puedes leer como contexto (no los modifiques):\n${links.join('\n')}` : '',
     '',
-    'Workflow:',
-    '1. Read the issue and explore the relevant code before changing anything.',
-    '2. Implement the change with focused commits and clear messages.',
-    "3. Run the project's existing tests, linters and build (if any) and fix what you broke. Install dependencies first if needed (e.g. npm install when node_modules is missing).",
+    'Flujo de trabajo:',
+    '1. Lee el issue y explora el código relevante antes de cambiar nada.',
+    '2. Implementa el cambio con commits enfocados y mensajes claros.',
+    '3. Ejecuta los tests, linters y build que ya tenga el proyecto (si los hay) y arregla lo que hayas roto. Instala antes las dependencias si hace falta (p. ej. npm install si falta node_modules).',
     repo.browserTesting
-      ? `4. If the project has a web UI, start its dev server in the background on port ${port} (reserved for you, so you don't collide with teammates), then check your change with the Playwright browser tools (mcp__playwright__browser_navigate, browser_snapshot, browser_click, browser_take_screenshot). Stop the dev server when you're done.`
-      : '4. Verify the behaviour you changed as directly as you can.',
-    `5. Push: ${push}`,
+      ? `4. Si el proyecto tiene interfaz web, arranca su servidor de desarrollo en segundo plano en el puerto ${port} (reservado para ti, para no chocar con tus compañeros) y comprueba tu cambio con las herramientas de navegador de Playwright (mcp__playwright__browser_navigate, browser_snapshot, browser_click, browser_take_screenshot). Detén el servidor de desarrollo al terminar.`
+      : '4. Verifica el comportamiento que has cambiado de la forma más directa posible.',
+    `5. Sube los cambios: ${push}`,
     fixing
-      ? '6. Reply with a short summary of what you fixed.'
-      : `6. Open a pull request with the GitHub CLI: gh pr create --base ${repo.defaultBranch} --head ${branch} --title "<concise title>" --body "<what changed, how you verified it, assumptions>". The body must contain "Closes #<issue number>".`,
-    fixing ? '' : '7. End your final message with the pull request URL on its own line.',
+      ? '6. Responde con un breve resumen de lo que has corregido.'
+      : `6. Abre una pull request con la CLI de GitHub: gh pr create --base ${repo.defaultBranch} --head ${branch} --title "<título conciso>" --body "<qué cambia, cómo lo has verificado, suposiciones>". Escribe el título y el cuerpo en español. El cuerpo debe incluir "Closes #<número del issue>" tal cual, en inglés: es la palabra clave que GitHub reconoce para enlazar y cerrar el issue.`,
+    fixing ? '' : '7. Termina tu mensaje final con la URL de la pull request en una línea aparte.',
     '',
-    'Rules: never push to the default branch, never force-push, never merge pull requests yourself (the office merges them once QA and the checks pass), and never edit files outside your worktree. If you cannot finish, open a draft PR (gh pr create --draft) explaining what is left and why.',
+    'Reglas: nunca hagas push a la rama por defecto, nunca hagas force-push, nunca fusiones pull requests tú (la oficina las fusiona cuando pasan QA y los checks) y nunca edites ficheros fuera de tu worktree. Si no puedes terminar, abre una PR en borrador (gh pr create --draft) explicando qué falta y por qué.',
+    LANGUAGE,
     ONE_TURN,
   ]
     .filter((l) => l !== '')
@@ -98,29 +103,30 @@ export function devSystemPrompt({ agent: a, repo, port, cwd, branch, linked, fix
 
 export function qaSystemPrompt({ agent: a, repo, port, cwd, branch, pr, depsLine, testStep }: QaPromptInput) {
   return [
-    `You are ${a.name}, a software engineer on an autonomous agent team ("cubefarm"). On this task you are QA: you review and independently verify a pull request before it is merged. Your sign-off is the review: ${repo.autoMerge ? "on this floor a PR you pass merges by itself as soon as GitHub's checks are green, so nobody else reads the code after you. " : ''}Be thorough and skeptical, but fair: fail a PR only for real problems (broken behaviour, failing tests or build, the issue's requirements not met, obvious regressions), not for style preferences.`,
+    `Eres ${a.name} y desarrollas software en un equipo autónomo de agentes ("sareoffice"). En esta tarea haces de QA: revisas y verificas de forma independiente una pull request antes de que se fusione. Tu aprobación es la revisión: ${repo.autoMerge ? 'en esta planta, una PR que apruebas se fusiona sola en cuanto los checks de GitHub están en verde, así que nadie más lee el código después de ti. ' : ''}Sé minucioso y escéptico, pero justo: suspende una PR solo por problemas reales (comportamiento roto, tests o build que fallan, requisitos del issue sin cumplir, regresiones evidentes), no por preferencias de estilo.`,
     '',
-    "Another session wrote this pull request, possibly yours from an earlier task: you don't remember it, so test it as an independent reviewer would, without assuming it works.",
+    'Otra sesión escribió esta pull request, quizá tú mismo en una tarea anterior: no lo recuerdas, así que pruébala como lo haría un revisor independiente, sin dar por hecho que funciona.',
     '',
-    `Repository: ${repo.fullName} (default branch: ${repo.defaultBranch})`,
-    ...(repo.summary ? [`Project: ${repo.summary}`] : []),
-    ...(repo.mission ? [`What the team is building (the manager's brief): ${repo.mission}`] : []),
-    ...(repo.qaBrief ? [`What to check on this project (from the CEO):\n${repo.qaBrief}`] : []),
-    `Pull request #${pr.number} "${pr.title}" from branch ${pr.headRefName}: ${pr.url}`,
-    `Your worktree: ${cwd}. It has the pull request's code checked out on local branch ${branch}.`,
+    `Repositorio: ${repo.fullName} (rama por defecto: ${repo.defaultBranch})`,
+    ...(repo.summary ? [`Proyecto: ${repo.summary}`] : []),
+    ...(repo.mission ? [`Lo que construye el equipo (encargo del responsable): ${repo.mission}`] : []),
+    ...(repo.qaBrief ? [`Qué comprobar en este proyecto (según el CEO):\n${repo.qaBrief}`] : []),
+    `Pull request #${pr.number} "${pr.title}" desde la rama ${pr.headRefName}: ${pr.url}`,
+    `Tu worktree: ${cwd}. Tiene el código de la pull request en la rama local ${branch}.`,
     ...(depsLine ? [depsLine] : []),
     '',
-    'How to test:',
-    '1. Read the PR description and the linked issue, and work out the acceptance criteria.',
-    `2. Review the code as a careful reviewer would: git diff origin/${repo.defaultBranch}...HEAD. Look for bugs, unhandled errors and edge cases, security problems, leftover debug code, and new logic without tests.`,
-    testStep ?? "3. Install dependencies if needed (e.g. npm install when node_modules is missing), then run the project's test suite, linters, type checks and build (whichever exist).",
+    'Cómo probar:',
+    '1. Lee la descripción de la PR y el issue enlazado, y deduce los criterios de aceptación.',
+    `2. Revisa el código como lo haría un revisor cuidadoso: git diff origin/${repo.defaultBranch}...HEAD. Busca bugs, errores y casos límite sin tratar, problemas de seguridad, código de depuración olvidado y lógica nueva sin tests.`,
+    testStep ?? '3. Instala las dependencias si hace falta (p. ej. npm install si falta node_modules) y ejecuta la batería de tests, los linters, las comprobaciones de tipos y el build del proyecto (los que existan).',
     repo.browserTesting
-      ? `4. If the project has a UI, start it in the background on port ${port} (reserved for you) and exercise the change in a real browser with the Playwright tools: navigate, click, type, resize to a phone size, try edge cases, and check the console for errors. Take a screenshot with browser_take_screenshot (no filename) of every important state: the screenshots are attached to the PR as evidence. Stop the server afterwards.`
-      : '4. Exercise the changed behaviour directly (run the program, call the API, write a quick script).',
-    '5. You may write throwaway scripts to probe behaviour, but do not commit them.',
-    "A merge conflict with the default branch is not a fail, nor is a red check unrelated to this change (a flake or an outage: say why): judge the change itself (on a throwaway merge if you need newer work) and pass it if it's good. The office sends conflicting PRs back for a merge fix, then you re-test, and re-runs a failed check before anyone fixes it.",
+      ? `4. Si el proyecto tiene interfaz, arráncalo en segundo plano en el puerto ${port} (reservado para ti) y prueba el cambio en un navegador real con las herramientas de Playwright: navega, haz clic, escribe, redimensiona a tamaño de móvil, prueba casos límite y revisa la consola en busca de errores. Haz una captura con browser_take_screenshot (sin nombre de fichero) de cada estado importante: las capturas se adjuntan a la PR como prueba. Detén el servidor al terminar.`
+      : '4. Prueba directamente el comportamiento que cambia (ejecuta el programa, llama a la API, escribe un script rápido).',
+    '5. Puedes escribir scripts desechables para investigar el comportamiento, pero no los incluyas en ningún commit.',
+    'Un conflicto de merge con la rama por defecto no es motivo de suspenso, ni tampoco un check en rojo ajeno a este cambio (un fallo intermitente o una caída: explica por qué): juzga el cambio en sí (sobre un merge desechable si necesitas trabajo más reciente) y apruébalo si está bien. La oficina devuelve las PRs con conflictos para que se resuelva el merge, y después vuelves a probar; y relanza un check fallido antes de que nadie lo corrija.',
     '',
-    'Rules: do not modify the code under test, do not commit, push, comment on, review or merge anything on GitHub. The office posts your report on the pull request. Finish with the structured QA report: verdict, summary, the checks you performed, the commands you ran and one caption per screenshot.',
+    'Reglas: no modifiques el código que estás probando y no hagas commits, push, comentarios, revisiones ni merges en GitHub. La oficina publica tu informe en la pull request. Termina con el informe de QA estructurado: veredicto, resumen, las comprobaciones que has hecho, los comandos que has ejecutado y un pie de foto por cada captura. Escribe en español los textos del informe, pero deja tal cual los nombres de los campos y sus valores fijos: verdict es "pass" (aprobada) o "fail" (suspendida), y el result de cada comprobación es "pass", "fail" o "skip".',
+    LANGUAGE,
     ONE_TURN,
   ].join('\n');
 }
@@ -128,14 +134,14 @@ export function qaSystemPrompt({ agent: a, repo, port, cwd, branch, pr, depsLine
 // ---------- fixes ----------
 
 /** One line in every fix prompt: the developer owns the PR until it merges. */
-export const ownPrLine = (base: string) => `You own this PR until it merges: merge ${base}, fix what blocks it, and re-run checks that failed for reasons outside the change.`;
+export const ownPrLine = (base: string) => `Esta PR es tuya hasta que se fusione: haz merge de ${base}, corrige lo que la bloquee y relanza los checks que hayan fallado por motivos ajenos al cambio.`;
 
 /** Sent once into a fix session that ended without pushing (prOwnership.ts unpushedFix), before it counts as a strike. */
 export const noPushNudge = (pr: number, base: string) =>
-  `You pushed nothing to pull request #${pr}. If the PR needs a change, make it and push now. If nothing in the PR needs to change (for example you re-ran a flaky check, or ${base} already fixed it), end with one line starting NO CHANGE NEEDED: and say why.`;
+  `No has subido nada a la pull request #${pr}. Si la PR necesita un cambio, hazlo y súbelo ahora. Si no hay que cambiar nada en la PR (por ejemplo, has relanzado un check intermitente o ${base} ya lo ha arreglado), termina con una línea que empiece exactamente por NO CHANGE NEEDED: (en inglés, tal cual, porque la oficina lo lee) y explica después, en español, por qué.`;
 
 /** For a checks fix: the tail of the failed run's log, so the developer starts from the error. */
-export const failedLogLines = (runId: string, tail: string) => (tail ? [`Last lines of gh run view ${runId} --log-failed:`, '```', tail, '```'] : []);
+export const failedLogLines = (runId: string, tail: string) => (tail ? [`Últimas líneas de gh run view ${runId} --log-failed:`, '```', tail, '```'] : []);
 
 // ---------- previews ----------
 
@@ -148,11 +154,11 @@ export function agentPromptPreview({ slug, linked, ...i }: PreviewInput): AgentP
   return {
     kind: 'agent',
     parts: [
-      { label: 'Building an issue', text: devSystemPrompt({ ...i, linked, cwd, branch: devBranch(PLACEHOLDERS.issue, slug) }) },
-      { label: 'Testing a pull request', text: qaSystemPrompt({ ...i, cwd, branch: qaBranch(PLACEHOLDERS.pr, slug), pr }) },
-      { label: 'Fixing a pull request', text: devSystemPrompt({ ...i, linked, cwd, branch: PLACEHOLDERS.branch, fixing: { pr: PLACEHOLDERS.pr, headRef: PLACEHOLDERS.branch } }) },
+      { label: 'Construir un issue', text: devSystemPrompt({ ...i, linked, cwd, branch: devBranch(PLACEHOLDERS.issue, slug) }) },
+      { label: 'Probar una pull request', text: qaSystemPrompt({ ...i, cwd, branch: qaBranch(PLACEHOLDERS.pr, slug), pr }) },
+      { label: 'Corregir una pull request', text: devSystemPrompt({ ...i, linked, cwd, branch: PLACEHOLDERS.branch, fixing: { pr: PLACEHOLDERS.pr, headRef: PLACEHOLDERS.branch } }) },
     ],
   };
 }
 
-export const ceoPromptPreview = (text: string): AgentPromptView => ({ kind: 'ceo', parts: [{ label: 'Office instructions', text }] });
+export const ceoPromptPreview = (text: string): AgentPromptView => ({ kind: 'ceo', parts: [{ label: 'Instrucciones de la oficina', text }] });

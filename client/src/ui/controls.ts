@@ -5,7 +5,7 @@ import { defaultControls, keyLabel, normaliseControls, PAD_SENSITIVITY_MAX, PAD_
 // back through normaliseControls (keymap.ts), so a corrupt value falls back to the defaults. The mouse settings live in
 // world/look.ts. Every keyboard shortcut in the office asks here which keys are its.
 
-const STORAGE_KEY = 'cubefarm:controls';
+const STORAGE_KEY = 'sareoffice:controls';
 
 function load(): Controls {
   try {

@@ -9,9 +9,7 @@ export type ActionId =
   | 'right'
   | 'run'
   | 'interact'
-  | 'throw'
   | 'drop'
-  | 'reload'
   | 'volumeDown'
   | 'volumeUp'
   | 'phone'
@@ -44,29 +42,27 @@ export interface ActionDef {
 }
 
 export const ACTIONS: readonly ActionDef[] = [
-  { id: 'forward', label: 'Walk forward', group: 'Moving', scope: 'move', keys: ['KeyW', 'ArrowUp'] },
-  { id: 'back', label: 'Walk back', group: 'Moving', scope: 'move', keys: ['KeyS', 'ArrowDown'] },
-  { id: 'left', label: 'Step left', group: 'Moving', scope: 'move', keys: ['KeyA', 'ArrowLeft'] },
-  { id: 'right', label: 'Step right', group: 'Moving', scope: 'move', keys: ['KeyD', 'ArrowRight'] },
-  { id: 'run', label: 'Run (hold)', group: 'Moving', scope: 'move', keys: ['ShiftLeft', 'ShiftRight'] },
-  { id: 'interact', label: 'Use, pick up, sip', group: 'Hands', scope: 'walk', keys: ['KeyE'] },
-  { id: 'throw', label: 'Throw or fire (hold to charge)', group: 'Hands', scope: 'walk', keys: ['KeyF'] },
-  { id: 'drop', label: 'Drop', group: 'Hands', scope: 'walk', keys: ['KeyG'] },
-  { id: 'reload', label: 'Reload a blaster', group: 'Hands', scope: 'walk', keys: ['KeyR'] },
-  { id: 'volumeDown', label: 'Jukebox softer', group: 'Hands', scope: 'walk', keys: ['Minus', 'NumpadSubtract'] },
-  { id: 'volumeUp', label: 'Jukebox louder', group: 'Hands', scope: 'walk', keys: ['Equal', 'NumpadAdd'] },
-  { id: 'phone', label: 'Phone', group: 'Office', scope: 'global', keys: ['KeyP'] },
-  { id: 'help', label: 'Help', group: 'Office', scope: 'global', keys: ['KeyH'] },
-  { id: 'mute', label: 'Mute', group: 'Office', scope: 'global', keys: ['KeyM'] },
-  { id: 'workers', label: "Who's working list", group: 'Office', scope: 'global', keys: ['KeyL'] },
-  { id: 'overview', label: 'Overview (twice: the building)', group: 'Overview', scope: 'global', keys: ['Tab'] },
-  { id: 'rotateLeft', label: 'Turn the overview left', group: 'Overview', scope: 'overview', keys: ['KeyQ'] },
-  { id: 'rotateRight', label: 'Turn the overview right', group: 'Overview', scope: 'overview', keys: ['KeyE'] },
-  { id: 'talk', label: 'Hold to talk (in a message box)', group: 'Office', scope: 'panel', keys: ['KeyV'] },
-  { id: 'emote', label: 'Emote wheel (hold, point, let go)', group: 'Office', scope: 'walk', keys: ['KeyT'] },
-  { id: 'ping', label: 'Ping where you aim (or middle-click)', group: 'Office', scope: 'walk', keys: ['KeyX'] },
-  { id: 'photo', label: 'Photo mode', group: 'Office', scope: 'global', keys: ['KeyK'] },
-  { id: 'saveReplay', label: 'Save the last 15 s (instant replay)', group: 'Office', scope: 'global', keys: ['KeyI'] },
+  { id: 'forward', label: 'Avanzar', group: 'Moving', scope: 'move', keys: ['KeyW', 'ArrowUp'] },
+  { id: 'back', label: 'Retroceder', group: 'Moving', scope: 'move', keys: ['KeyS', 'ArrowDown'] },
+  { id: 'left', label: 'Paso a la izquierda', group: 'Moving', scope: 'move', keys: ['KeyA', 'ArrowLeft'] },
+  { id: 'right', label: 'Paso a la derecha', group: 'Moving', scope: 'move', keys: ['KeyD', 'ArrowRight'] },
+  { id: 'run', label: 'Correr (mantener)', group: 'Moving', scope: 'move', keys: ['ShiftLeft', 'ShiftRight'] },
+  { id: 'interact', label: 'Usar, coger', group: 'Hands', scope: 'walk', keys: ['KeyE'] },
+  { id: 'drop', label: 'Soltar', group: 'Hands', scope: 'walk', keys: ['KeyG'] },
+  { id: 'volumeDown', label: 'Bajar la jukebox', group: 'Hands', scope: 'walk', keys: ['Minus', 'NumpadSubtract'] },
+  { id: 'volumeUp', label: 'Subir la jukebox', group: 'Hands', scope: 'walk', keys: ['Equal', 'NumpadAdd'] },
+  { id: 'phone', label: 'Móvil', group: 'Office', scope: 'global', keys: ['KeyP'] },
+  { id: 'help', label: 'Ayuda', group: 'Office', scope: 'global', keys: ['KeyH'] },
+  { id: 'mute', label: 'Silenciar', group: 'Office', scope: 'global', keys: ['KeyM'] },
+  { id: 'workers', label: 'Lista de quién trabaja', group: 'Office', scope: 'global', keys: ['KeyL'] },
+  { id: 'overview', label: 'Vista general (dos veces: el edificio)', group: 'Overview', scope: 'global', keys: ['Tab'] },
+  { id: 'rotateLeft', label: 'Girar la vista general a la izquierda', group: 'Overview', scope: 'overview', keys: ['KeyQ'] },
+  { id: 'rotateRight', label: 'Girar la vista general a la derecha', group: 'Overview', scope: 'overview', keys: ['KeyE'] },
+  { id: 'talk', label: 'Mantén para hablar (en un cuadro de mensaje)', group: 'Office', scope: 'panel', keys: ['KeyV'] },
+  { id: 'emote', label: 'Rueda de gestos (mantén, apunta y suelta)', group: 'Office', scope: 'walk', keys: ['KeyT'] },
+  { id: 'ping', label: 'Marcar donde apuntas (o clic central)', group: 'Office', scope: 'walk', keys: ['KeyX'] },
+  { id: 'photo', label: 'Modo foto', group: 'Office', scope: 'global', keys: ['KeyK'] },
+  { id: 'saveReplay', label: 'Guardar los últimos 15 s (repetición instantánea)', group: 'Office', scope: 'global', keys: ['KeyI'] },
 ];
 
 export const ACTION_IDS = ACTIONS.map((a) => a.id);
@@ -163,7 +159,7 @@ export function keyLabel(code: string): string {
 /** Like keyLabel, but telling the left and right Shift, Ctrl and Alt apart (for the settings, where both show). */
 export function exactKeyLabel(code: string): string {
   const side = /^(Shift|Control|Alt)(Left|Right)$/.exec(code);
-  return side ? `${side[2]} ${keyLabel(code)}` : keyLabel(code);
+  return side ? `${keyLabel(code)} ${side[2] === 'Left' ? 'izquierdo' : 'derecho'}` : keyLabel(code);
 }
 
 export interface Conflict {

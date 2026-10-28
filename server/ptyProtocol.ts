@@ -42,7 +42,7 @@ export type FromHost =
 export function hostSocket(home: string, platform = process.platform): string {
   if (platform !== 'win32') return path.join(home, 'pty.sock');
   const tag = crypto.createHash('sha1').update(path.resolve(home).toLowerCase()).digest('hex').slice(0, 12);
-  return `\\\\.\\pipe\\cubefarm-pty-${tag}`;
+  return `\\\\.\\pipe\\sareoffice-pty-${tag}`;
 }
 
 export const encode = (m: ToHost | FromHost) => `${JSON.stringify(m)}\n`;

@@ -140,7 +140,7 @@ export class AgentTerminal {
     const data = await fs.readFile(file, 'utf8').catch(() => '');
     if (!data) return;
     this.term.write(data);
-    this.note('(the office restarted)');
+    this.note('(la oficina se ha reiniciado)');
     this.dirty = false;
   }
 

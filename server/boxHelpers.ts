@@ -12,7 +12,7 @@ function put(file, ev) {
 }`;
 
 /** Starts the session's CLI from launch.json (so no prompt is ever shell-quoted) and records how it exited. */
-export const BOX_LAUNCH_SOURCE = String.raw`// cubefarm: starts a cloud agent's CLI and notes its exit in the session's events file.
+export const BOX_LAUNCH_SOURCE = String.raw`// sareoffice: starts a cloud agent's CLI and notes its exit in the session's events file.
 ${PUT}
 const { spawn } = require('child_process');
 const spec = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
@@ -21,7 +21,7 @@ let over = false;
 const done = (code) => {
   if (over) return;
   over = true;
-  try { put(spec.events, { hook_event_name: 'CubefarmExit', code }); } catch {}
+  try { put(spec.events, { hook_event_name: 'SareofficeExit', code }); } catch {}
   process.exit(code);
 };
 child.on('error', (err) => { process.stderr.write(String(err && err.message) + '\n'); done(127); });
@@ -32,7 +32,7 @@ for (const s of ['SIGHUP', 'SIGTERM']) process.on(s, () => child.kill(s));
 `;
 
 /** Claude Code's hooks: every event to the events file; tool calls are approved here (nobody may be there to answer). */
-export const BOX_HOOK_SOURCE = String.raw`// cubefarm: Claude Code's hooks in a cloud agent's Box.
+export const BOX_HOOK_SOURCE = String.raw`// sareoffice: Claude Code's hooks in a cloud agent's Box.
 ${PUT}
 const file = process.argv[2];
 const chunks = [];
@@ -54,13 +54,13 @@ process.stdin.on('end', () => {
   if (b.tool_input !== undefined) b.tool_input = slim(b.tool_input, '', 0);
   try { put(file, b); } catch {}
   if (b.hook_event_name === 'PreToolUse') {
-    process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'allow', permissionDecisionReason: 'Approved by cubefarm' } }));
+    process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'allow', permissionDecisionReason: 'Approved by sareoffice' } }));
   }
 });
 `;
 
 /** Claude Code's status line: cost and usage limits to the events file when they change; the office's label shown. */
-export const BOX_STATUSLINE_SOURCE = String.raw`// cubefarm: Claude Code's status line in a cloud agent's Box.
+export const BOX_STATUSLINE_SOURCE = String.raw`// sareoffice: Claude Code's status line in a cloud agent's Box.
 ${PUT}
 const file = process.argv[2];
 let body = '';
@@ -77,12 +77,12 @@ process.stdin.on('end', () => {
       fs.writeFileSync(file + '.status', key);
     }
   } catch {}
-  process.stdout.write(process.env.CUBEFARM_STATUS || 'cubefarm');
+  process.stdout.write(process.env.SAREOFFICE_STATUS || 'sareoffice');
 });
 `;
 
 /** Codex's notify program: a finished turn to the events file. */
-export const BOX_NOTIFY_SOURCE = String.raw`// cubefarm: Codex's notify program in a cloud agent's Box.
+export const BOX_NOTIFY_SOURCE = String.raw`// sareoffice: Codex's notify program in a cloud agent's Box.
 ${PUT}
 const [file, payload] = process.argv.slice(2);
 let event = {};
@@ -93,10 +93,10 @@ if (event.type === 'agent-turn-complete') {
 }
 `;
 
-/** Codex's hooks: what Codex tells a hook, to the events file (CUBEFARM_HOOK_URL holds its path in a Box). */
-export const BOX_CODEX_HOOK_SOURCE = String.raw`// cubefarm: Codex's hooks in a cloud agent's Box.
+/** Codex's hooks: what Codex tells a hook, to the events file (SAREOFFICE_HOOK_URL holds its path in a Box). */
+export const BOX_CODEX_HOOK_SOURCE = String.raw`// sareoffice: Codex's hooks in a cloud agent's Box.
 ${PUT}
-const file = process.env.CUBEFARM_HOOK_URL;
+const file = process.env.SAREOFFICE_HOOK_URL;
 const chunks = [];
 process.stdin.on('data', (c) => chunks.push(c));
 process.stdin.on('end', () => {
@@ -108,7 +108,7 @@ process.stdin.on('end', () => {
  * Stops what an agent left running on its port or in its worktree. Never tmux, nor the two programs under it that are
  * the agent's session (the launcher and the CLI), nor this script and its shell.
  */
-export const BOX_RELEASE_SOURCE = String.raw`// cubefarm: stops what a cloud agent left running.
+export const BOX_RELEASE_SOURCE = String.raw`// sareoffice: stops what a cloud agent left running.
 const fs = require('fs');
 const port = Number(process.argv[2]);
 const dir = process.argv[3] || '/nonexistent';
@@ -160,7 +160,7 @@ process.stdout.write(String(doomed.size));
 `;
 
 /** Claude Code's first-run screens answered for a worktree: onboarding done, the folder trusted. */
-export const BOX_SEED_CLAUDE_SOURCE = String.raw`// cubefarm: marks Claude Code's onboarding done and a folder trusted, in a cloud agent's Box.
+export const BOX_SEED_CLAUDE_SOURCE = String.raw`// sareoffice: marks Claude Code's onboarding done and a folder trusted, in a cloud agent's Box.
 const fs = require('fs');
 const path = require('path');
 const file = path.join(process.env.HOME || '/home/boxuser', '.claude.json');

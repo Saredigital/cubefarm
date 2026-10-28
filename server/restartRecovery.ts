@@ -34,21 +34,21 @@ export function resumesAfterRestart(a: RestartAgent, preparing: boolean, demo: b
 
 /** What a resumed agent is told: the job it was on, not just "carry on". */
 export function resumeNote(a: RestartAgent, fix?: { round: number; fixReason: 'qa' | 'checks' | 'conflict' | null } | null): string {
-  const yours = 'Uncommitted changes in your worktree are yours to finish.';
+  const yours = 'Los cambios sin commit de tu worktree son tuyos: termínalos. Escribe en español y conserva los comandos y marcadores literales.';
   if (a.task === 'fix' && a.prNumber && a.branch) {
     const job =
       fix?.fixReason === 'conflict'
-        ? `resolving the merge conflicts on PR #${a.prNumber}`
+        ? `resolviendo los conflictos de merge de la PR #${a.prNumber}`
         : fix?.fixReason === 'checks'
-          ? `fixing the failing checks on PR #${a.prNumber}`
-          : `fixing PR #${a.prNumber}${fix ? ` after QA round ${fix.round}` : ''}`;
-    return `The office server restarted while you were ${job}. Finish the fix, commit, and push with: git push origin HEAD:${a.branch}. ${yours}`;
+          ? `corrigiendo los checks fallidos de la PR #${a.prNumber}`
+          : `corrigiendo la PR #${a.prNumber}${fix ? ` tras la ronda ${fix.round} de QA` : ''}`;
+    return `El servidor de la oficina se ha reiniciado mientras estabas ${job}. Termina la corrección, haz commit y súbela con: git push origin HEAD:${a.branch}. ${yours}`;
   }
   if (a.task === 'issue' && a.issueNumber && a.branch) {
     const pr = a.prNumber
-      ? `push with: git push origin ${a.branch} to update PR #${a.prNumber}`
-      : `push with: git push -u origin ${a.branch}, and open the pull request with "Closes #${a.issueNumber}" (or push to it if it's already open)`;
-    return `The office server restarted while you were working on issue #${a.issueNumber}${a.issueTitle ? ` (${a.issueTitle})` : ''} on branch ${a.branch}. Finish it, commit, ${pr}. ${yours}`;
+      ? `sube con: git push origin ${a.branch} para actualizar la PR #${a.prNumber}`
+      : `sube con: git push -u origin ${a.branch}, y abre la pull request con "Closes #${a.issueNumber}" (o actualízala si ya está abierta)`;
+    return `El servidor de la oficina se ha reiniciado mientras trabajabas en el issue #${a.issueNumber}${a.issueTitle ? ` (${a.issueTitle})` : ''} en la rama ${a.branch}. Termínalo, haz commit y ${pr}. ${yours}`;
   }
-  return 'The office server restarted while you were working. Check the state of your worktree and continue where you left off.';
+  return 'El servidor de la oficina se ha reiniciado mientras trabajabas. Comprueba el estado de tu worktree y continúa donde lo dejaste. Escribe en español.';
 }

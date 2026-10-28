@@ -1,73 +1,73 @@
-# Agents
+# Agentes
 
-How cubefarm thinks about its agents: interchangeable coding agents, each on a machine of its own, and how a floor's team grows and shrinks. For the life of an issue and a pull request, see [How it works](how-it-works.md).
+Cómo entiende sareoffice a sus agentes: agentes de código intercambiables, cada uno en una máquina propia, y cómo crece y se reduce el equipo de una planta. Para la vida de un issue y de una pull request, ver [Cómo funciona](how-it-works.md).
 
-## An agent is an agent
+## Un agente es un agente
 
-Every agent is the same thing: a coding-agent session (Claude Code, Codex or OpenCode) waiting for work. There are no roles, titles, job descriptions or specialties, and no QA testers set apart from developers. Whatever is next on the floor's board, any free agent takes it:
+Todos los agentes son lo mismo: una sesión de agente de código (Claude Code, Codex u OpenCode) esperando trabajo. No hay roles, cargos, descripciones de puesto ni especialidades, ni testers de QA separados de los desarrolladores. Sea lo que sea lo siguiente en el tablero de la planta, lo coge cualquier agente libre:
 
-- **Build an issue**: a fresh worktree branch, the change, the project's checks, a pull request.
-- **QA a pull request**: review the diff, run the checks, exercise it in a browser, report.
-- **Fix a pull request**: QA's findings, failing checks or a merge conflict, pushed to the same branch.
+- **Construir un issue**: un worktree con rama nueva, el cambio, los checks del proyecto, una pull request.
+- **Hacer QA de una pull request**: revisar el diff, ejecutar los checks, probarla en un navegador, informar.
+- **Corregir una pull request**: los hallazgos de QA, checks que fallan o un conflicto de merge, subido a la misma rama.
 
-What makes QA independent is a **fresh session**, not a different kind of agent: a QA run never resumes the session that built the pull request. QA goes to an agent other than the author: the author carries on with other work, and the next agent to come free tests it. The author tests their own pull request (in a new session) only when nobody else on the floor can, or nobody else has come free for 15 minutes, so a one-agent floor never stalls.
+Lo que hace independiente a QA es una **sesión nueva**, no un tipo distinto de agente: una ronda de QA nunca reanuda la sesión que construyó la pull request. QA va a un agente distinto del autor: el autor sigue con otro trabajo y la prueba el siguiente agente que quede libre. El autor prueba su propia pull request (en una sesión nueva) solo cuando nadie más de la planta puede, o nadie más ha quedado libre en 15 minutos, así que una planta de un solo agente nunca se atasca.
 
-Fixes go back to the pull request's author while they're around (they have the session and the worktree), and to any free agent otherwise.
+Las correcciones vuelven al autor de la pull request mientras esté disponible (tiene la sesión y el worktree), y si no, a cualquier agente libre.
 
-An agent has a name and a look, for personality, and three settings: its **provider** (Claude Code, Codex or OpenCode), its **model** and its **reasoning effort**. Each falls back to the office default (Settings) when left empty. The CEO or the manager can change them; changes apply from the agent's next task.
+Un agente tiene nombre y aspecto, para darle personalidad, y tres ajustes: su **proveedor** (Claude Code, Codex u OpenCode), su **modelo** y su **esfuerzo de razonamiento**. Cada uno toma el valor por defecto de la oficina (Ajustes) si se deja vacío. El CEO o el responsable pueden cambiarlos; los cambios se aplican desde la siguiente tarea del agente.
 
-Most people have one subscription, so the default is every agent on the same provider. Mixing providers (Codex reviewing what Claude wrote, say) is an option for those who have more than one, never a requirement.
+La mayoría de la gente tiene una sola suscripción, así que por defecto todos los agentes usan el mismo proveedor. Mezclar proveedores (Codex revisando lo que escribió Claude, por ejemplo) es una opción para quien tenga más de una, nunca un requisito.
 
-## A floor's team
+## El equipo de una planta
 
-Each floor (one repository) has its own team, up to **10 agents** by default (Settings → *Most agents per floor*, at most 15: the room has 15 desks). Agents stay on their floor and take that board's work.
+Cada planta (un repositorio) tiene su propio equipo, de hasta **10 agentes** por defecto (Ajustes → *Máximo de agentes por planta*, como mucho 15: la sala tiene 15 puestos). Los agentes se quedan en su planta y cogen el trabajo de ese tablero.
 
-The CEO never decides on new work: it files GitHub issues only when you ask (a brief when the project moves in, **Plan**, or a message), and the office refuses its `file_issue` in any other job. Its own reviews, onboarding and triage suggest work in its message to you instead.
+El CEO nunca decide trabajo nuevo: solo abre issues de GitHub cuando se lo pides (un encargo al mudar el proyecto, **Plan** o un mensaje), y la oficina rechaza su `file_issue` en cualquier otro trabajo. Sus revisiones, la incorporación de proyectos y el triaje sugieren trabajo en su mensaje para ti.
 
-The **CEO** watches each floor's throughput (issues ready to start, pull requests waiting for QA or being fixed, idle agents, merges per hour) and sets the team's size with its `scale_team` tool, saying why. Settings → *Team changes* decides what happens next:
+El **CEO** vigila el rendimiento de cada planta (issues listos para empezar, pull requests esperando QA o en corrección, agentes sin trabajo, merges por hora) y fija el tamaño del equipo con su herramienta `scale_team`, explicando por qué. Ajustes → *Cambios de equipo* decide qué pasa después:
 
-- **I approve each change** (the default): new agents wait in the lobby, on the chairs by the glass door. Press `E` on one to see who they'd be: the CEO's reason, and their provider, model and effort, which you can change before they're created. **Hire** creates the agent and its machine; they take the elevator up and get the welcome tour. A smaller team is an envelope on the desk of the agent the CEO picked to leave.
-- **Apply straight away**: within the floor's maximum, the change happens at once; idle agents leave first, and busy ones are left to finish.
+- **Apruebo cada cambio** (por defecto): los candidatos esperan en el vestíbulo, en las sillas junto a la puerta de cristal. Pulsa `E` en uno para ver quién sería: el motivo del CEO, y su proveedor, modelo y esfuerzo, que puedes cambiar antes de crearlo. **Contratar** crea el agente y su máquina; sube en el ascensor y recibe la visita de bienvenida. Un equipo más pequeño es un sobre en el puesto del agente que el CEO eligió para irse.
+- **Aplicarlos directamente**: dentro del máximo de la planta, el cambio ocurre en el acto; los agentes sin trabajo se van primero, y a los ocupados se les deja terminar.
 
-The phone and the manager's console show the same requests. You can always add or remove agents yourself (console → Team, or `E` on an empty desk).
+El móvil y la consola del responsable muestran las mismas solicitudes. Siempre puedes añadir o quitar agentes tú mismo (consola → Equipo, o `E` en un puesto vacío).
 
-## Machines
+## Máquinas
 
-Each agent works on a **machine** of its own: a folder on your computer (the default), or an [Upstash Box](cloud.md) in the cloud, which keeps working while the office is closed. The office talks to a machine through one interface (`server/machines.ts`), so where it runs can change without touching the scheduler. An agent's ⚙️ Setup shows where they work (*Works on*), and moves them while they have no task.
+Cada agente trabaja en una **máquina** propia: una carpeta en tu ordenador (por defecto) o una [Upstash Box](cloud.md) en la nube, que sigue trabajando con la oficina cerrada. La oficina habla con una máquina mediante una única interfaz (`server/machines.ts`), así que dónde se ejecuta puede cambiar sin tocar el planificador. La ⚙️ Configuración de un agente muestra dónde trabaja (*Trabaja en*) y le cambia de sitio mientras no tiene tarea.
 
-A local machine lives in `<SWARM_HOME>/machines/<machine>/`, named after the start of its agent's id:
+Una máquina local vive en `<SWARM_HOME>/machines/<machine>/`, con el nombre del principio del id de su agente:
 
-| Folder | What it is |
+| Carpeta | Qué es |
 | --- | --- |
-| `repos/<owner>__<repo>/` | the agent's own clone of its floor's repository (borrowing objects from the floor's checkout, so it's quick to make) |
-| `work/<owner>__<repo>/` | the agent's worktree of that clone, where its feature branches (`swarm/issue-*`, `qa/pr-*`, PR branches) are checked out |
-| `tmp/` | its temporary folder (`TMP`, `TEMP` and `TMPDIR` in its sessions) |
+| `repos/<owner>__<repo>/` | el clon propio del agente del repositorio de su planta (toma prestados los objetos del checkout de la planta, así que se crea rápido) |
+| `work/<owner>__<repo>/` | el worktree del agente sobre ese clon, donde se sacan sus ramas de trabajo (`swarm/issue-*`, `qa/pr-*`, ramas de PR) |
+| `tmp/` | su carpeta temporal (`TMP`, `TEMP` y `TMPDIR` en sus sesiones) |
 
-Because every machine has its own clone, agents no longer queue behind one shared repository lock, and a branch checked out by one agent never blocks another. The floor's own checkout (your project folder, or the office's clone) is left to you, the CEO's reading and the preview monitor.
+Como cada máquina tiene su propio clon, los agentes ya no hacen cola tras un único bloqueo de repositorio compartido, y una rama que tiene sacada un agente nunca bloquea a otro. El checkout propio de la planta (tu carpeta del proyecto, o el clon de la oficina) queda para ti, para las lecturas del CEO y para el monitor de vistas previas.
 
-Removing an agent removes its machine; uncommitted or unpushed work is saved to `<SWARM_HOME>/leftovers/` first. The office's sweeps delete finished branches in each machine's clone, and machines whose agents are gone.
+Quitar un agente quita su máquina; el trabajo sin commit o sin subir se guarda antes en `<SWARM_HOME>/leftovers/`. Las limpiezas de la oficina borran las ramas terminadas del clon de cada máquina, y las máquinas cuyos agentes ya no están.
 
-Agents from before machines keep their old desk until their current task is over, and move to a machine of their own at their next one. A session can only be resumed from the folder it ran in, so their fixes then start a fresh session.
+Los agentes de antes de las máquinas conservan su antiguo puesto hasta que termina su tarea actual, y pasan a una máquina propia en la siguiente. Una sesión solo se puede reanudar desde la carpeta en la que se ejecutó, así que sus correcciones empiezan entonces una sesión nueva.
 
-### Signing in
+### Inicio de sesión
 
-Machines on your computer use the coding agents' logins and settings there: your Claude Code, Codex and OpenCode sign-ins, skills, plugins and MCP servers, and your `gh` login. That works because the machines are folders on the same computer. Machines elsewhere need credentials of their own, and the rules differ per provider:
+Las máquinas de tu ordenador usan las sesiones y ajustes de los agentes de código de ese ordenador: tus inicios de sesión de Claude Code, Codex y OpenCode, skills, plugins y servidores MCP, y tu sesión de `gh`. Funciona porque las máquinas son carpetas del mismo ordenador. Las máquinas en otro sitio necesitan credenciales propias, y las reglas cambian según el proveedor:
 
-- **Never copy a login file** (`~/.claude/.credentials.json`, Codex's `auth.json`) into several machines, or from your computer into one. Their refresh tokens rotate, so the copies log each other out.
-- **Third-party apps may not collect or store claude.ai credentials or session tokens** (Anthropic's terms). cubefarm never handles a sign-in itself: it starts the coding agent's own login in that agent's terminal, you finish Anthropic's or OpenAI's flow there, and the login stays with that copy of the coding agent. cubefarm only asks whether it's signed in.
+- **Nunca copies un fichero de sesión** (`~/.claude/.credentials.json`, el `auth.json` de Codex) a varias máquinas, ni de tu ordenador a una. Sus tokens de refresco rotan, así que las copias se cierran la sesión unas a otras.
+- **Las apps de terceros no pueden recoger ni guardar credenciales ni tokens de sesión de claude.ai** (condiciones de Anthropic). sareoffice nunca gestiona un inicio de sesión por sí mismo: arranca el login propio del agente de código en el terminal de ese agente, tú completas allí el flujo de Anthropic o de OpenAI, y la sesión se queda en esa copia del agente de código. sareoffice solo pregunta si tiene la sesión iniciada.
 
-Cloud agents work this way today ([Signing a cloud agent in](cloud.md#signing-a-cloud-agent-in)):
+Los agentes en la nube funcionan así hoy ([Iniciar sesión en un agente en la nube](cloud.md#iniciar-sesión-en-un-agente-en-la-nube)):
 
-- **Claude Code**: signs in once per Box with its own login (`claude auth login` in the agent's terminal), kept in the Box user's `~/.claude`. Before each task the office checks it (`claude auth status`); signed out, or failing on an expired login mid-task, the agent is marked *needs sign-in* and their task waits for you. Or, for every Box at once: `CLAUDE_CODE_OAUTH_TOKEN` from the office's environment (`CUBEFARM_CLAUDE_TOKEN`: you run `claude setup-token` yourself; the office never writes it down) or an Anthropic API key.
-- **Codex**: the same with `codex login --device-auth` (a link and a one-time code, since nobody can open a browser on the Box) and `codex login status`, kept in `~/.codex`; or an OpenAI API key for every Box.
-- **GitHub**: `GH_TOKEN` for each machine (a fine-grained token scoped to the floors' repos, or your `gh auth token`), later a GitHub App's short-lived tokens.
+- **Claude Code**: inicia sesión una vez por Box con su propio login (`claude auth login` en el terminal del agente), guardado en el `~/.claude` del usuario de la Box. Antes de cada tarea la oficina lo comprueba (`claude auth status`); si no tiene sesión, o falla a mitad de tarea por una sesión caducada, el agente se marca como *necesita iniciar sesión* y su tarea te espera. O, para todas las Boxes a la vez: `CLAUDE_CODE_OAUTH_TOKEN` desde el entorno de la oficina (`SAREOFFICE_CLAUDE_TOKEN`: ejecutas tú `claude setup-token`; la oficina nunca lo apunta) o una clave de API de Anthropic.
+- **Codex**: lo mismo con `codex login --device-auth` (un enlace y un código de un solo uso, porque nadie puede abrir un navegador en la Box) y `codex login status`, guardado en `~/.codex`; o una clave de API de OpenAI para todas las Boxes.
+- **GitHub**: `GH_TOKEN` para cada máquina (un token de grano fino limitado a los repositorios de las plantas, o tu `gh auth token`); más adelante, los tokens de corta duración de una GitHub App.
 
-Other machines elsewhere (roadmap step 3) will get their own config folders (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`, OpenCode's XDG folders) with onboarding and folder trust filled in, signed in the same way.
+Otras máquinas fuera de tu ordenador (paso 3 de la hoja de ruta) tendrán sus propias carpetas de configuración (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`, las carpetas XDG de OpenCode) con la incorporación y la confianza en la carpeta ya resueltas, y se iniciará sesión de la misma forma.
 
-## Roadmap
+## Hoja de ruta
 
-1. **Interchangeable agents** (done): no roles, titles or QA lab; any free agent takes any task; the CEO scales teams; lobby candidates with provider, model and effort.
-2. **Local machines** (done): an own clone and worktree per agent, its own temp folder and port.
-3. **Per-machine logins** (done for cloud agents: a sign-in check before each task, the coding agent's own sign-in in their terminal): own sign-in folders for other machines, a sign-in check in the office doctor.
-4. **Container machines**: [Docker Sandboxes](https://docs.docker.com/ai/sandboxes/) (`sbx`, microVMs, no Docker Desktop needed; Windows 11 needs the Hypervisor Platform feature), reaching the office at `host.docker.internal`.
-5. **Cloud machines** (Upstash Box done, see [Cloud agents](cloud.md)): an agent's machine can be an Upstash Box that keeps working while the office is closed. Later: Docker's cloud sandboxes, E2B or Daytona behind the same interface, GitHub App tokens instead of your own login, and the office itself in the cloud.
+1. **Agentes intercambiables** (hecho): sin roles, cargos ni laboratorio de QA; cualquier agente libre coge cualquier tarea; el CEO dimensiona los equipos; candidatos en el vestíbulo con proveedor, modelo y esfuerzo.
+2. **Máquinas locales** (hecho): un clon y un worktree propios por agente, con su propia carpeta temporal y puerto.
+3. **Inicio de sesión por máquina** (hecho para los agentes en la nube: una comprobación antes de cada tarea, el login propio del agente de código en su terminal): carpetas de sesión propias para otras máquinas, una comprobación de sesión en el doctor de la oficina.
+4. **Máquinas en contenedor**: [Docker Sandboxes](https://docs.docker.com/ai/sandboxes/) (`sbx`, microVMs, sin necesidad de Docker Desktop; Windows 11 necesita la característica Hypervisor Platform), que llegan a la oficina por `host.docker.internal`.
+5. **Máquinas en la nube** (Upstash Box hecho, ver [Agentes en la nube](cloud.md)): la máquina de un agente puede ser una Upstash Box que sigue trabajando con la oficina cerrada. Más adelante: los sandboxes en la nube de Docker, E2B o Daytona tras la misma interfaz, tokens de GitHub App en lugar de tu propia sesión, y la propia oficina en la nube.

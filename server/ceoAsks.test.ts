@@ -21,15 +21,15 @@ describe('who asks for new work', () => {
 
   it('is in the prompts: reviews and onboarding suggest work instead of filing it', () => {
     const system = ceoSystemPrompt({ name: 'Luna', company: 'Acme', manager: 'Sam', notesFile: 'notes.md', sessionLimit: 0, maxAgents: 10, scaling: 'approve' });
-    expect(system).toContain('Never decide on new work yourself.');
+    expect(system).toContain('Nunca decidas tú el trabajo nuevo.');
     const review = ceoJobPrompt({ kind: 'review', at: 0 }, null);
-    expect(review).not.toContain('plan the next milestone');
-    expect(review).toContain('file no issues');
+    expect(review).not.toContain('Planifica el siguiente hito');
+    expect(review).toContain('no abras issues');
     const floor = { floor: 2, fullName: 'acme/app', clone: '/clones/app', mission: 'Add voice messages', backlog: 0 };
     const onboard = ceoJobPrompt({ kind: 'onboard', repoId: 'r1', at: 0 }, floor);
-    expect(onboard).toContain('File no issues');
-    expect(onboard).not.toContain('plan the first milestone');
-    expect(ceoJobPrompt({ kind: 'onboard', repoId: 'r1', at: 0 }, { ...floor, mission: '', backlog: 3 })).toContain('file no new ones');
+    expect(onboard).toContain('No abras issues');
+    expect(onboard).not.toContain('primer hito');
+    expect(ceoJobPrompt({ kind: 'onboard', repoId: 'r1', at: 0 }, { ...floor, mission: '', backlog: 3 })).toContain('no abras ninguno nuevo');
   });
 });
 

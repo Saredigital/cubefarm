@@ -32,17 +32,17 @@ const texts = (ticks: { text: string }[]) => ticks.map((t) => t.text);
 
 describe('agentTicks', () => {
   it('an agent picking up an issue, opening a PR, fixing it and hitting a snag', () => {
-    expect(texts(agentTicks(dev(), dev({ status: 'preparing', task: 'issue', issueNumber: 205 })))).toEqual(['Ken picked up #205']);
+    expect(texts(agentTicks(dev(), dev({ status: 'preparing', task: 'issue', issueNumber: 205 })))).toEqual(['Ken ha cogido el #205']);
     expect(agentTicks(dev({ status: 'preparing', task: 'issue', issueNumber: 205 }), dev({ status: 'working', task: 'issue', issueNumber: 205 }))).toEqual([]);
     expect(agentTicks(dev({ status: 'working', task: 'issue', issueNumber: 205 }), dev({ status: 'done', task: 'issue', issueNumber: 205, prNumber: 212 }))).toEqual([
-      { repoId: R, text: 'Ken opened PR #212', tone: 'good', key: `opened:${R}#212` },
+      { repoId: R, text: 'Ken ha abierto la PR #212', tone: 'good', key: `opened:${R}#212` },
     ]);
-    expect(texts(agentTicks(dev({ status: 'done', task: 'issue', prNumber: 212 }), dev({ status: 'working', task: 'fix', prNumber: 212 })))).toEqual(['Ken is fixing PR #212']);
-    expect(texts(agentTicks(dev({ status: 'working', task: 'issue', issueNumber: 9 }), dev({ status: 'error', task: 'issue', issueNumber: 9 })))).toEqual(['Ken hit a snag on #9']);
+    expect(texts(agentTicks(dev({ status: 'done', task: 'issue', prNumber: 212 }), dev({ status: 'working', task: 'fix', prNumber: 212 })))).toEqual(['Ken está corrigiendo la PR #212']);
+    expect(texts(agentTicks(dev({ status: 'working', task: 'issue', issueNumber: 9 }), dev({ status: 'error', task: 'issue', issueNumber: 9 })))).toEqual(['Ken se ha atascado con el #9']);
   });
 
   it('someone first seen says only what they are on', () => {
-    expect(texts(agentTicks(undefined, dev({ status: 'working', task: 'issue', issueNumber: 3 })))).toEqual(['Ken picked up #3']);
+    expect(texts(agentTicks(undefined, dev({ status: 'working', task: 'issue', issueNumber: 3 })))).toEqual(['Ken ha cogido el #3']);
     expect(agentTicks(undefined, dev({ status: 'done', task: 'issue', issueNumber: 3, prNumber: 4 }))).toEqual([]);
     expect(agentTicks(undefined, dev({ status: 'error' }))).toEqual([]);
   });
@@ -56,19 +56,19 @@ describe('agentTicks', () => {
 describe('qaTicks', () => {
   const names = (id: string | null) => (id === 'marple' ? 'Marple' : null);
   it('follows a PR through QA', () => {
-    expect(texts(qaTicks(undefined, qa('queued'), names))).toEqual(['PR #12 is queued for QA']);
-    expect(texts(qaTicks('queued', qa('testing'), names))).toEqual(['Marple is testing PR #12']);
-    expect(qaTicks('testing', qa('passed'), names)).toEqual([{ repoId: R, text: 'Marple passed PR #12 ✅', tone: 'good' }]);
-    expect(texts(qaTicks('testing', qa('failed', { round: 2 }), names))).toEqual(['Marple failed PR #12 · round 2']);
-    expect(texts(qaTicks('failed', qa('needs-human'), names))).toEqual(['PR #12 needs you 🙋']);
+    expect(texts(qaTicks(undefined, qa('queued'), names))).toEqual(['PR #12 en cola para QA']);
+    expect(texts(qaTicks('queued', qa('testing'), names))).toEqual(['Marple está probando la PR #12']);
+    expect(qaTicks('testing', qa('passed'), names)).toEqual([{ repoId: R, text: 'Marple ha aprobado la PR #12 ✅', tone: 'good' }]);
+    expect(texts(qaTicks('testing', qa('failed', { round: 2 }), names))).toEqual(['Marple ha suspendido la PR #12 · ronda 2']);
+    expect(texts(qaTicks('failed', qa('needs-human'), names))).toEqual(['PR #12 te necesita 🙋']);
     expect(qaTicks('failed', qa('fixing'), names)).toEqual([]);
     expect(qaTicks('testing', qa('testing'), names)).toEqual([]);
-    expect(texts(qaTicks('fixing', qa('queued', { round: 2 }), names))).toEqual(['PR #12 is queued for QA (round 2)']);
+    expect(texts(qaTicks('fixing', qa('queued', { round: 2 }), names))).toEqual(['PR #12 en cola para QA (ronda 2)']);
   });
 
   it("doesn't pin the office's own calls on whoever tested it", () => {
-    expect(texts(qaTicks('passed', qa('failed'), names))).toEqual(['PR #12 was sent back']);
-    expect(texts(qaTicks(undefined, qa('passed'), names))).toEqual(['PR #12 passed QA ✅']);
+    expect(texts(qaTicks('passed', qa('failed'), names))).toEqual(['PR #12 devuelta']);
+    expect(texts(qaTicks(undefined, qa('passed'), names))).toEqual(['PR #12 ha pasado QA ✅']);
   });
 });
 
@@ -77,13 +77,13 @@ describe('repoTicks', () => {
   it('PRs opening, merging and closing, and CI turning red or green', () => {
     const before = repoFacts(repo([pull(1), pull(2, { checks: 'pending' }), pull(3, { checks: 'failing' }), pull(4)]));
     const after = repo([pull(1, { state: 'MERGED' }), pull(2, { checks: 'failing' }), pull(3, { checks: 'passing' }), pull(4, { state: 'CLOSED' }), pull(5)]);
-    expect(texts(repoTicks(before, after, (n) => (n === 5 ? 'Ken' : null)))).toEqual(['#1 merged 🎉', 'CI red on #2', 'CI green on #3', 'PR #4 closed', 'Ken opened PR #5']);
+    expect(texts(repoTicks(before, after, (n) => (n === 5 ? 'Ken' : null)))).toEqual(['#1 fusionada 🎉', 'CI en rojo en #2', 'CI en verde en #3', 'PR #4 cerrada', 'Ken ha abierto la PR #5']);
   });
 
   it('PRs and issues closed, as they drop off the open lists (the cleanup after a close)', () => {
     const before = repoFacts(repo([pull(1), pull(2), pull(3)], [issue(10), issue(11), issue(12)]));
     const after = repo([pull(1), pull(3, { state: 'MERGED', closesIssues: [12] })], [issue(10)]);
-    expect(texts(repoTicks(before, after, nobody))).toEqual(['#3 merged 🎉', 'PR #2 closed', 'Issue #11 closed']);
+    expect(texts(repoTicks(before, after, nobody))).toEqual(['#3 fusionada 🎉', 'PR #2 cerrada', 'Issue #11 cerrado']);
   });
 
   it("doesn't call something closed when a full list may have pushed it off", () => {
@@ -94,13 +94,13 @@ describe('repoTicks', () => {
   it('only recent merges of PRs it never saw open', () => {
     const now = Date.parse('2026-10-04T12:00:00Z');
     const after = repo([pull(7, { state: 'MERGED', mergedAt: '2026-10-04T11:58:00Z' }), pull(8, { state: 'MERGED', mergedAt: '2026-10-03T11:58:00Z' })]);
-    expect(texts(repoTicks(repoFacts(repo([])), after, nobody, now))).toEqual(['#7 merged 🎉']);
+    expect(texts(repoTicks(repoFacts(repo([])), after, nobody, now))).toEqual(['#7 fusionada 🎉']);
   });
 
   it('new issues, a few at a time, with their titles redacted', () => {
     const after = repo([], [issue(1), issue(2, 'Rotate ghp_0123456789abcdefABCDEF0123 now'), issue(3), issue(4), issue(5)]);
     const lines = texts(repoTicks(repoFacts(repo([], [issue(1)])), after, nobody));
-    expect(lines).toEqual(['New issue #2: Rotate ••• now', 'New issue #3: Issue 3', 'New issue #4: Issue 4', '+1 more new issues']);
+    expect(lines).toEqual(['Nuevo issue #2: Rotate ••• now', 'Nuevo issue #3: Issue 3', 'Nuevo issue #4: Issue 4', '+1 issues nuevos más']);
   });
 });
 
@@ -113,7 +113,7 @@ describe('Ticker', () => {
     expect(t.observe({ type: 'repo', repo: repo([], [], { lastSync: null }) })).toEqual([]);
     expect(t.observe({ type: 'repo', repo: repo([pull(1)]) })).toEqual([]);
     const items = t.observe({ type: 'repo', repo: repo([pull(1, { state: 'MERGED' })]) }, 5000);
-    expect(items).toEqual([{ id: 1, repoId: R, at: 5000, text: '#1 merged 🎉', tone: 'good' }]);
+    expect(items).toEqual([{ id: 1, repoId: R, at: 5000, text: '#1 fusionada 🎉', tone: 'good' }]);
     expect(t.recent()).toEqual(items);
   });
 
@@ -121,13 +121,13 @@ describe('Ticker', () => {
     const t = new Ticker(lookups);
     t.observe({ type: 'repo', repo: repo([]) });
     t.observe(agentEv('ken', dev({ status: 'working', task: 'issue', issueNumber: 205 })));
-    expect(texts(t.observe(agentEv('ken', dev({ status: 'done', task: 'issue', issueNumber: 205, prNumber: 212 }))))).toEqual(['Ken opened PR #212']);
+    expect(texts(t.observe(agentEv('ken', dev({ status: 'done', task: 'issue', issueNumber: 205, prNumber: 212 }))))).toEqual(['Ken ha abierto la PR #212']);
     expect(t.observe({ type: 'repo', repo: repo([pull(212)]) })).toEqual([]);
   });
 
   it('names the agent testing it and ignores the events it makes itself', () => {
     const t = new Ticker(lookups);
-    expect(texts(t.observe({ type: 'qa', qa: qa('testing') }))).toEqual(['Marple is testing PR #12']);
+    expect(texts(t.observe({ type: 'qa', qa: qa('testing') }))).toEqual(['Marple está probando la PR #12']);
     const [item] = t.recent();
     expect(t.observe({ type: 'ticker', item })).toEqual([]);
     expect(t.observe({ type: 'logs', tails: { ken: [] } })).toEqual([]);

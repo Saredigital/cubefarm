@@ -19,12 +19,12 @@ export interface FloorRow {
 }
 
 const STATUS_WORDS: Record<AgentStatus, string> = {
-  idle: 'Idle',
-  preparing: 'Setting up',
-  working: 'Working',
-  done: 'Finished',
-  error: 'Needs help',
-  stopped: 'Stopped',
+  idle: 'Libre',
+  preparing: 'Preparándose',
+  working: 'Trabajando',
+  done: 'Terminado',
+  error: 'Necesita ayuda',
+  stopped: 'Detenido',
 };
 
 /** The coding agents' names until the office has listed them (CliView.label). */
@@ -53,12 +53,12 @@ export function signInFor(a: Pick<Agent, 'cli' | 'role' | 'host' | 'needsSignIn'
 
 /** What someone is on, in words. */
 export function doingText(a: Pick<Agent, 'role' | 'status' | 'task' | 'issueNumber' | 'issueTitle' | 'prNumber'>): string {
-  if (a.role === 'ceo') return a.status === 'working' ? (a.issueTitle ?? 'Working') : 'Free for a chat';
-  if (a.status === 'idle') return 'Nothing assigned';
-  if (a.task === 'qa') return a.prNumber ? `Testing PR #${a.prNumber}${a.issueTitle ? `: ${a.issueTitle}` : ''}` : 'Testing';
-  if (a.task === 'fix' && a.prNumber) return `Fixing PR #${a.prNumber}${a.issueTitle ? `: ${a.issueTitle}` : ''}`;
+  if (a.role === 'ceo') return a.status === 'working' ? (a.issueTitle ?? 'Trabajando') : 'Libre para charlar';
+  if (a.status === 'idle') return 'Nada asignado';
+  if (a.task === 'qa') return a.prNumber ? `Probando la PR #${a.prNumber}${a.issueTitle ? `: ${a.issueTitle}` : ''}` : 'Probando';
+  if (a.task === 'fix' && a.prNumber) return `Corrigiendo la PR #${a.prNumber}${a.issueTitle ? `: ${a.issueTitle}` : ''}`;
   if (a.issueNumber) return `Issue #${a.issueNumber}${a.issueTitle ? `: ${a.issueTitle}` : ''}`;
-  return a.issueTitle ?? 'Working';
+  return a.issueTitle ?? 'Trabajando';
 }
 
 /** One row per person, in the order given (agentsOnRepo: by desk). */
@@ -70,10 +70,10 @@ export function floorRows(agents: Agent[], settings: Runtime, clis: CliView[]): 
       id: a.id,
       name: a.name,
       agent: agentLabel(a, settings, clis),
-      status: signIn ? 'Needs you to sign in' : STATUS_WORDS[a.status],
+      status: signIn ? 'Necesita que inicies sesión' : STATUS_WORDS[a.status],
       kind,
       icon: KIND_ICON[kind],
-      doing: signIn ? `Waiting for ${signIn} to be signed in${a.status === 'idle' ? '' : ` · ${doingText(a)}`}` : doingText(a),
+      doing: signIn ? `Esperando a que se inicie sesión en ${signIn}${a.status === 'idle' ? '' : ` · ${doingText(a)}`}` : doingText(a),
       signIn,
     };
   });

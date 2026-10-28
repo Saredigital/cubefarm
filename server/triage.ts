@@ -19,11 +19,11 @@ export type TriageStep = { do: 'triage' } | { do: 'escalate'; note: string | nul
 export function triageStep(e: TriageEvent): TriageStep {
   switch (e.kind) {
     case 'stuck':
-      return e.triages < MAX_TRIAGES ? { do: 'triage' } : { do: 'escalate', note: `The CEO already looked at it ${e.triages === 1 ? 'once' : `${e.triages} times`}.` };
+      return e.triages < MAX_TRIAGES ? { do: 'triage' } : { do: 'escalate', note: `El CEO ya la ha revisado ${e.triages === 1 ? 'una vez' : `${e.triages} veces`}.` };
     case 'escalate':
       return { do: 'escalate', note: e.reason.trim() || null };
     case 'ended':
-      return e.acted ? { do: 'nothing' } : { do: 'escalate', note: 'The CEO looked at it but took no action.' };
+      return e.acted ? { do: 'nothing' } : { do: 'escalate', note: 'El CEO la ha revisado, pero no ha tomado ninguna medida.' };
   }
 }
 
@@ -39,11 +39,11 @@ export function checkTriageTarget(r: {
   pull: { state: string } | undefined; // the PR as the floor last synced it
   status: QaStatus | undefined; // its QA record
 }) {
-  if (r.jobFloor == null) throw new HttpError(409, 'Triage tools only work in a triage job.');
-  if (r.floor !== r.jobFloor) throw new HttpError(404, `This triage is for floor ${r.jobFloor}: PR #${r.pr} on floor ${r.floor} isn't yours to change.`);
-  if (!r.pull) throw new HttpError(404, `There is no PR #${r.pr} on floor ${r.floor}.`);
-  if (r.pull.state !== 'OPEN') throw new HttpError(409, `PR #${r.pr} is ${r.pull.state.toLowerCase()}, so there is nothing to decide.`);
-  if (r.status !== 'needs-human') throw new HttpError(409, `PR #${r.pr} isn't stuck: it is ${r.status ?? 'not in QA'}.`);
+  if (r.jobFloor == null) throw new HttpError(409, 'Las herramientas de triaje solo funcionan durante un trabajo de triaje.');
+  if (r.floor !== r.jobFloor) throw new HttpError(404, `Este triaje es de la planta ${r.jobFloor}: no puedes cambiar la PR #${r.pr} de la planta ${r.floor}.`);
+  if (!r.pull) throw new HttpError(404, `No hay ninguna PR #${r.pr} en la planta ${r.floor}.`);
+  if (r.pull.state !== 'OPEN') throw new HttpError(409, `La PR #${r.pr} está ${r.pull.state === 'MERGED' ? 'fusionada' : 'cerrada'}, así que no hay nada que decidir.`);
+  if (r.status !== 'needs-human') throw new HttpError(409, `La PR #${r.pr} no está esperando una decisión humana.`);
 }
 
 /** The PR facts a triage job's prompt carries. */

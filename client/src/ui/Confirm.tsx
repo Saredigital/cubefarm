@@ -68,14 +68,14 @@ function Question({ ask }: { ask: Ask }) {
         {ask.body && <div className="confirm-body">{ask.body}</div>}
         <div className="confirm-actions">
           <button className="btn btn-ghost" data-answer="cancel" onClick={() => answer(false)}>
-            {ask.cancel ?? 'Cancel'}
+            {ask.cancel ?? 'Cancelar'}
           </button>
           <button className={`btn ${tone === 'danger' ? 'btn-bad' : tone === 'warn' ? 'btn-warn' : 'btn-good'}`} onClick={() => answer(true)} autoFocus>
-            {ask.confirm ?? 'OK'}
+            {ask.confirm ?? 'Aceptar'}
           </button>
         </div>
         <div className="confirm-keys muted small">
-          <kbd>Enter</kbd> {ask.confirm ?? 'OK'} · <kbd>Esc</kbd> {ask.cancel ?? 'Cancel'}
+          <kbd>Enter</kbd> {ask.confirm ?? 'Aceptar'} · <kbd>Esc</kbd> {ask.cancel ?? 'Cancelar'}
         </div>
       </div>
     </div>

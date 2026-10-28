@@ -7,7 +7,7 @@ import path from 'node:path';
 // package-lock.json are hashed into a marker in node_modules, so an unchanged checkout skips the install.
 
 /** Named for the preview, where it started; desks share it. */
-export const INSTALL_MARKER = '.cubefarm-preview-install';
+export const INSTALL_MARKER = '.sareoffice-preview-install';
 export const INSTALL_TIMEOUT_MS = 15 * 60_000;
 /** Desk installs running at once, office-wide; the rest queue. */
 export const MAX_DESK_INSTALLS = 2;
@@ -60,8 +60,8 @@ export type DepsOutcome = 'none' | 'agent' | 'skipped' | 'installed' | 'failed';
 
 /** The line for the agent's instructions ('' when the office left the dependencies alone). */
 export function depsPromptLine(outcome: DepsOutcome | null | undefined): string {
-  if (outcome === 'installed' || outcome === 'skipped') return 'Dependencies are already installed for this checkout; run npm install only if you change package.json.';
-  if (outcome === 'failed') return "The office couldn't install this checkout's dependencies: run npm install yourself first.";
+  if (outcome === 'installed' || outcome === 'skipped') return 'Las dependencias de este checkout ya están instaladas; ejecuta npm install solo si cambias package.json.';
+  if (outcome === 'failed') return "La oficina no ha podido instalar las dependencias de este checkout: ejecuta npm install antes de empezar.";
   return '';
 }
 
@@ -121,7 +121,7 @@ export function npmCi(dir: string, timeoutMs = INSTALL_TIMEOUT_MS): Promise<void
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       void killTree(child);
-      reject(new Error(`npm ci took longer than ${Math.round(timeoutMs / 60_000)} minutes`));
+      reject(new Error(`npm ci ha tardado más de ${Math.round(timeoutMs / 60_000)} minutos`));
     }, timeoutMs);
     child.once('error', (err) => {
       clearTimeout(timer);
@@ -131,7 +131,7 @@ export function npmCi(dir: string, timeoutMs = INSTALL_TIMEOUT_MS): Promise<void
       clearTimeout(timer);
       if (code === 0) return resolve();
       const last = tail.split(/\r?\n/).filter((l) => l.trim()).slice(-3).join(' · ');
-      reject(new Error(`npm ci failed (code ${code})${last ? `: ${last.slice(0, 300)}` : ''}`));
+      reject(new Error(`npm ci ha fallado (código ${code})${last ? `: ${last.slice(0, 300)}` : ''}`));
     });
   });
 }
@@ -153,24 +153,24 @@ export async function installDesk(dir: string, cb: DepsCallbacks, install: (dir:
     const plan = deskDepsPlan(state);
     if (plan === 'none') return 'none';
     if (plan === 'agent') {
-      log(['No package-lock.json; leaving the dependencies to the agent.']);
+      log(['No hay package-lock.json; las dependencias quedan en manos del agente.']);
       return 'agent';
     }
     if (plan === 'skip') {
-      log(['Dependencies unchanged since the last install; skipping it.']);
+      log(['Las dependencias no han cambiado desde la última instalación; no hace falta repetirla.']);
       return 'skipped';
     }
-    log(['Installing dependencies…']);
+    log(['Instalando dependencias…']);
     cb.installing();
     await deskInstalls(async () => {
       log(['$ npm ci']);
       await install(dir);
     });
     await writeMarker(dir, state.hash);
-    log(['Dependencies installed.']);
+    log(['Dependencias instaladas.']);
     return 'installed';
   } catch (err) {
-    log([`⚠ Could not install the dependencies (${(err as Error).message.split(/\r?\n/)[0].slice(0, 300)}); the agent will run npm install itself.`]);
+    log([`⚠ No se han podido instalar las dependencias (${(err as Error).message.split(/\r?\n/)[0].slice(0, 300)}); el agente ejecutará npm install por su cuenta.`]);
     return 'failed';
   }
 }

@@ -9,7 +9,7 @@ export const VERSION: string = JSON.parse(fs.readFileSync(path.resolve(import.me
 
 // Everything the swarm writes lives outside this project so that agents working in
 // cloned repos never pick up this project's CLAUDE.md or settings by walking up the tree.
-export const HOME_DIR = process.env.SWARM_HOME ?? path.join(os.homedir(), '.cubefarm');
+export const HOME_DIR = process.env.SWARM_HOME ?? path.join(os.homedir(), '.sareoffice');
 export const WORKSPACE_ROOT = path.join(HOME_DIR, 'workspaces');
 export const DEMO = process.argv.includes('--demo') || process.env.SWARM_DEMO === '1' || process.env.SWARM_DEMO === 'true';
 
@@ -73,7 +73,7 @@ export const LOG_BUFFER = 600;
 
 /**
  * Where new projects go unless the manager picks another folder. Run from a checkout, that's the folder the app sits
- * in (C:\Projects\cubefarm → C:\Projects). Installed from npm the app lives in node_modules, so it's the usual
+ * in (C:\Projects\sareoffice → C:\Projects). Installed from npm the app lives in node_modules, so it's the usual
  * projects folder in your home instead.
  */
 export function defaultProjectsDir(appDir: string, home = os.homedir()): string {

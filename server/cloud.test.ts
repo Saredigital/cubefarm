@@ -75,13 +75,13 @@ describe('redact', () => {
 
 describe('Box names', () => {
   it('fit within Upstash label rules and tell offices and machines apart', () => {
-    expect(boxName('k3f9qa', 'a1b2c3d4')).toBe('cubefarm-k3f9qa-a1b2c3d4');
+    expect(boxName('k3f9qa', 'a1b2c3d4')).toBe('sareoffice-k3f9qa-a1b2c3d4');
     const labels = boxLabels('k3f9qa', 'a1b2c3d4');
     expect(labels.length).toBeLessThanOrEqual(5);
     for (const l of labels) expect(l).toMatch(/^[A-Za-z0-9._:-]{1,20}$/);
     expect(machineOfBox({ labels }, 'k3f9qa')).toBe('a1b2c3d4');
     expect(machineOfBox({ labels }, 'other1')).toBeNull();
-    expect(machineOfBox({ labels: ['cubefarm'] }, 'k3f9qa')).toBeNull();
+    expect(machineOfBox({ labels: ['sareoffice'] }, 'k3f9qa')).toBeNull();
   });
 });
 
@@ -103,11 +103,11 @@ function fakeApi(boxes: BoxInfo[], ok = true): BoxApi {
 
 describe('Cloud', () => {
   const setup = async (boxes: BoxInfo[] = [], ok = true) => {
-    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cubefarm-cloud-'));
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'sareoffice-cloud-'));
     const views: unknown[] = [];
     const cloud = new Cloud({
       secretsFile: path.join(dir, 'secrets.json'),
-      env: { CUBEFARM_CLAUDE_TOKEN: 'sk-ant-oat01-from-env' },
+      env: { SAREOFFICE_CLAUDE_TOKEN: 'sk-ant-oat01-from-env' },
       boxes: (key) => fakeApi(boxes, ok && key === 'good-key'),
       ghToken: async () => 'gho_login_token',
       office: () => 'k3f9qa',
@@ -131,8 +131,8 @@ describe('Cloud', () => {
 
   it("counts the account's Boxes and finds this office's orphans", async () => {
     const boxes: BoxInfo[] = [
-      { id: '1', name: 'cubefarm-k3f9qa-a1b2c3d4', labels: boxLabels('k3f9qa', 'a1b2c3d4'), status: 'running' },
-      { id: '2', name: 'cubefarm-k3f9qa-deadbeef', labels: boxLabels('k3f9qa', 'deadbeef'), status: 'paused' },
+      { id: '1', name: 'sareoffice-k3f9qa-a1b2c3d4', labels: boxLabels('k3f9qa', 'a1b2c3d4'), status: 'running' },
+      { id: '2', name: 'sareoffice-k3f9qa-deadbeef', labels: boxLabels('k3f9qa', 'deadbeef'), status: 'paused' },
       { id: '3', name: 'cf-other1-12345678', labels: boxLabels('other1', '12345678'), status: 'running' },
       { id: '4', name: 'someone-else', labels: [], status: 'idle' },
     ];
@@ -152,6 +152,6 @@ describe('Cloud', () => {
 
   it("refuses a setup-token where an Anthropic API key goes, since it belongs in the environment", async () => {
     const { cloud } = await setup();
-    await expect(cloud.setToken('anthropic', 'sk-ant-oat01-subscription')).rejects.toThrow(/environment/);
+    await expect(cloud.setToken('anthropic', 'sk-ant-oat01-subscription')).rejects.toThrow(/entorno/);
   });
 });

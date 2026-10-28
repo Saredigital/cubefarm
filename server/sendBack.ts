@@ -14,7 +14,7 @@ const body = z.object({ note: z.string().max(MAX_SEND_BACK_NOTE).optional() });
 /** The optional note from a request body; blank means none. Throws HttpError(400) for anything else. */
 export function parseSendBackNote(input: unknown): string | undefined {
   const parsed = body.safeParse(input ?? {});
-  if (!parsed.success) throw new HttpError(400, `note must be text of at most ${MAX_SEND_BACK_NOTE} characters`);
+  if (!parsed.success) throw new HttpError(400, `note debe ser un texto de como mucho ${MAX_SEND_BACK_NOTE} caracteres`);
   return parsed.data.note?.trim() || undefined;
 }
 
@@ -47,16 +47,16 @@ export function sendBackPatch(
   rec: SendBackRecord | undefined,
   base: string,
   note?: string,
-  from = 'the manager', // who wrote the note
+  from = 'el responsable', // who wrote the note
 ): SendBackPatch {
-  if (!pr || pr.state !== 'OPEN') throw new HttpError(404, `PR #${prNumber} is not open`);
-  if (rec?.status === 'testing' || rec?.status === 'fixing') throw new HttpError(409, `PR #${prNumber} is already ${rec.status}`);
+  if (!pr || pr.state !== 'OPEN') throw new HttpError(404, `La PR #${prNumber} no está abierta`);
+  if (rec?.status === 'testing' || rec?.status === 'fixing') throw new HttpError(409, `La PR #${prNumber} ya está ${rec.status === 'testing' ? 'en pruebas' : 'en corrección'}`);
   if (!rec || (rec.status !== 'needs-human' && rec.status !== 'failed')) {
-    throw new HttpError(409, `PR #${prNumber} isn't waiting on you: only a PR that failed QA or needs a human can go back to a developer`);
+    throw new HttpError(409, `La PR #${prNumber} no está esperando tu decisión: solo se puede devolver a un desarrollador una PR que haya suspendido QA o necesite intervención humana`);
   }
   const conflict = pr.mergeable === 'CONFLICTING' || pr.mergeState === 'DIRTY';
-  const findings = [rec.fixInstructions?.trim(), note?.trim() && `From ${from}: ${note.trim()}`].filter(Boolean).join('\n\n');
-  const addMerge = conflict && !rec.passedSha && !findings.includes(`conflicts with ${base}`);
+  const findings = [rec.fixInstructions?.trim(), note?.trim() && `Nota (${from}): ${note.trim()}`].filter(Boolean).join('\n\n');
+  const addMerge = conflict && !rec.passedSha && !findings.includes(`conflicts with ${base}`) && !findings.includes(`conflictos con ${base}`);
   const fixInstructions = (addMerge ? conflictFixInstructions(findings, base) : findings) || null;
   return { status: 'failed', fixReason: conflict ? 'conflict' : 'qa', fixInstructions, sessionFailures: 0, retests: rec.retests + 1, mergeNote: null };
 }

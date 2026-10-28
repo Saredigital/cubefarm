@@ -1,6 +1,5 @@
 // Pocket mode (docs/pocket.md): the office as a 2D app for a phone or any touch screen, on the same store, snapshot
-// and REST as the 3D office. Five tabs: Company (each floor's pipeline), Chat (the CEO), Kanban, Team and Approvals.
-// Nothing 3D loads here until "Open the 3D office".
+// and REST as the control panel. Five tabs: Company (each floor's pipeline), Chat (the CEO), Kanban, Team and Approvals.
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { agentsOnRepo, kanbanFor, unreadMessages, useStore } from '../store';
 import { CEO_ID } from '../../../shared/types';
@@ -18,6 +17,7 @@ import { Team } from './PocketTeam';
 // Opened from the Team and Kanban tabs; loaded when first opened (the terminal brings xterm.js).
 const TerminalView = lazy(() => import('../ui/TerminalView').then((m) => ({ default: m.TerminalView })));
 const AppViewer = lazy(() => import('../ui/AppViewer').then((m) => ({ default: m.AppViewer })));
+const CompanyWorkspace = lazy(() => import('../company/CompanyWorkspace').then((m) => ({ default: m.CompanyWorkspace })));
 
 export type PocketTab = 'company' | 'chat' | 'kanban' | 'team' | 'approvals';
 const TABS: PocketTab[] = ['company', 'chat', 'kanban', 'team', 'approvals'];
@@ -30,32 +30,32 @@ function tabFrom(url: string | null | undefined): PocketTab | null {
 
 const name = (fullName: string) => fullName.split('/')[1] ?? fullName;
 
-function openOffice() {
+function openPanel() {
   useStore.getState().openOverlay(null);
-  setMode('office');
+  setMode('panel');
 }
 
 // ---------- company ----------
 
 const STAGES: [keyof Pipeline, string, string][] = [
-  ['building', '🔨', 'Building'],
+  ['building', '🔨', 'Construyendo'],
   ['qa', '🔍', 'QA'],
-  ['fixing', '🔧', 'Fixing'],
-  ['ready', '✅', 'Ready'],
-  ['needsYou', '⚠️', 'Needs you'],
+  ['fixing', '🔧', 'Corrigiendo'],
+  ['ready', '✅', 'Listas'],
+  ['needsYou', '⚠️', 'Te necesitan'],
 ];
 
 function Banners() {
   const connected = useStore((s) => s.connected);
   const loaded = useStore((s) => s.loaded);
   const usage = useStore((s) => s.usage);
-  const update = useStore((s) => (s.restarting ? '⟳ The office is restarting…' : officeUpdateChip(s.officeUpdate)));
-  const until = usage.until ? new Date(usage.until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
+  const update = useStore((s) => (s.restarting ? '⟳ La oficina se está reiniciando…' : officeUpdateChip(s.officeUpdate)));
+  const until = usage.until ? new Date(usage.until).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : null;
   return (
     <>
-      {!connected && <div className="pk-banner pk-banner-bad">{loaded ? '📡 Reconnecting to the office…' : '📡 Connecting to the office…'}</div>}
-      {usage.state === 'paused' && <div className="pk-banner pk-banner-bad">⏸ Claude's usage limit was reached: no new work starts{until ? ` until ${until}` : ''}.</div>}
-      {usage.state === 'pacing' && <div className="pk-banner">🐢 Pacing new work after a usage warning{until ? ` until ${until}` : ''}.</div>}
+      {!connected && <div className="pk-banner pk-banner-bad">{loaded ? '📡 Reconectando con la oficina…' : '📡 Conectando con la oficina…'}</div>}
+      {usage.state === 'paused' && <div className="pk-banner pk-banner-bad">⏸ Se alcanzó el límite de uso de Claude: no empieza trabajo nuevo{until ? ` hasta las ${until}` : ''}.</div>}
+      {usage.state === 'pacing' && <div className="pk-banner">🐢 Ritmo reducido para el trabajo nuevo tras un aviso de uso{until ? ` hasta las ${until}` : ''}.</div>}
       {update && <div className="pk-banner">{update}</div>}
     </>
   );
@@ -85,9 +85,9 @@ function Company({ go }: { go: (tab: PocketTab, repoId?: string) => void }) {
       {waiting > 0 && (
         <button className="pk-callout" onClick={() => go('approvals')}>
           <span>
-            ⚠️ <b>{waiting}</b> decision{waiting === 1 ? '' : 's'} waiting on you
+            ⚠️ <b>{waiting}</b> {waiting === 1 ? 'decisión espera' : 'decisiones esperan'} tu respuesta
           </span>
-          <span>Approvals →</span>
+          <span>Aprobaciones →</span>
         </button>
       )}
       {ceo && (
@@ -97,14 +97,14 @@ function Company({ go }: { go: (tab: PocketTab, repoId?: string) => void }) {
           </span>
           <div className="grow">
             <b>{ceo.name}</b> <span className="muted small">CEO</span>
-            <div className="small">{ceo.status === 'working' ? (ceoInfo.job?.label ?? 'Working') : ceoInfo.queue.length ? `Next: ${ceoInfo.queue[0].label}` : 'Free'}</div>
+            <div className="small">{ceo.status === 'working' ? (ceoInfo.job?.label ?? 'Trabajando') : ceoInfo.queue.length ? `Siguiente: ${ceoInfo.queue[0].label}` : 'Libre'}</div>
           </div>
           <button className="btn btn-small" onClick={() => go('chat')}>
             💬 Chat
           </button>
         </div>
       )}
-      {floors.length === 0 && <p className="muted">No projects yet. Connect a repo from the manager's console in the 3D office.</p>}
+      {floors.length === 0 && <p className="muted">Aún no hay proyectos. Conecta un repo desde el panel de control.</p>}
       {floors.map(({ repo, team, busy, p }) => (
         <div key={repo.id} className="pk-card pk-floor" style={{ ['--accent' as string]: repo.color }}>
           <div className="pk-floor-head">
@@ -114,7 +114,7 @@ function Company({ go }: { go: (tab: PocketTab, repoId?: string) => void }) {
               <div className="muted small pk-ellipsis">{repo.summary || repo.description || repo.fullName}</div>
             </div>
           </div>
-          <div className="pk-pipeline" role="list" aria-label={`Floor ${repo.floor} pipeline`}>
+          <div className="pk-pipeline" role="list" aria-label={`Flujo de la planta ${repo.floor}`}>
             {STAGES.map(([k, icon, label]) => (
               <div key={k} role="listitem" className={`pk-stage ${p[k] ? '' : 'pk-stage-zero'} ${k === 'needsYou' && p[k] ? 'pk-stage-hot' : ''}`}>
                 <span className="pk-stage-n">
@@ -129,23 +129,23 @@ function Company({ go }: { go: (tab: PocketTab, repoId?: string) => void }) {
           </div>
           <div className="pk-floor-foot small">
             <span className="muted">
-              👥 {team} · {busy} busy · 📋 {p.backlog} in backlog
+              👥 {team} · {busy} {busy === 1 ? 'ocupado' : 'ocupados'} · 📋 {p.backlog} en backlog
             </span>
             <span className="spacer" />
             <button className="btn btn-small" onClick={() => go('kanban', repo.id)}>
-              Board
+              Tablero
             </button>
             <button className="btn btn-small" onClick={() => go('team', repo.id)}>
-              Team
+              Equipo
             </button>
           </div>
         </div>
       ))}
-      <button className="btn pk-wide" onClick={openOffice}>
-        🏢 Open the 3D office
+      <button className="btn pk-wide" onClick={openPanel}>
+        🗂️ Abrir el panel de control
       </button>
-      {demo && <div className="pk-center small muted">DEMO MODE: fake repos, fake agents</div>}
-      {version && <div className="pk-center small muted">cubefarm {version}</div>}
+      {demo && <div className="pk-center small muted">MODO DEMO: repos ficticios, agentes ficticios</div>}
+      {version && <div className="pk-center small muted">sareoffice {version}</div>}
     </div>
   );
 }
@@ -155,11 +155,11 @@ function Company({ go }: { go: (tab: PocketTab, repoId?: string) => void }) {
 function Board({ repoId, pick }: { repoId: string | null; pick: (id: string) => void }) {
   const repos = useStore((s) => s.repos);
   const id = repos.some((r) => r.id === repoId) ? repoId! : repos[0]?.id;
-  if (!id) return <p className="muted pk-page">No projects yet.</p>;
+  if (!id) return <p className="muted pk-page">Aún no hay proyectos.</p>;
   return (
     <div className="pk-page">
       {repos.length > 1 && (
-        <div className="pk-chips" role="tablist" aria-label="Floor">
+        <div className="pk-chips" role="tablist" aria-label="Planta">
           {repos.map((r) => (
             <button key={r.id} role="tab" aria-selected={r.id === id} className={`pk-chip ${r.id === id ? 'pk-chip-on' : ''}`} style={{ ['--accent' as string]: r.color }} onClick={() => pick(r.id)}>
               {r.floor} · {name(r.fullName)}
@@ -198,17 +198,17 @@ function PocketOverlay() {
 
 function Settings({ onClose }: { onClose: () => void }) {
   return (
-    <Panel title="⚙️ This device and notifications" onClose={onClose} className="pk-settings">
+    <Panel title="⚙️ Este dispositivo y notificaciones" onClose={onClose} className="pk-settings">
       <NotifySettings />
       <AccessibilitySettings pocket />
       <div className="card">
-        <h3>📱 Pocket mode</h3>
+        <h3>📱 Modo bolsillo</h3>
         <p className="muted small">
-          This is the office without the 3D building, for phones and touch screens. It's picked on its own on small or touch screens; this device remembers what you last chose. To reach the office from your phone
-          safely, see <a href="https://github.com/leonvanzyl/cubefarm/blob/main/docs/pocket.md">docs/pocket.md</a>.
+          Es el panel en pestañas, para móviles y pantallas táctiles. Se elige solo en pantallas pequeñas o táctiles; este dispositivo recuerda lo último que elegiste. Para entrar en la oficina desde tu móvil
+          de forma segura, consulta <a href="https://github.com/Saredigital/cubefarm/blob/main/docs/pocket.md">docs/pocket.md</a>.
         </p>
-        <button className="btn" onClick={openOffice}>
-          🏢 Open the 3D office
+        <button className="btn" onClick={openPanel}>
+          🗂️ Abrir el panel de control
         </button>
       </div>
     </Panel>
@@ -238,8 +238,8 @@ export default function Pocket() {
       const t = tabFrom((e as CustomEvent<string>).detail);
       if (t) setTab(t);
     };
-    window.addEventListener('cubefarm:open', onOpen);
-    return () => window.removeEventListener('cubefarm:open', onOpen);
+    window.addEventListener('sareoffice:open', onOpen);
+    return () => window.removeEventListener('sareoffice:open', onOpen);
   }, []);
   // While the chat is on screen, new CEO messages don't toast (the store reads this as the phone's chat being open).
   useEffect(() => {
@@ -248,42 +248,40 @@ export default function Pocket() {
     else if (s.overlay?.kind === 'phone') s.openOverlay(null);
   }, [tab]);
   useEffect(() => {
-    document.title = `${company || 'cubefarm'} · pocket`;
-    return () => void (document.title = 'cubefarm');
+    document.title = `${company || 'sareoffice'} · bolsillo`;
+    return () => void (document.title = 'sareoffice');
   }, [company]);
 
   const tabs: [PocketTab, string, string, number][] = [
-    ['company', '📊', 'Company', 0],
+    ['company', '📊', 'Empresa', 0],
     ['chat', '💬', ceoName, tab === 'chat' ? 0 : unread],
     ['kanban', '📋', 'Kanban', 0],
-    ['team', '👥', 'Team', 0],
-    ['approvals', '✋', 'Approvals', waiting],
+    ['team', '👥', 'Equipo', 0],
+    ['approvals', '✋', 'Aprobaciones', waiting],
   ];
   return (
     <div className="pocket">
       <header className="pk-head">
-        <span className="pk-logo" aria-hidden>
-          ✻
-        </span>
-        <b className="pk-title">{company || 'cubefarm'}</b>
-        <span className={`pk-dot ${connected ? 'pk-dot-on' : ''}`} title={connected ? 'Connected' : 'Not connected'} />
+        <img className="pk-logo" src="/icons/icon.svg" alt="" aria-hidden />
+        <b className="pk-title">{company || 'sareoffice'}</b>
+        <span className={`pk-dot ${connected ? 'pk-dot-on' : ''}`} title={connected ? 'Conectado' : 'Sin conexión'} />
         <span className="spacer" />
-        {usage !== 'normal' && <span className="chip chip-warn">{usage === 'paused' ? '⏸ paused' : '🐢 pacing'}</span>}
-        <button className="pk-icon-btn" onClick={() => setSettings(true)} aria-label="Settings and notifications" title="Settings and notifications">
+        {usage !== 'normal' && <span className="chip chip-warn">{usage === 'paused' ? '⏸ en pausa' : '🐢 ritmo reducido'}</span>}
+        <button className="pk-icon-btn" onClick={() => setSettings(true)} aria-label="Ajustes y notificaciones" title="Ajustes y notificaciones">
           ⚙️
         </button>
       </header>
       <main className={`pk-main ${tab === 'chat' ? 'pk-main-chat' : ''}`}>
-        {loaded && !setupDone ? (
+        {loaded && !setupDone && tab !== 'company' ? (
           <div className="pk-page">
-            <p>The office isn't set up yet. Finish the setup in the 3D office (on a computer is easiest), then come back.</p>
-            <button className="btn" onClick={openOffice}>
-              🏢 Open the 3D office
+            <p>La oficina aún no está configurada. Termina la configuración en el panel de control (es más fácil desde un ordenador) y vuelve.</p>
+            <button className="btn" onClick={openPanel}>
+              🗂️ Abrir el panel de control
             </button>
           </div>
         ) : (
           <>
-            {tab === 'company' && <Company go={go} />}
+            {tab === 'company' && <Suspense fallback={<p className="pk-page">Cargando la empresa…</p>}><CompanyWorkspace embedded /><details className="pk-page"><summary>Desarrollo técnico</summary><Company go={go} /></details></Suspense>}
             {tab === 'chat' && <Chat autoFocus={false} />}
             {tab === 'kanban' && <Board repoId={repoId} pick={setRepoId} />}
             {tab === 'team' && <Team focusRepo={repoId} />}
@@ -291,7 +289,7 @@ export default function Pocket() {
           </>
         )}
       </main>
-      <nav className="pk-tabs" aria-label="Pocket office">
+      <nav className="pk-tabs" aria-label="Oficina de bolsillo">
         {tabs.map(([k, icon, label, badge]) => (
           <button key={k} className={`pk-tab ${tab === k ? 'pk-tab-on' : ''}`} aria-current={tab === k ? 'page' : undefined} onClick={() => setTab(k)}>
             <span className="pk-tab-icon">

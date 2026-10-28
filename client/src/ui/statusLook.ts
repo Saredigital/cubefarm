@@ -10,10 +10,10 @@ export const PALETTES = ['standard', 'deuteranopia', 'protanopia', 'tritanopia']
 export type Palette = (typeof PALETTES)[number];
 
 export const PALETTE_LABELS: Record<Palette, string> = {
-  standard: 'Standard',
-  deuteranopia: 'Deuteranopia (green-weak)',
-  protanopia: 'Protanopia (red-weak)',
-  tritanopia: 'Tritanopia (blue-yellow)',
+  standard: 'Estándar',
+  deuteranopia: 'Deuteranopía (verde débil)',
+  protanopia: 'Protanopía (rojo débil)',
+  tritanopia: 'Tritanopía (azul-amarillo)',
 };
 
 export const STATUS_KINDS = ['idle', 'waiting', 'busy', 'ok', 'attention', 'bad'] as const;
@@ -23,7 +23,7 @@ export type StatusKind = (typeof STATUS_KINDS)[number];
 export const KIND_ICON: Record<StatusKind, string> = { idle: '○', waiting: '⏳', busy: '▶', ok: '✓', attention: '!', bad: '✕' };
 
 /** Words for screen readers and tooltips. */
-export const KIND_WORD: Record<StatusKind, string> = { idle: 'idle', waiting: 'waiting', busy: 'busy', ok: 'done', attention: 'needs attention', bad: 'failed' };
+export const KIND_WORD: Record<StatusKind, string> = { idle: 'libre', waiting: 'en espera', busy: 'ocupado', ok: 'hecho', attention: 'requiere atención', bad: 'fallido' };
 
 export type StatusName = AgentStatus | PreviewStatus | QaStatus;
 

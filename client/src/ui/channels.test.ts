@@ -6,9 +6,9 @@ const pull = (number: number, state: PullInfo['state'] = 'OPEN', title = `Change
 
 describe('PR theatre channels', () => {
   it('labels a PR channel with its number, title and QA state', () => {
-    expect(channelLabel(pull(212, 'OPEN', 'Outside 5'), { status: 'passed' })).toBe('PR #212 · Outside 5 · ✅ QA passed');
+    expect(channelLabel(pull(212, 'OPEN', 'Outside 5'), { status: 'passed' })).toBe('PR #212 · Outside 5 · ✅ QA superado');
     expect(channelLabel(pull(7, 'OPEN', 'Fix it'))).toBe('PR #7 · Fix it');
-    expect(channelLabel(pull(8, 'OPEN', 'A very long title that goes on and on and on'), { status: 'testing' }, 12)).toBe('PR #8 · A very long… · 🔍 QA testing');
+    expect(channelLabel(pull(8, 'OPEN', 'A very long title that goes on and on and on'), { status: 'testing' }, 12)).toBe('PR #8 · A very long… · 🔍 QA probando');
     expect(qaBadge(null)).toBe('');
   });
 

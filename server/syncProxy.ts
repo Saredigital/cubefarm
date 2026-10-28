@@ -9,15 +9,15 @@ import type { AddressInfo } from 'node:net';
 // page itself, so they sync; an app that scrolls an inner panel still shows, just unsynced.
 
 /** Reports scroll and path changes to the viewer; mirrors the other side's. Ignores itself outside a frame. */
-export const SYNC_SCRIPT = `<script data-cubefarm-sync>(function(){
-if(window.parent===window||window.__cubefarmSync)return;window.__cubefarmSync=1;
+export const SYNC_SCRIPT = `<script data-sareoffice-sync>(function(){
+if(window.parent===window||window.__sareofficeSync)return;window.__sareofficeSync=1;
 var hold=0;
 function where(){return location.pathname+location.search+location.hash}
-function send(kind){try{parent.postMessage({cubefarmSync:kind,x:scrollX,y:scrollY,path:where()},'*')}catch(e){}}
+function send(kind){try{parent.postMessage({sareofficeSync:kind,x:scrollX,y:scrollY,path:where()},'*')}catch(e){}}
 addEventListener('scroll',function(){if(Date.now()>hold)send('scroll')},{passive:true});
-addEventListener('message',function(e){var d=e.data;if(e.source!==parent||!d||!d.cubefarmSyncTo)return;
-if(d.cubefarmSyncTo==='scroll'){hold=Date.now()+200;scrollTo(d.x,d.y)}
-else if(d.cubefarmSyncTo==='path'&&typeof d.path==='string'&&d.path.charAt(0)==='/'&&d.path.charCodeAt(1)!==47&&d.path.charCodeAt(1)!==92&&d.path!==where())location.assign(d.path)});
+addEventListener('message',function(e){var d=e.data;if(e.source!==parent||!d||!d.sareofficeSyncTo)return;
+if(d.sareofficeSyncTo==='scroll'){hold=Date.now()+200;scrollTo(d.x,d.y)}
+else if(d.sareofficeSyncTo==='path'&&typeof d.path==='string'&&d.path.charAt(0)==='/'&&d.path.charCodeAt(1)!==47&&d.path.charCodeAt(1)!==92&&d.path!==where())location.assign(d.path)});
 ['pushState','replaceState'].forEach(function(k){var f=history[k];history[k]=function(){var r=f.apply(this,arguments);send('path');return r}});
 addEventListener('popstate',function(){send('path')});addEventListener('hashchange',function(){send('path')});
 if(document.readyState==='loading')addEventListener('DOMContentLoaded',function(){send('path')});else send('path');
@@ -25,7 +25,7 @@ if(document.readyState==='loading')addEventListener('DOMContentLoaded',function(
 
 /** The page with the sync script at the top of its head (or of the page, when it has none). */
 export function injectSync(html: string): string {
-  if (html.includes('data-cubefarm-sync')) return html;
+  if (html.includes('data-sareoffice-sync')) return html;
   const head = html.match(/<head(\s[^>]*)?>/i);
   if (head?.index !== undefined) return html.slice(0, head.index + head[0].length) + SYNC_SCRIPT + html.slice(head.index + head[0].length);
   const doctype = html.match(/^\s*<!doctype[^>]*>/i);
@@ -117,7 +117,7 @@ class SyncProxy {
         },
         (err) => {
           if (res.headersSent) return void res.destroy();
-          res.writeHead(502, { 'content-type': 'text/plain; charset=utf-8' }).end(`The app isn't answering on port ${this.target}: ${err.message}`);
+          res.writeHead(502, { 'content-type': 'text/plain; charset=utf-8' }).end(`La app no responde en el puerto ${this.target}: ${err.message}`);
         },
       );
     });

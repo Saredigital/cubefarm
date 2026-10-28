@@ -6,7 +6,7 @@
 //
 //   node --env-file=.env --import tsx scripts/box-smoke.ts [--keep] [--no-browser]
 //
-// .env (or the environment) holds UPSTASH_BOX_API_KEY, and CUBEFARM_CLAUDE_TOKEN or ANTHROPIC_API_KEY for the Claude
+// .env (or the environment) holds UPSTASH_BOX_API_KEY, and SAREOFFICE_CLAUDE_TOKEN or ANTHROPIC_API_KEY for the Claude
 // Code checks (without either, they're skipped). GitHub comes from GH_TOKEN or your gh login.
 
 import crypto from 'node:crypto';
@@ -25,7 +25,7 @@ import type { SessionOptions, SessionResult } from '../server/agentRunner.ts';
 const keep = process.argv.includes('--keep');
 const withBrowser = !process.argv.includes('--no-browser');
 const key = process.env.UPSTASH_BOX_API_KEY ?? '';
-const claudeToken = process.env.CUBEFARM_CLAUDE_TOKEN ?? '';
+const claudeToken = process.env.SAREOFFICE_CLAUDE_TOKEN ?? '';
 const anthropicApiKey = process.env.ANTHROPIC_API_KEY ?? '';
 if (!key) {
   console.error('Set UPSTASH_BOX_API_KEY first (in .env, or the environment).');
@@ -54,7 +54,7 @@ const machines = new BoxMachines({
   office: () => office,
   size: () => 'small',
   versions,
-  git: async () => ({ name: 'cubefarm smoke test', email: 'smoke@example.com' }),
+  git: async () => ({ name: 'sareoffice smoke test', email: 'smoke@example.com' }),
   githubEnv: async (): Promise<Record<string, string>> => (ghToken ? { GH_TOKEN: ghToken } : {}),
   state: (_m) => undefined,
   secrets: () => secrets,
@@ -117,7 +117,7 @@ try {
   const deps = await machines.installDeps(machine, repo, { log: (l) => l.forEach((x) => say(`  ${x}`)), installing: () => undefined });
   check('dependencies looked at', deps === 'none', deps);
   const named = (await api.list()).find((b) => b.id === boxId);
-  check("the Box's name says it's cubefarm's", !!named?.name.startsWith('cubefarm-'), named?.name);
+  check("the Box's name says it's sareoffice's", !!named?.name.startsWith('sareoffice-'), named?.name);
   const bin = BOX_CLI_BIN;
   const tools = await api.run(boxId, `${bin}/claude --version; ${bin}/codex --version; ${bin}/playwright-mcp --version 2>/dev/null | head -1; tmux -V; gh --version | head -1; git config --global --get-regexp "credential.*"`);
   say(`  tools:\n${tools.output.trim().replace(/^/gm, '    ')}`);
@@ -158,7 +158,7 @@ try {
   check('it carries on with nobody attached, and finishes', !look.alive && finishedTurn(look.events), `${look.events.map((e) => e.hook_event_name).join(', ') || 'no events'}`);
 
   const target: BoxTarget = { api, boxId, env: creds.env, apiKeyHelper: creds.apiKeyHelper, browser: false, record: (r) => (record = r) };
-  if (!withClaude) say('No CUBEFARM_CLAUDE_TOKEN or ANTHROPIC_API_KEY: skipping the Claude Code checks.');
+  if (!withClaude) say('No SAREOFFICE_CLAUDE_TOKEN or ANTHROPIC_API_KEY: skipping the Claude Code checks.');
 
   // 1. A reply, through tmux and the events file.
   if (withClaude) {

@@ -10,12 +10,12 @@ import { useKeyName } from './controls';
 
 /** What the bubble over the 🎙 says. */
 function statusLine(view: MicView, mine: boolean, chiming: boolean): string {
-  if (!mine) return chiming ? '🎧 Listening in a moment…' : '';
-  if (view.state === 'transcribing') return 'Turning your words into text…';
+  if (!mine) return chiming ? '🎧 Escucho en un momento…' : '';
+  if (view.state === 'transcribing') return 'Convirtiendo tus palabras en texto…';
   if (view.state !== 'listening') return '';
-  if (!view.live) return 'Starting the mic…';
-  if (view.mode === 'handsfree') return '🎧 Listening… just talk';
-  return view.mode === 'tap' ? 'Listening… stop talking or tap 🎙️ to finish' : 'Listening… let go to finish';
+  if (!view.live) return 'Encendiendo el micro…';
+  if (view.mode === 'handsfree') return '🎧 Escuchando… habla sin más';
+  return view.mode === 'tap' ? 'Escuchando… deja de hablar o toca 🎙️ para terminar' : 'Escuchando… suelta para terminar';
 }
 
 interface Props {
@@ -87,7 +87,7 @@ export function MicButton({ kind, value, onChange, onSend, disabled }: Props) {
   };
 
   const status = statusLine(mic, mine, chiming);
-  const title = why || (on ? 'Listening: Esc stops' : `Hold to talk (or hold ${talkKey}); tap to talk until you stop`);
+  const title = why || (on ? 'Escuchando: Esc para' : `Mantén pulsado para hablar (o mantén ${talkKey}); toca para hablar hasta que pares`);
 
   return (
     <span className="mic">
@@ -106,7 +106,7 @@ export function MicButton({ kind, value, onChange, onSend, disabled }: Props) {
         type="button"
         ref={ref}
         className={`mic-btn ${(on && !warming) || chiming ? 'mic-on' : ''} ${warming || state === 'transcribing' ? 'mic-busy' : ''} ${why ? 'mic-cant' : ''}`}
-        aria-label={on ? 'Stop listening' : 'Talk instead of type'}
+        aria-label={on ? 'Dejar de escuchar' : 'Hablar en lugar de escribir'}
         aria-pressed={on}
         title={title}
         disabled={disabled}

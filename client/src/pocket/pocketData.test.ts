@@ -47,10 +47,10 @@ describe("an agent's actions", () => {
   });
 
   it('say what they are doing', () => {
-    expect(doing({ status: 'idle', task: null, issueNumber: null, issueTitle: null, prNumber: null })).toBe('Free');
+    expect(doing({ status: 'idle', task: null, issueNumber: null, issueTitle: null, prNumber: null })).toBe('Libre');
     expect(doing({ status: 'working', task: 'issue', issueNumber: 12, issueTitle: 'Dark mode', prNumber: null })).toBe('#12 Dark mode');
-    expect(doing({ status: 'working', task: 'qa', issueNumber: null, issueTitle: 'Dark mode', prNumber: 4 })).toBe('Testing PR #4: Dark mode');
-    expect(doing({ status: 'error', task: 'fix', issueNumber: 12, issueTitle: null, prNumber: 4 })).toBe('Fixing PR #4');
+    expect(doing({ status: 'working', task: 'qa', issueNumber: null, issueTitle: 'Dark mode', prNumber: 4 })).toBe('Probando la PR #4: Dark mode');
+    expect(doing({ status: 'error', task: 'fix', issueNumber: 12, issueTitle: null, prNumber: 4 })).toBe('Corrigiendo la PR #4');
   });
 });
 

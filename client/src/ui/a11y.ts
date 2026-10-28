@@ -7,7 +7,7 @@ import { create } from 'zustand';
 import { DEFAULT_A11Y, normalizeA11yPrefs, parseA11yPrefs, reducesMotion, showsShapes, type A11yPrefs } from './a11yPrefs';
 import { paletteVars, PALETTE_VAR_NAMES, type StatusLook } from './statusLook';
 
-const KEY = 'cubefarm:a11y';
+const KEY = 'sareoffice:a11y';
 const REDUCED_QUERY = '(prefers-reduced-motion: reduce)';
 
 function load(): A11yPrefs {

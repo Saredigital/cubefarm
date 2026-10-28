@@ -1,7 +1,8 @@
 {
-  "name": "cubefarm",
-  "version": "0.3.20",
-  "description": "A cartoon 3D office where a team of AI coding agents works through your GitHub issues.",
+  "name": "sareoffice",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Panel de control de Saredigital donde un equipo de agentes de IA trabaja los issues de GitHub.",
   "keywords": [
     "claude-code",
     "codex",
@@ -11,19 +12,19 @@
     "coding-agents",
     "github-issues",
     "automation",
-    "threejs"
+    "dashboard"
   ],
-  "homepage": "https://github.com/leonvanzyl/cubefarm#readme",
-  "bugs": "https://github.com/leonvanzyl/cubefarm/issues",
+  "homepage": "https://github.com/Saredigital/cubefarm#readme",
+  "bugs": "https://github.com/Saredigital/cubefarm/issues",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/leonvanzyl/cubefarm.git"
+    "url": "git+https://github.com/Saredigital/cubefarm.git"
   },
   "license": "MIT",
-  "author": "Leon van Zyl",
+  "author": "Saredigital (basado en cubefarm de Leon van Zyl)",
   "type": "module",
   "bin": {
-    "cubefarm": "bin/cubefarm.js"
+    "sareoffice": "bin/sareoffice.js"
   },
   "files": [
     "bin",
@@ -39,12 +40,15 @@
     "build": "tsc --noEmit -p tsconfig.json && vite build && node scripts/build-server.mjs",
     "start": "node scripts/office.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "bench": "node scripts/bench.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "pretest:e2e": "node scripts/e2e-check.mjs",
     "test:e2e": "playwright test",
-    "prepublishOnly": "npm test && npm run build"
+    "login": "node bin/sareoffice.js login",
+    "doctor": "node bin/sareoffice.js doctor",
+    "company:broker": "tsx server/company-security/broker.ts",
+    "company:provision": "tsx scripts/company-broker-provision.ts",
+    "company:setup-local": "tsx server/company-security/setupLocal.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.283",
@@ -55,20 +59,20 @@
     "@xterm/addon-serialize": "^0.14.0",
     "@xterm/headless": "^6.0.0",
     "express": "^5.2.1",
+    "imapflow": "^2.5.9",
+    "mailparser": "^3.10.0",
+    "nodemailer": "^10.1.7",
     "ws": "^8.22.0",
     "zod": "^4.0.0"
   },
   "devDependencies": {
-    "@dimforge/rapier3d-compat": "0.19.2",
     "@playwright/test": "1.56.1",
-    "@react-three/drei": "^10.7.9",
-    "@react-three/fiber": "^9.8.1",
-    "@react-three/rapier": "^2.2.0",
     "@types/express": "^5.0.6",
+    "@types/mailparser": "^3.9.0",
     "@types/node": "^26.6.3",
+    "@types/nodemailer": "^8.0.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@types/three": "^0.186.0",
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^6.1.1",
     "@xterm/addon-fit": "^0.11.0",
@@ -76,14 +80,11 @@
     "@xterm/xterm": "^6.0.0",
     "concurrently": "^10.0.5",
     "esbuild": "^0.28.2",
-    "n8ao": "^2.0.1",
-    "postprocessing": "^6.39.5",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-markdown": "^10.1.0",
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
-    "three": "^0.186.1",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
     "vite": "^8.3.1",

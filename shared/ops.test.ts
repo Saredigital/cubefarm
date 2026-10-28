@@ -26,12 +26,12 @@ describe('usage wording', () => {
   const NOW = new Date(2026, 8, 28, 12, 0).getTime();
   it('names the day only when it is not today', () => {
     expect(clock(NOW + 150 * 60_000, NOW)).toBe('14:30');
-    expect(clock(new Date(2026, 8, 29, 0, 0).getTime(), NOW)).toMatch(/^[A-Z][a-z]{2} 00:00$/);
+    expect(clock(new Date(2026, 8, 29, 0, 0).getTime(), NOW)).toMatch(/^(?:lun|mar|mié|jue|vie|sáb|dom)\.? 00:00$/);
   });
 
   it("says Claude's limits the way people do", () => {
-    expect(limitName('five_hour')).toBe('5-hour limit');
-    expect(limitName('seven_day')).toBe('weekly limit');
+    expect(limitName('five_hour')).toBe('límite de 5 horas');
+    expect(limitName('seven_day')).toBe('límite semanal');
     expect(limitName('some_new_limit')).toBe('some new limit');
   });
 

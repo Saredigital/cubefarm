@@ -12,16 +12,24 @@ import { MessageBox } from './MessageBox';
 import { MicButton } from './MicButton';
 import { closeOverlay, Panel } from './Panel';
 import { loadScreenshot } from '../screenshot';
-import { toolVerb } from '../world/draw';
-import { followAgent } from '../world/camera/rig';
+import { toolVerb } from './toolVerb';
 
 const STATUS_LABEL: Record<string, string> = {
-  idle: 'free',
-  preparing: 'setting up',
-  working: 'working',
-  done: 'done',
-  error: 'needs help',
-  stopped: 'stopped',
+  idle: 'libre',
+  preparing: 'preparándose',
+  working: 'trabajando',
+  done: 'terminado',
+  error: 'necesita ayuda',
+  stopped: 'parado',
+};
+
+const QA_STATUS_LABEL: Record<string, string> = {
+  queued: 'en cola',
+  testing: 'probando',
+  passed: 'superado',
+  failed: 'fallido',
+  fixing: 'en corrección',
+  'needs-human': 'te necesita',
 };
 
 export function StatusPill({ status }: { status: string }) {
@@ -63,7 +71,7 @@ export function TerminalView({ agentId }: { agentId: string }) {
   useEffect(
     () =>
       loadScreenshot(agentId, shotTime, (img) => {
-        img.alt = 'Latest browser screenshot from the agent';
+        img.alt = 'Última captura del navegador del agente';
         setShot({ agentId, img });
       }),
     [agentId, shotTime],
@@ -85,7 +93,7 @@ export function TerminalView({ agentId }: { agentId: string }) {
   if (!agent || !repo) {
     return (
       <Panel title="Terminal">
-        <p className="muted">That agent has left the building.</p>
+        <p className="muted">Ese agente ya no está en el equipo.</p>
       </Panel>
     );
   }
@@ -123,33 +131,30 @@ export function TerminalView({ agentId }: { agentId: string }) {
             {agent.name[0]}
           </span>
           <span>{agent.name}</span>
-          <span className="chip" title="Their coding agent">
+          <span className="chip" title="Su agente de código">
             ⌨️ {agentLabel(agent, settings, clis)}
           </span>
           <StatusPill status={agent.status} />
           {signIn && (
-            <span className="chip sign-in-chip" title={`Waiting for you to sign ${signIn} in, in their terminal`}>
-              🔑 needs sign-in
+            <span className="chip sign-in-chip" title={`Esperando a que inicies sesión en ${signIn}, en su terminal`}>
+              🔑 falta iniciar sesión
             </span>
           )}
           {working && agent.currentTool && <span className="muted small">{toolVerb(agent.currentTool)}…</span>}
           <span className="spacer" />
-          <button className="btn btn-small" title={`Trail ${agent.name} with the camera wherever they go (a movement key or Esc gives you the controls back)`} onClick={() => followAgent(agent.id)}>
-            🎥 Follow
-          </button>
           {agent.career && (
-            <button className={`btn btn-small setup-toggle ${showCareer ? 'setup-toggle-on' : ''}`} aria-expanded={showCareer} title={`${agent.name}'s career on the team`} onClick={() => setShowCareer((v) => !v)}>
-              🏅 Career
+            <button className={`btn btn-small setup-toggle ${showCareer ? 'setup-toggle-on' : ''}`} aria-expanded={showCareer} title={`Trayectoria de ${agent.name} en el equipo`} onClick={() => setShowCareer((v) => !v)}>
+              🏅 Trayectoria
             </button>
           )}
           <button
             className={`btn btn-small setup-toggle ${showSetup ? 'setup-toggle-on' : ''}`}
             aria-expanded={showSetup}
             aria-controls="agent-setup"
-            title={`${agent.name}'s name, look, coding agent, model and effort`}
+            title={`Nombre, aspecto, agente de código, modelo y esfuerzo de ${agent.name}`}
             onClick={() => setShowSetup((v) => !v)}
           >
-            ⚙️ Setup
+            ⚙️ Configuración
           </button>
         </div>
       }
@@ -157,18 +162,18 @@ export function TerminalView({ agentId }: { agentId: string }) {
       <div className="term-meta">
         {agent.task === 'qa' && agent.status !== 'idle' ? (
           <a href={agent.prUrl ?? '#'} target="_blank" rel="noreferrer">
-            Testing PR #{agent.prNumber}: {agent.issueTitle}
+            Probando la PR #{agent.prNumber}: {agent.issueTitle}
           </a>
         ) : agent.task === 'fix' && agent.status !== 'idle' ? (
           <a href={agent.prUrl ?? '#'} target="_blank" rel="noreferrer">
-            Fixing PR #{agent.prNumber} after QA: {agent.issueTitle}
+            Corrigiendo la PR #{agent.prNumber} tras el QA: {agent.issueTitle}
           </a>
         ) : agent.issueNumber && agent.status !== 'idle' ? (
           <a href={issueUrl!} target="_blank" rel="noreferrer">
             Issue #{agent.issueNumber}: {agent.issueTitle}
           </a>
         ) : (
-          <span className="muted">Nothing assigned</span>
+          <span className="muted">Nada asignado</span>
         )}
         {agent.prUrl && agent.task === 'issue' && (
           <a href={agent.prUrl} target="_blank" rel="noreferrer" className="chip chip-good">
@@ -177,39 +182,39 @@ export function TerminalView({ agentId }: { agentId: string }) {
         )}
         {qaRec && agent.status !== 'idle' && (
           <span className={`chip ${qaRec.status === 'passed' ? 'chip-good' : ''}`}>
-            QA: {qaRec.status}
-            {qaRec.round > 1 ? ` · round ${qaRec.round}` : ''}
+            QA: {QA_STATUS_LABEL[qaRec.status] ?? qaRec.status}
+            {qaRec.round > 1 ? ` · ronda ${qaRec.round}` : ''}
           </span>
         )}
         {qaRec?.commentUrl && (
           <a href={qaRec.commentUrl} target="_blank" rel="noreferrer">
-            QA report ↗
+            Informe de QA ↗
           </a>
         )}
         {agent.branch && <code>{agent.branch}</code>}
         <span className="muted">
-          {(agent.role === 'ceo' ? agent.model : effectiveModel(agent.model, cli, settings, 'claude-opus-5-5')) || 'default model'} ·{' '}
-          {agent.effort || settings.defaultEffort} effort
+          {(agent.role === 'ceo' ? agent.model : effectiveModel(agent.model, cli, settings, 'claude-opus-5-5')) || 'modelo por defecto'} · esfuerzo{' '}
+          {agent.effort || settings.defaultEffort}
         </span>
         {agent.startedAt && <span className="muted">⏱ {elapsed(agent.startedAt, working ? null : agent.endedAt)}</span>}
-        {agent.turns > 0 && <span className="muted">{agent.turns} turns</span>}
-        {agent.costUsd > 0 && <span className="muted" title="API-equivalent cost reported by the coding agent; subscription usage is billed by plan">≈${agent.costUsd.toFixed(2)}</span>}
+        {agent.turns > 0 && <span className="muted">{agent.turns} {agent.turns === 1 ? 'turno' : 'turnos'}</span>}
+        {agent.costUsd > 0 && <span className="muted" title="Coste equivalente en API que informa el agente de código; el uso con suscripción se factura según el plan">≈${agent.costUsd.toFixed(2)}</span>}
       </div>
       {agent.lastError && agent.status !== 'working' && !signIn && <div className="term-error">⚠️ {agent.lastError}</div>}
       {signIn && (
         <div className="sign-in-note" role="status">
           <span className="grow">
             <b>
-              🔑 Sign {agent.name}'s {signIn} in
+              🔑 Inicia sesión en {signIn} para {agent.name}
             </b>
             <br />
             {signIn === 'Codex'
-              ? 'Open the link in their terminal, sign in to ChatGPT there and enter the one-time code the terminal shows.'
-              : 'Open the link in their terminal, approve it with your Claude account, then paste the code the page gives you into the terminal and press Enter.'}{' '}
-            Their cloud machine keeps the sign-in{agent.task && isBusy(agent) ? ', and their task starts once it’s done' : ''}.
+              ? 'Abre el enlace de su terminal, inicia sesión en ChatGPT ahí e introduce el código de un solo uso que muestra el terminal.'
+              : 'Abre el enlace de su terminal, apruébalo con tu cuenta de Claude y luego pega en el terminal el código que te da la página y pulsa Enter.'}{' '}
+            Su máquina en la nube guarda la sesión{agent.task && isBusy(agent) ? ', y su tarea empieza en cuanto esté hecho' : ''}.
           </span>
-          <button className="btn btn-small" disabled={busy} title="Close this sign-in and show a new link" onClick={() => run(() => api.signIn(agent.id))}>
-            ↻ Start over
+          <button className="btn btn-small" disabled={busy} title="Cerrar este inicio de sesión y mostrar un enlace nuevo" onClick={() => run(() => api.signIn(agent.id))}>
+            ↻ Empezar de nuevo
           </button>
         </div>
       )}
@@ -232,20 +237,20 @@ export function TerminalView({ agentId }: { agentId: string }) {
               stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
             }}
           >
-            {log.length === 0 && <div className="term-line term-system">(no output yet)</div>}
+            {log.length === 0 && <div className="term-line term-system">(aún no hay salida)</div>}
             {log.map((l) => (
               <div key={l.id} className={`term-line term-${l.kind}`}>
                 {l.text || ' '}
               </div>
             ))}
-            {working && <div className="term-line term-spin">✻ {agent.status === 'preparing' ? (agent.currentTool ?? 'Setting up worktree') : toolVerb(agent.currentTool) || 'Thinking'}… ({elapsed(agent.startedAt, null)})</div>}
+            {working && <div className="term-line term-spin">✻ {agent.status === 'preparing' ? (agent.currentTool ?? 'Preparando el worktree') : toolVerb(agent.currentTool) || 'Pensando'}… ({elapsed(agent.startedAt, null)})</div>}
           </div>
         )}
         {agent.hasScreenshot && (
           <div className="browser">
             <div className="browser-bar">🔒 {agent.browserUrl ?? 'about:blank'}</div>
             <div className="browser-view" ref={shotView} />
-            <div className="muted small">Latest Playwright screenshot{agent.screenshotAt ? ` · ${new Date(agent.screenshotAt).toLocaleTimeString()}` : ''}</div>
+            <div className="muted small">Última captura de Playwright{agent.screenshotAt ? ` · ${new Date(agent.screenshotAt).toLocaleTimeString('es-ES')}` : ''}</div>
           </div>
         )}
       </div>
@@ -260,38 +265,38 @@ export function TerminalView({ agentId }: { agentId: string }) {
         <MessageBox
           value={text}
           onChange={setText}
-          aria-label={`Message ${agent.name}`}
-          title="Enter sends · Shift+Enter adds a new line"
+          aria-label={`Mensaje para ${agent.name}`}
+          title="Enter envía · Shift+Enter añade una línea nueva"
           placeholder={
             working
-              ? `Tell ${agent.name} something while they work${agent.terminal ? ' (typed into their terminal)' : ''}…`
+              ? `Dile algo a ${agent.name} mientras trabaja${agent.terminal ? ' (se escribe en su terminal)' : ''}…`
               : canMessage
-                ? `Ask ${agent.name} for a follow-up (resumes their session)…`
-                : `Give ${agent.name} an issue or a PR to test to get them started`
+                ? `Pide a ${agent.name} un seguimiento (retoma su sesión)…`
+                : `Dale a ${agent.name} un issue o una PR que probar para que empiece`
           }
           disabled={!canMessage}
           autoFocus={!agent.terminal}
         />
         <MicButton kind="agent" value={text} onChange={setText} onSend={send} disabled={!canMessage} />
         <button className="btn" disabled={busy || !canMessage || !text.trim()}>
-          Send
+          Enviar
         </button>
       </form>
 
       <div className="term-actions">
         {working ? (
           <button className="btn btn-bad" disabled={busy} onClick={() => run(() => api.stop(agent.id))}>
-            ■ Stop
+            ■ Parar
           </button>
         ) : (
           <>
-            <select value={pick} onChange={(e) => setPick(e.target.value)} aria-label="Work to give them">
-              <option value="">{choices.length ? 'Pick an issue to build or a PR to test…' : 'Nothing to pick up'}</option>
+            <select value={pick} onChange={(e) => setPick(e.target.value)} aria-label="Trabajo que darle">
+              <option value="">{choices.length ? 'Elige un issue que construir o una PR que probar…' : 'No hay nada que coger'}</option>
               {(['issue', 'qa'] as const).map((kind) => {
                 const group = choices.filter((c) => c.kind === kind);
                 return (
                   group.length > 0 && (
-                    <optgroup key={kind} label={kind === 'qa' ? 'Pull requests to test' : 'Issues to build'}>
+                    <optgroup key={kind} label={kind === 'qa' ? 'Pull requests que probar' : 'Issues que construir'}>
                       {group.map((c) => (
                         <option key={c.key} value={c.key}>
                           {kind === 'qa' ? 'PR ' : ''}#{c.number} {c.title}
@@ -314,11 +319,11 @@ export function TerminalView({ agentId }: { agentId: string }) {
                 })
               }
             >
-              {chosen?.kind === 'qa' ? `🔍 Test PR #${chosen.number}` : '▶ Start issue'}
+              {chosen?.kind === 'qa' ? `🔍 Probar la PR #${chosen.number}` : '▶ Empezar issue'}
             </button>
             {agent.status !== 'idle' && (
               <button className="btn" disabled={busy} onClick={() => run(() => api.reset(agent.id))}>
-                ↺ Clear desk
+                ↺ Despejar puesto
               </button>
             )}
           </>
@@ -332,9 +337,9 @@ export function TerminalView({ agentId }: { agentId: string }) {
               const ok = await confirmDialog({
                 tone: 'danger',
                 icon: '👋',
-                title: `Let ${agent.name} go?`,
-                body: 'Their worktree is removed. Branches they pushed stay on GitHub.',
-                confirm: `Let ${agent.name} go`,
+                title: `¿Despedir a ${agent.name}?`,
+                body: 'Se elimina su worktree. Las ramas que subió se quedan en GitHub.',
+                confirm: `Despedir a ${agent.name}`,
               });
               if (!ok) return;
               await api.fireAgent(agent.id);
@@ -342,7 +347,7 @@ export function TerminalView({ agentId }: { agentId: string }) {
             });
           }}
         >
-          Let go
+          Despedir
         </button>
       </div>
     </Panel>

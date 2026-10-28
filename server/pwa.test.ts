@@ -31,7 +31,7 @@ describe('the service worker', () => {
   it('names its cache by version, so an update drops the old one', () => {
     const src = serviceWorkerSource('0123456789ab');
     expect(src).toContain('const VERSION = "0123456789ab";');
-    expect(src).toContain("k.startsWith('cubefarm-shell-') && k !== CACHE");
+    expect(src).toContain("k.startsWith('sareoffice-shell-') && k !== CACHE");
     expect(() => new vm.Script(src)).not.toThrow();
   });
 

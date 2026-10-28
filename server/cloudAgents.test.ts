@@ -17,8 +17,8 @@ describe('where agents work', () => {
     const { swarm, repo, agents } = await office();
     expect(swarm.snapshot().settings.cloud.machineKind).toBe('local');
     expect(agents()[0].host).toBe('local');
-    expect(() => swarm.updateSettings({ cloud: { machineKind: 'box', boxSize: 'small', boxLimit: 10 } })).toThrow(/Upstash Box API key/);
-    expect(() => swarm.hireAgent(repo.id, { host: 'box', strict: true })).toThrow(/Upstash Box API key/);
+    expect(() => swarm.updateSettings({ cloud: { machineKind: 'box', boxSize: 'small', boxLimit: 10 } })).toThrow(/clave de API de Upstash Box/);
+    expect(() => swarm.hireAgent(repo.id, { host: 'box', strict: true })).toThrow(/clave de API de Upstash Box/);
   });
 
   it('hires cloud agents once Upstash is connected, each with a Box of their own', async () => {
@@ -41,7 +41,7 @@ describe('where agents work', () => {
     expect(() => swarm.hireAgent(repo.id, { host: 'box', cli: 'opencode', strict: true })).toThrow(/OpenCode/);
     swarm.updateSettings({ cloud: { machineKind: 'box', boxSize: 'small', boxLimit: 1 } });
     swarm.hireAgent(repo.id, { name: 'Ada', strict: true });
-    expect(() => swarm.hireAgent(repo.id, { name: 'Bo', strict: true })).toThrow(/Box limit \(1\)/);
+    expect(() => swarm.hireAgent(repo.id, { name: 'Bo', strict: true })).toThrow(/límite de Boxes.*\(1\)/);
     // A floor's own first agent isn't refused: they work on this computer instead.
     expect(swarm.hireAgent(repo.id, { name: 'Cy' }).host).toBe('local');
   });

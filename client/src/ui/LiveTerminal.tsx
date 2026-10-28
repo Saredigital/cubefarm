@@ -138,7 +138,7 @@ export function LiveTerminal({ agentId, className }: { agentId: string; classNam
       <div className="live-term-screen" ref={host} />
       <div className="live-term-foot">
         <span className={`live-dot ${live ? 'live-dot-on' : ''}`} />
-        {!connected ? 'Reconnecting…' : live ? (focused ? 'Typing goes straight to the agent · Esc goes to them too; click outside to use the office keys' : 'Live · click the terminal to type into it') : 'Not running · a message below picks the session back up'}
+        {!connected ? 'Reconectando…' : live ? (focused ? 'Lo que escribes va directo al agente · Esc también le llega; haz clic fuera para usar las teclas de la oficina' : 'En directo · haz clic en el terminal para escribir en él') : 'Detenido · un mensaje abajo retoma la sesión'}
       </div>
     </div>
   );

@@ -212,11 +212,11 @@ export function describeTool(cwd: string, name: string, input: Record<string, un
       return `Search "${input.query}"`;
     case 'Task':
     case 'Agent':
-      return `Subagent: ${input.description ?? ''}`;
+      return `Subagente: ${input.description ?? ''}`;
     case 'TodoWrite':
-      return 'Update todo list';
+      return 'Actualizar la lista de tareas';
     case 'ToolSearch':
-      return `Load tools ${String(input.query ?? '').replace(/^select:/, '')}`;
+      return `Cargar herramientas ${String(input.query ?? '').replace(/^select:/, '')}`;
     case 'apply_patch': {
       // Codex's file edits: "*** Add File: a.ts", "*** Update File: b.ts", "*** Delete File: c.ts"
       const files = [...String(input.command ?? '').matchAll(/^\*\*\* (Add|Update|Delete) File: (.+)$/gm)].map((m) => `${m[1] === 'Update' ? '' : `${m[1].toLowerCase()} `}${rel(cwd, m[2].trim())}`);
@@ -233,7 +233,7 @@ export function describeTool(cwd: string, name: string, input: Record<string, un
 }
 
 export function describeOfficeTool(action: string, input: Record<string, unknown>): string {
-  const floor = input.floor != null ? ` → floor ${input.floor}` : '';
+  const floor = input.floor != null ? ` → planta ${input.floor}` : '';
   switch (action) {
     case 'company_status':
       return '🏢 company_status';
@@ -242,7 +242,7 @@ export function describeOfficeTool(action: string, input: Record<string, unknown
     case 'set_floor_profile':
       return `🗂️ set_floor_profile${floor}${input.summary ? `: ${clip(String(input.summary), 90)}` : ''}`;
     case 'scale_team':
-      return `📈 scale_team floor ${String(input.floor ?? '?')} → ${String(input.size ?? '?')}${input.reason ? `: ${clip(String(input.reason), 90)}` : ''}`;
+      return `📈 scale_team planta ${String(input.floor ?? '?')} → ${String(input.size ?? '?')}${input.reason ? `: ${clip(String(input.reason), 90)}` : ''}`;
     case 'configure_agent': {
       const set = [input.cli, input.model, input.effort].filter((x) => typeof x === 'string' && x !== '');
       return `⚙️ configure_agent ${String(input.agent_id ?? '')}${set.length ? `: ${set.join(' · ')}` : ''}`;
@@ -250,7 +250,7 @@ export function describeOfficeTool(action: string, input: Record<string, unknown
     case 'file_issue':
       return `📝 file_issue "${clip(String(input.title ?? ''), 70)}"${floor}`;
     case 'set_dependencies':
-      return `🔗 set_dependencies #${String(input.number ?? '?')}${floor}${Array.isArray(input.depends_on) ? ` · depends on ${input.depends_on.map((n) => `#${n}`).join(', ') || 'nothing'}` : ''}`;
+      return `🔗 set_dependencies #${String(input.number ?? '?')}${floor}${Array.isArray(input.depends_on) ? ` · depende de ${input.depends_on.map((n) => `#${n}`).join(', ') || 'nada'}` : ''}`;
     case 'close_issue':
       return `🗂️ close_issue #${String(input.number ?? '?')}${floor}`;
     case 'retry_qa':
@@ -290,15 +290,15 @@ const lineCount = (text: string) => text.replace(/\r/g, '').split('\n').filter((
 
 export function summariseResult(cwd: string, tool: string, text: string): LogEntry[] {
   // Claude Code-style one-liners for the chatty file tools
-  if (tool === 'Edit' || tool === 'MultiEdit' || tool === 'NotebookEdit') return [{ kind: 'result', text: '  ⎿ Updated' }];
-  if (tool === 'apply_patch' && /Success\. Updated the following files/.test(text)) return [{ kind: 'result', text: '  ⎿ Updated' }];
-  if (tool === 'Write') return [{ kind: 'result', text: '  ⎿ Saved' }];
-  if (tool === 'Read') return [{ kind: 'result', text: `  ⎿ Read ${lineCount(text)} lines` }];
-  if (tool === 'Glob') return [{ kind: 'result', text: `  ⎿ Found ${lineCount(text)} files` }];
+  if (tool === 'Edit' || tool === 'MultiEdit' || tool === 'NotebookEdit') return [{ kind: 'result', text: '  ⎿ Actualizado' }];
+  if (tool === 'apply_patch' && /Success\. Updated the following files/.test(text)) return [{ kind: 'result', text: '  ⎿ Actualizado' }];
+  if (tool === 'Write') return [{ kind: 'result', text: '  ⎿ Guardado' }];
+  if (tool === 'Read') return [{ kind: 'result', text: `  ⎿ ${lineCount(text)} líneas leídas` }];
+  if (tool === 'Glob') return [{ kind: 'result', text: `  ⎿ ${lineCount(text)} ficheros encontrados` }];
   const lines = tidyPaths(cwd, text).replace(/\r/g, '').split('\n').filter((l) => l.trim() !== '');
-  if (lines.length === 0) return [{ kind: 'result', text: '  ⎿ (no output)' }];
+  if (lines.length === 0) return [{ kind: 'result', text: '  ⎿ (sin salida)' }];
   const shown = lines.slice(0, 3).map((l, i) => ({ kind: 'result' as const, text: `${i === 0 ? '  ⎿ ' : '    '}${clip(l, 170)}` }));
-  if (lines.length > 3) shown.push({ kind: 'result', text: `    … +${lines.length - 3} lines` });
+  if (lines.length > 3) shown.push({ kind: 'result', text: `    … +${lines.length - 3} líneas` });
   return shown;
 }
 
@@ -333,7 +333,7 @@ export function startSession(opts: SessionOptions, callbacks: SessionCallbacks):
     env[k] = v;
   }
   Object.assign(env, opts.env);
-  env.CLAUDE_AGENT_SDK_CLIENT_APP = `cubefarm/${VERSION}`;
+  env.CLAUDE_AGENT_SDK_CLIENT_APP = `sareoffice/${VERSION}`;
 
   const mcpServers: Options['mcpServers'] = {};
   if (opts.browserTesting) {
@@ -391,7 +391,7 @@ export function startSession(opts: SessionOptions, callbacks: SessionCallbacks):
     if (done && msg.type === 'assistant' && !stopped) {
       // The office already treated this session as finished and no longer follows it.
       stopped = true;
-      cb.log([{ kind: 'system', text: '■ This session kept working after it had finished, so it was stopped.' }]);
+      cb.log([{ kind: 'system', text: '■ Esta sesión siguió trabajando después de terminar, así que se ha detenido.' }]);
       abort.abort();
       return;
     }
@@ -405,17 +405,17 @@ export function startSession(opts: SessionOptions, callbacks: SessionCallbacks):
             { kind: 'system', text: `  cwd ${msg.cwd}${mcp ? ` · mcp ${mcp}` : ''}` },
           ]);
         } else if (msg.subtype === 'api_retry') {
-          cb.log([{ kind: 'system', text: `… API retry ${msg.attempt}/${msg.max_retries} in ${Math.round(msg.retry_delay_ms / 1000)}s` }]);
+          cb.log([{ kind: 'system', text: `… reintento de API ${msg.attempt}/${msg.max_retries} en ${Math.round(msg.retry_delay_ms / 1000)} s` }]);
         } else if (msg.subtype === 'compact_boundary') {
-          cb.log([{ kind: 'system', text: '✻ Conversation compacted' }]);
+          cb.log([{ kind: 'system', text: '✻ Conversación compactada' }]);
         }
         break;
       }
       case 'rate_limit_event': {
         const info = msg.rate_limit_info;
         if (info.status !== 'allowed') {
-          const when = info.resetsAt ? new Date(info.resetsAt * 1000).toLocaleTimeString() : 'later';
-          cb.log([{ kind: 'error', text: `⚠ Subscription usage ${info.status === 'rejected' ? 'limit reached' : 'warning'} (${info.rateLimitType ?? 'limit'}) · resets ${when}` }]);
+          const when = info.resetsAt ? new Date(info.resetsAt * 1000).toLocaleTimeString('es-ES') : 'más tarde';
+          cb.log([{ kind: 'error', text: `⚠ Uso de la suscripción: ${info.status === 'rejected' ? 'límite alcanzado' : 'aviso'} (${info.rateLimitType ?? 'límite'}) · se reinicia ${when}` }]);
           const overage = info.isUsingOverage || info.overageStatus === 'allowed' || info.overageStatus === 'allowed_warning';
           if (info.status === 'rejected' && !overage) cb.limited?.(info.resetsAt ? info.resetsAt * 1000 : null);
           if (info.status === 'allowed_warning' && !overage) {
@@ -431,7 +431,7 @@ export function startSession(opts: SessionOptions, callbacks: SessionCallbacks):
           if (block.type === 'text' && block.text.trim()) {
             const lines = block.text.trim().split('\n');
             lines.slice(0, 30).forEach((l, i) => out.push({ kind: 'text', text: `${i === 0 ? '● ' : '  '}${l}` }));
-            if (lines.length > 30) out.push({ kind: 'text', text: `  … (${lines.length - 30} more lines)` });
+            if (lines.length > 30) out.push({ kind: 'text', text: `  … (${lines.length - 30} líneas más)` });
           } else if (block.type === 'thinking') {
             out.push({ kind: 'thinking', text: '✻ Thinking…' });
           } else if (block.type === 'tool_use') {
@@ -499,7 +499,7 @@ export function startSession(opts: SessionOptions, callbacks: SessionCallbacks):
     try {
       for await (const msg of query({ prompt: input, options })) handle(msg);
       if (pendingTurns > 0) {
-        cb.finished({ ok: false, text: '', costUsd: lastCost, turns: lastTurns, errors: [stopped ? 'Stopped by manager' : 'Session ended unexpectedly'] });
+        cb.finished({ ok: false, text: '', costUsd: lastCost, turns: lastTurns, errors: [stopped ? 'Stopped by manager' : 'La sesión terminó de forma inesperada'] });
       }
     } catch (err) {
       input.close();

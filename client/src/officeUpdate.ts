@@ -4,31 +4,32 @@ import type { OfficeUpdateView } from '../../shared/types';
 /** The server stops the sessions still running this long after it started draining (#37). */
 export const DRAIN_TIMEOUT_MS = 20 * 60_000;
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const sessions = (n: number) => `${n} ${n === 1 ? 'sesión' : 'sesiones'}`;
+const finish = (n: number) => (n === 1 ? 'termine' : 'terminen');
 
 /** One line for the console's Office row, e.g. "3 updates ready" or "Waiting for 2 sessions to finish". */
 export function officeUpdateText(u: OfficeUpdateView): string {
   switch (u.state) {
     case 'none':
-      return 'Up to date';
+      return 'Al día';
     case 'available':
-      return u.behind > 0 ? `${plural(u.behind, 'update')} ready` : 'An update is ready';
+      return u.behind > 0 ? (u.behind === 1 ? '1 actualización lista' : `${u.behind} actualizaciones listas`) : 'Hay una actualización lista';
     case 'waiting':
     case 'draining':
-      return u.running > 0 ? `Waiting for ${plural(u.running, 'session')} to finish` : 'Updating shortly…';
+      return u.running > 0 ? `Esperando a que ${finish(u.running)} ${sessions(u.running)}` : 'Actualizando en breve…';
     case 'updating':
-      return 'Updating…';
+      return 'Actualizando…';
     case 'failed':
-      return `Last update failed: ${u.detail || 'unknown error'}`;
+      return `La última actualización falló: ${u.detail || 'error desconocido'}`;
   }
 }
 
 /** The HUD chip while an update is on its way; null when there's nothing to show. */
 export function officeUpdateChip(u: OfficeUpdateView | undefined): string | null {
   if (!u) return null;
-  if (u.state === 'updating') return '⟳ Updating the office…';
+  if (u.state === 'updating') return '⟳ Actualizando la oficina…';
   if (u.state !== 'waiting' && u.state !== 'draining') return null;
-  return u.running > 0 ? `⟳ Updating the office after ${plural(u.running, 'session')} finish${u.running === 1 ? 'es' : ''}` : '⟳ Updating the office shortly';
+  return u.running > 0 ? `⟳ Actualizando la oficina cuando ${finish(u.running)} ${sessions(u.running)}` : '⟳ Actualizando la oficina en breve';
 }
 
 /** When a drain gives up on the sessions still running, or null when it isn't draining. */

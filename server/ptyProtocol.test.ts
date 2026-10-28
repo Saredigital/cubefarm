@@ -6,14 +6,14 @@ import { encode, hostSocket, readMessages, type ToHost } from './ptyProtocol.ts'
 
 describe('hostSocket', () => {
   it('names one named pipe per office home on Windows, whatever the path looks like', () => {
-    const a = hostSocket('C:\\Users\\Ada\\.cubefarm', 'win32');
-    expect(a).toMatch(/^\\\\\.\\pipe\\cubefarm-pty-[0-9a-f]{12}$/);
-    expect(hostSocket('c:\\users\\ada\\.cubefarm', 'win32')).toBe(a);
+    const a = hostSocket('C:\\Users\\Ada\\.sareoffice', 'win32');
+    expect(a).toMatch(/^\\\\\.\\pipe\\sareoffice-pty-[0-9a-f]{12}$/);
+    expect(hostSocket('c:\\users\\ada\\.sareoffice', 'win32')).toBe(a);
     expect(hostSocket('C:\\Users\\Ada\\other-home', 'win32')).not.toBe(a);
   });
 
   it('puts the socket in the office home elsewhere', () => {
-    expect(hostSocket('/home/ada/.cubefarm', 'linux')).toBe(path.join('/home/ada/.cubefarm', 'pty.sock'));
+    expect(hostSocket('/home/ada/.sareoffice', 'linux')).toBe(path.join('/home/ada/.sareoffice', 'pty.sock'));
   });
 });
 

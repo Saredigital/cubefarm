@@ -1,86 +1,54 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AgentView, IssueInfo, LogLine, OpsAlarm, PullInfo, QaStatus, QaView, RepoView, WorldSnapshot } from '../../shared/types';
 
-// The merge trigger, through the store's own apply(): sounds and the gong are mocked (they need a browser).
+// The merge chime, through the store's own apply(): sounds are mocked (they need a browser).
 vi.mock('./ui/sfx', () => ({ alarm: vi.fn(), audioUnlocked: () => false, chirp: vi.fn(), cue: vi.fn() }));
-vi.mock('./world/gongRunner', () => ({ gongForMerge: vi.fn(() => 'solo') }));
 
-const { floorPrCounts, kanbanFor, qaKey, useStore } = await import('./store');
+const { floorPrCounts, kanbanFor, newlyMerged, qaKey, useStore } = await import('./store');
 const { alarm, cue } = await import('./ui/sfx');
 const { EMPTY_OPS } = await import('./ops');
-const { gongForMerge } = await import('./world/gongRunner');
-const { onMerge } = await import('./world/confetti');
 
 const pr = (number: number, state: PullInfo['state'], headRefName = `feature/${number}`) => ({ number, state, headRefName }) as PullInfo;
 const repo = (floor: number, ...pulls: PullInfo[]) => ({ id: `acme/floor${floor}`, floor, pulls }) as RepoView;
 const snapshot = (repos: RepoView[], agents: Partial<AgentView>[] = []) =>
   ({ type: 'snapshot', data: { repos, agents, qa: [], requests: [], messages: [], phoneReadAt: 0, settings: {}, ceo: {}, usage: {}, clis: [] } as unknown as WorldSnapshot }) as const;
 
-describe('the merge gong trigger', () => {
+describe('the merge chime', () => {
   beforeEach(() => {
     useStore.setState({ loaded: false, repos: [] });
-    vi.mocked(gongForMerge).mockClear().mockReturnValue('solo');
     vi.mocked(cue).mockClear();
   });
 
-  it('never fires for merges in the first snapshot, or in a snapshot after a reconnect', () => {
+  it('finds the PRs a patch merges', () => {
+    expect(newlyMerged(repo(1, pr(1, 'MERGED'), pr(2, 'OPEN')), repo(1, pr(1, 'MERGED'), pr(2, 'MERGED'), pr(3, 'MERGED')))).toEqual([2]);
+  });
+
+  it('never chimes for merges in the first snapshot, or in a snapshot after a reconnect', () => {
     const { apply } = useStore.getState();
     apply(snapshot([repo(1, pr(1, 'MERGED'), pr(2, 'OPEN'))]));
     apply(snapshot([repo(1, pr(1, 'MERGED'), pr(2, 'MERGED'))])); // #2 merged while we were disconnected
-    expect(gongForMerge).not.toHaveBeenCalled();
     expect(cue).not.toHaveBeenCalled();
   });
 
-  it('fires on open → MERGED, for that repo’s floor', () => {
+  it('chimes once on open → MERGED', () => {
     const { apply } = useStore.getState();
     apply(snapshot([repo(1, pr(1, 'MERGED'), pr(2, 'OPEN'))]));
     apply({ type: 'repo', repo: repo(1, pr(1, 'MERGED'), pr(2, 'OPEN')) }); // nothing new
-    expect(gongForMerge).not.toHaveBeenCalled();
+    expect(cue).not.toHaveBeenCalled();
     apply({ type: 'repo', repo: repo(1, pr(1, 'MERGED'), pr(2, 'MERGED')) });
-    expect(gongForMerge).toHaveBeenCalledTimes(1);
-    expect(gongForMerge).toHaveBeenCalledWith({ repoId: 'acme/floor1', prNumber: 2, agentId: null }, false);
-    expect(cue).not.toHaveBeenCalledWith('merged'); // the gong is the merge cue now
+    expect(cue).toHaveBeenCalledTimes(1);
+    expect(cue).toHaveBeenCalledWith('merged');
   });
 
-  it('still sends the merge confetti (confetti.ts) along with the gong', () => {
-    const bursts: unknown[] = [];
-    const off = onMerge((b) => bursts.push(b));
-    const { apply } = useStore.getState();
-    apply(snapshot([repo(1, pr(5, 'OPEN'))]));
-    apply({ type: 'repo', repo: repo(1, pr(5, 'MERGED')) });
-    off();
-    expect(gongForMerge).toHaveBeenCalledTimes(1);
-    expect(bursts).toEqual([{ repoId: 'acme/floor1', prNumber: 5, agentId: null }]);
-  });
-
-  it('sends the PR’s author, one call per merge in order', () => {
-    const { apply } = useStore.getState();
-    const ada = { id: 'a1', name: 'Ada', role: 'agent', repoId: 'acme/floor1', log: [] } as Partial<AgentView>;
-    apply(snapshot([repo(1, pr(4, 'OPEN', 'swarm/issue-4-ada'), pr(5, 'OPEN'))], [ada]));
-    apply({ type: 'repo', repo: repo(1, pr(4, 'MERGED', 'swarm/issue-4-ada'), pr(5, 'MERGED')) });
-    expect(vi.mocked(gongForMerge).mock.calls.map(([b]) => b)).toEqual([
-      { repoId: 'acme/floor1', prNumber: 4, agentId: 'a1' },
-      { repoId: 'acme/floor1', prNumber: 5, agentId: null },
-    ]);
-  });
-
-  it('fires the same for a merge in a batch of floor patches, which keep what they leave out', () => {
+  it('chimes the same for a merge in a batch of floor patches, which keep what they leave out', () => {
     const { apply } = useStore.getState();
     apply(snapshot([{ ...repo(1, pr(3, 'OPEN')), fullName: 'acme/floor1' }, repo(2)]));
     apply({ type: 'repos', repos: [{ id: 'acme/floor1', pulls: [pr(3, 'MERGED')] }, { id: 'acme/gone', pulls: [] }] });
-    expect(gongForMerge).toHaveBeenCalledWith({ repoId: 'acme/floor1', prNumber: 3, agentId: null }, false);
+    expect(cue).toHaveBeenCalledWith('merged');
     expect(useStore.getState().repos.map((r) => [r.id, r.fullName])).toEqual([
       ['acme/floor1', 'acme/floor1'],
       ['acme/floor2', undefined],
     ]);
-  });
-
-  it('chimes instead when the merge is on a floor whose gong is not on screen', () => {
-    vi.mocked(gongForMerge).mockReturnValue('absent');
-    const { apply } = useStore.getState();
-    apply(snapshot([repo(2, pr(7, 'OPEN'))]));
-    apply({ type: 'repo', repo: repo(2, pr(7, 'MERGED')) });
-    expect(cue).toHaveBeenCalledWith('merged');
   });
 });
 
@@ -143,11 +111,11 @@ describe('mission control in the store', () => {
     const issue = (number: number, body = '', labels: string[] = []) => ({ number, title: `#${number}`, body, url: '', labels, createdAt: '' }) as IssueInfo;
     const r = { ...repo(1), issues: [issue(1), issue(2, 'Depends on #1'), issue(3, '', ['bug'])], autoAssign: true, autoMerge: true } as RepoView;
     const notes = (usage?: { state: 'normal' | 'pacing' | 'paused' }, autoAssign = true) => kanbanFor({ ...r, autoAssign }, [], {}, usage).backlog.map((c) => c.note);
-    expect(notes()).toEqual([undefined, '⏳ after #1', 'bug']);
-    expect(notes({ state: 'normal' })).toEqual([undefined, '⏳ after #1', 'bug']);
-    expect(notes({ state: 'pacing' })).toEqual(['⏸ paced', '⏳ after #1', '⏸ paced · bug']);
-    expect(notes({ state: 'paused' })).toEqual(['⏸ paused', '⏳ after #1', '⏸ paused · bug']);
-    expect(notes({ state: 'pacing' }, false)).toEqual([undefined, '⏳ after #1', 'bug']); // nothing starts on its own there anyway
+    expect(notes()).toEqual([undefined, '⏳ tras #1', 'bug']);
+    expect(notes({ state: 'normal' })).toEqual([undefined, '⏳ tras #1', 'bug']);
+    expect(notes({ state: 'pacing' })).toEqual(['⏸ ritmo reducido', '⏳ tras #1', '⏸ ritmo reducido · bug']);
+    expect(notes({ state: 'paused' })).toEqual(['⏸ en pausa', '⏳ tras #1', '⏸ en pausa · bug']);
+    expect(notes({ state: 'pacing' }, false)).toEqual([undefined, '⏳ tras #1', 'bug']); // nothing starts on its own there anyway
   });
 });
 
@@ -156,8 +124,8 @@ describe('kanbanFor: In progress', () => {
   const barbara = (patch: Partial<AgentView>) => ({ id: 'b', name: 'Barbara', role: 'agent', task: 'issue', status: 'working', issueNumber: 192, issueTitle: 'Cancelled', prNumber: null, branch: 'swarm/issue-192-barbara', ...patch }) as AgentView;
 
   it('shows an agent working on an issue, and one who finished without a PR', () => {
-    expect(kanbanFor(r(), [barbara({})], {}).progress.map((c) => c.note)).toEqual(['working']);
-    expect(kanbanFor(r(), [barbara({ status: 'done' })], {}).progress.map((c) => c.note)).toEqual(['finished · no PR']);
+    expect(kanbanFor(r(), [barbara({})], {}).progress.map((c) => c.note)).toEqual(['trabajando']);
+    expect(kanbanFor(r(), [barbara({ status: 'done' })], {}).progress.map((c) => c.note)).toEqual(['terminado · sin PR']);
   });
 
   it('shows no card once their PR is open, closed or merged: never "finished · no PR" for a PR that was closed', () => {
@@ -182,7 +150,7 @@ describe('kanbanFor: In progress', () => {
 
   it('marks an issue whose PR was closed as waiting for the manager, in the backlog', () => {
     const held = { ...r(), held: [{ issue: 192, pr: 198 }] } as RepoView;
-    expect(kanbanFor(held, [], {}).backlog).toMatchObject([{ number: 192, note: '⏸ PR #198 closed · assign by hand', tone: 'warn' }]);
+    expect(kanbanFor(held, [], {}).backlog).toMatchObject([{ number: 192, note: '⏸ PR #198 cerrada · asígnalo a mano', tone: 'warn' }]);
     expect(kanbanFor(r(), [], {}).backlog[0].tone).toBeUndefined();
   });
 });

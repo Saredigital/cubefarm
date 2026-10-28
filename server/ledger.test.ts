@@ -62,7 +62,7 @@ describe('merges', () => {
     run(s, open(7));
     const fx = run(s, merge(7, at(2, 14)));
     expect(fx.unlocked.map((a) => a.id)).toEqual(['first-merge', 'night-owl']);
-    expect(fx.unlocked[1].detail).toBe(`PR #7 on ${NAME} at 02:14`);
+    expect(fx.unlocked[1].detail).toBe(`PR #7 en ${NAME} a las 02:14`);
     for (let n = 8; n < 32; n++) run(s, open(n), merge(n, at(13)));
     expect(s.achievements.map((a) => a.id)).toContain('quarter-century');
     expect(s.achievements.map((a) => a.id)).toContain('ten-a-day');
@@ -150,7 +150,7 @@ describe('careers', () => {
     addTenure(s, 3, 'ada');
     expect(s.careers.ada.since).toBe(NOON - 3 * DAY_MS);
     expect(s.careers.bob.since).toBe(NOON);
-    expect(addTenure(s, 1, 'nobody')).toEqual({ error: 'No career for nobody' });
+    expect(addTenure(s, 1, 'nobody')).toEqual({ error: 'No hay historial profesional de nobody' });
   });
 });
 
@@ -194,13 +194,13 @@ describe('coffee and full house', () => {
 describe('the catalogue', () => {
   it('buys with the floor\'s coins at gently rising prices', () => {
     const s = emptyLedger();
-    expect(buy(s, R, 'plant')).toEqual({ error: 'Potted plant costs 20 coins; this floor has 0' });
+    expect(buy(s, R, 'plant')).toEqual({ error: 'Planta en maceta cuesta 20 monedas; esta planta tiene 0' });
     grant(s, R, 100);
     expect(buy(s, R, 'plant')).toMatchObject({ price: 20 });
     expect(buy(s, R, 'plant')).toMatchObject({ price: priceOf('plant', 1) });
     expect(priceOf('plant', 1)).toBe(25);
     expect(s.floors[R]).toMatchObject({ coins: 55, owned: { plant: 2 } });
-    expect(buy(s, R, 'gold-toilet')).toEqual({ error: 'There\'s no "gold-toilet" in the catalogue' });
+    expect(buy(s, R, 'gold-toilet')).toEqual({ error: 'No existe "gold-toilet" en el catálogo' });
   });
 
   it('refuses more of a kind than the floor has slots for', () => {
@@ -208,24 +208,24 @@ describe('the catalogue', () => {
     grant(s, R, 10_000);
     const big = DECOR_SLOTS.filter((d) => d.kind === 'big').length;
     for (let i = 0; i < big; i++) expect(buy(s, R, 'arcade')).not.toHaveProperty('error');
-    expect(buy(s, R, 'fishtank')).toEqual({ error: 'This floor has no room for another big decoration' });
+    expect(buy(s, R, 'fishtank')).toEqual({ error: 'No queda espacio en esta planta para otra decoración de este tipo' });
   });
 
   it('places from the box, moves between slots of the right kind and puts things away', () => {
     const s = emptyLedger();
     grant(s, R, 1000);
     buy(s, R, 'neon');
-    expect(place(s, R, NAME, { item: 'neon', slot: 'f-ne', from: null }, NOON)).toEqual({ error: "The neon sign doesn't go there" });
+    expect(place(s, R, NAME, { item: 'neon', slot: 'f-ne', from: null }, NOON)).toEqual({ error: "Cartel de neón no va ahí" });
     const first = place(s, R, NAME, { item: 'neon', slot: 'w-west', from: null }, NOON);
     expect('effects' in first && first.effects.unlocked.map((a) => a.id)).toEqual(['interior-designer']);
-    expect(place(s, R, NAME, { item: 'neon', slot: 'w-kitchen', from: null }, NOON)).toEqual({ error: "This floor's decor box has no neon sign" });
+    expect(place(s, R, NAME, { item: 'neon', slot: 'w-kitchen', from: null }, NOON)).toEqual({ error: "La caja de decoración de esta planta no tiene cartel de neón" });
     expect(place(s, R, NAME, { item: 'neon', slot: 'w-kitchen', from: 'w-west' }, NOON)).not.toHaveProperty('error');
     expect(s.floors[R].placed).toEqual({ 'w-kitchen': 'neon' });
     buy(s, R, 'lights');
-    expect(place(s, R, NAME, { item: 'lights', slot: 'w-kitchen', from: null }, NOON)).toEqual({ error: 'Something already stands there' });
+    expect(place(s, R, NAME, { item: 'lights', slot: 'w-kitchen', from: null }, NOON)).toEqual({ error: 'Ya hay algo ahí' });
     expect(place(s, R, NAME, { item: 'neon', slot: null, from: 'w-kitchen' }, NOON)).not.toHaveProperty('error');
     expect(s.floors[R].placed).toEqual({});
-    expect(place(s, R, NAME, { item: 'neon', slot: null, from: 'w-kitchen' }, NOON)).toEqual({ error: "The neon sign isn't there any more" });
+    expect(place(s, R, NAME, { item: 'neon', slot: null, from: 'w-kitchen' }, NOON)).toEqual({ error: "Cartel de neón ya no está ahí" });
   });
 
   it('awards fully furnished when every slot is filled', () => {

@@ -28,40 +28,40 @@ export function qaInstructions(i: QaPromptInput): QaInstructions {
 }
 
 function checksLine(i: QaPromptInput): string {
-  const names = (list: string[]) => list.join(', ') || 'unnamed';
+  const names = (list: string[]) => list.join(', ') || 'sin nombre';
   const state =
     i.checks === 'passing'
-      ? `passing (${names(i.checkNames)})`
+      ? `en verde (${names(i.checkNames)})`
       : i.checks === 'failing'
-        ? `failing: ${names(i.failedChecks)}${i.pendingChecks.length ? `; still running: ${i.pendingChecks.join(', ')}` : ''}`
+        ? `fallan: ${names(i.failedChecks)}${i.pendingChecks.length ? `; aún en curso: ${i.pendingChecks.join(', ')}` : ''}`
         : i.checks === 'pending'
-          ? `pending: ${names(i.pendingChecks)}`
-          : 'none';
-  return `GitHub checks right now: ${state}`;
+          ? `en curso: ${names(i.pendingChecks)}`
+          : 'ninguno';
+  return `Checks de GitHub ahora mismo: ${state}`;
 }
 
 function testStep(hasChecks: boolean): string {
   return hasChecks
-    ? "3. GitHub's checks run on this PR, and it merges only once they're green. Read .github/workflows to see what they cover and don't re-run that locally. Run only what you need to exercise the change (for example a build to start the app), anything the checks don't cover, or a failing check to reproduce it. A failing check is a finding: name it."
-    : "3. Install dependencies if needed (e.g. npm install when node_modules is missing), then run the project's test suite, linters, type checks and build (whichever exist).";
+    ? '3. Los checks de GitHub se ejecutan en esta PR, y solo se fusiona cuando están en verde. Lee .github/workflows para ver qué cubren y no lo vuelvas a ejecutar en local. Ejecuta solo lo que necesites para probar el cambio (por ejemplo, un build para arrancar la app), lo que los checks no cubran o un check que falle, para reproducirlo. Un check que falla es un hallazgo: nómbralo.'
+    : '3. Instala las dependencias si hace falta (p. ej. npm install si falta node_modules) y ejecuta la batería de tests, los linters, las comprobaciones de tipos y el build del proyecto (los que existan).';
 }
 
 function retest(i: QaPromptInput): string {
   // A retried session (it crashed or the office restarted) already recorded this head: there's no diff to go by.
   const since = i.lastTestedSha && i.lastTestedSha !== i.headSha ? i.lastTestedSha : null;
   const diff = since
-    ? `(git diff ${since}..HEAD), plus a quick smoke test of the main flow. Don't repeat the full test plan for parts the change didn't touch.`
+    ? `(git diff ${since}..HEAD), más una prueba rápida del flujo principal. No repitas el plan de pruebas completo en las partes que el cambio no ha tocado.`
     : null;
   // A conflict fix only merged the base: the resolution, CI and the places where the two meet are what can break.
   if (i.fixReason === 'conflict') {
     const merges = since ? ` (git log --merges ${since}..HEAD)` : '';
-    return `\nQA passed it before, but since then the branch was updated with ${i.defaultBranch} to resolve merge conflicts. Review the resolution with git show --remerge-diff on the merge commit(s)${merges}, confirm GitHub's checks are green on the new head, and smoke-test this PR's feature plus whatever the conflicting files touch. Don't repeat the full test plan.`;
+    return `\nQA ya la aprobó, pero desde entonces la rama se ha actualizado con ${i.defaultBranch} para resolver conflictos de merge. Revisa la resolución con git show --remerge-diff sobre los commits de merge${merges}, confirma que los checks de GitHub están en verde en el nuevo head y haz una prueba rápida de la funcionalidad de esta PR y de lo que toquen los ficheros en conflicto. No repitas el plan de pruebas completo.`;
   }
   if (i.fixReason === 'checks') {
-    return `\nQA passed it before, but since then the developer changed the code to fix failing GitHub checks. ${diff ? `Test what changed since QA passed it ${diff}` : 'Re-check everything.'}`;
+    return `\nQA ya la aprobó, pero desde entonces el desarrollador ha cambiado el código para arreglar checks de GitHub que fallaban. ${diff ? `Prueba lo que ha cambiado desde que QA la aprobó ${diff}` : 'Vuelve a comprobarlo todo.'}`;
   }
   if (i.round > 1 && i.summary) {
-    return `\nThis is a re-test after fixes. Last round's findings:\n${i.summary}\n${i.fixInstructions ?? ''}\nCheck those first, then ${diff ? `test what changed since the last round ${diff}` : 're-check everything else.'}`;
+    return `\nEs una nueva prueba tras correcciones. Hallazgos de la ronda anterior:\n${i.summary}\n${i.fixInstructions ?? ''}\nComprueba eso primero y después ${diff ? `prueba lo que ha cambiado desde la ronda anterior ${diff}` : 'vuelve a comprobar todo lo demás.'}`;
   }
   return '';
 }

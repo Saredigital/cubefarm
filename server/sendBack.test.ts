@@ -19,7 +19,7 @@ describe('sendBackPatch', () => {
     expect(sendBackPatch(108, open, record(), 'main', '  merge main and keep both e2e tests ')).toEqual({
       status: 'failed',
       fixReason: 'qa',
-      fixInstructions: 'Make the toolbar wrap below 480px.\n\nFrom the manager: merge main and keep both e2e tests',
+      fixInstructions: 'Make the toolbar wrap below 480px.\n\nNota (el responsable): merge main and keep both e2e tests',
       sessionFailures: 0,
       retests: 2,
       mergeNote: null,
@@ -29,7 +29,7 @@ describe('sendBackPatch', () => {
   it('keeps the instructions as they are without a note, and uses the note alone when QA left none', () => {
     expect(sendBackPatch(108, open, record(), 'main').fixInstructions).toBe('Make the toolbar wrap below 480px.');
     expect(sendBackPatch(108, open, record(), 'main', '   ').fixInstructions).toBe('Make the toolbar wrap below 480px.');
-    expect(sendBackPatch(108, open, record({ fixInstructions: null }), 'main', 'Rebase it').fixInstructions).toBe('From the manager: Rebase it');
+    expect(sendBackPatch(108, open, record({ fixInstructions: null }), 'main', 'Rebase it').fixInstructions).toBe('Nota (el responsable): Rebase it');
     expect(sendBackPatch(108, open, record({ fixInstructions: null }), 'main').fixInstructions).toBeNull();
   });
 
@@ -46,7 +46,7 @@ describe('sendBackPatch', () => {
   it('adds the merge to the instructions of a conflicting PR QA never passed, once', () => {
     const conflicting = { ...open, mergeable: 'CONFLICTING' } as const;
     const sent = sendBackPatch(108, conflicting, record(), 'main', 'keep both tests');
-    expect(sent.fixInstructions).toMatch(/^Make the toolbar wrap below 480px\.\n\nFrom the manager: keep both tests\n\nIt also conflicts with main: /);
+    expect(sent.fixInstructions).toMatch(/^Make the toolbar wrap below 480px\.\n\nNota \(el responsable\): keep both tests\n\nTambién tiene conflictos con main: /);
     const again = sendBackPatch(108, conflicting, record({ fixInstructions: sent.fixInstructions }), 'main');
     expect(again.fixInstructions).toBe(sent.fixInstructions);
     // QA passed it: the merge-fix prompt already says to merge

@@ -4,15 +4,15 @@ import { admitCaption, arrowFor, arrowForPan, captionFor, captionTail, estimateS
 describe('captionFor', () => {
   it('captions the important sounds, short and in brackets', () => {
     expect(captionFor('gong')?.text).toBe('[gong]');
-    expect(captionFor('cheer:crowd')?.text).toBe('[merge cheer]');
-    expect(captionFor('cheer:woo')?.text).toBe('[merge cheer]');
-    expect(captionFor('thunder')?.text).toBe('[thunder]');
-    expect(captionFor('weather:thunder')?.text).toBe('[thunder]');
-    expect(captionFor('event:roar')?.text).toBe('[kaiju roars]');
-    expect(captionFor('alarm', 'PR #212 needs you')?.text).toBe('[alarm: PR #212 needs you]');
-    expect(captionFor('alarm')?.text).toBe('[alarm]');
+    expect(captionFor('cheer:crowd')?.text).toBe('[ovación por el merge]');
+    expect(captionFor('cheer:woo')?.text).toBe('[ovación por el merge]');
+    expect(captionFor('thunder')?.text).toBe('[trueno]');
+    expect(captionFor('weather:thunder')?.text).toBe('[trueno]');
+    expect(captionFor('event:roar')?.text).toBe('[rugido fuera]');
+    expect(captionFor('alarm', 'La PR #212 te necesita')?.text).toBe('[alarma: La PR #212 te necesita]');
+    expect(captionFor('alarm')?.text).toBe('[alarma]');
     expect(captionFor('jukebox:refactor-rain', 'Refactor Rain')?.text).toBe('[jukebox: Refactor Rain]');
-    expect(captionFor('cue:merged')?.text).toBe('[merge chime]');
+    expect(captionFor('cue:merged')?.text).toBe('[campanilla de merge]');
   });
 
   it('leaves constant and small sounds alone', () => {
@@ -66,7 +66,7 @@ describe('admitCaption', () => {
     expect(admitCaption(g, captionFor('cheer:crowd')!, 10)).toBe(true);
     expect(admitCaption(g, captionFor('jukebox:a', 'A')!, 20)).toBe(false);
     for (let i = 0; i < GATE.max; i++) admitCaption(g, { key: `e${i}`, text: 'x', priority: 2, cooldownMs: 0 }, 30);
-    expect(admitCaption(g, captionFor('alarm', 'PR #1 needs you')!, 40)).toBe(true);
+    expect(admitCaption(g, captionFor('alarm', 'La PR #1 te necesita')!, 40)).toBe(true);
   });
 
   it('frees up the cap once the window has passed', () => {

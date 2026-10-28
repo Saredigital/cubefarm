@@ -141,11 +141,11 @@ describe('finding', () => {
 
   it('words each finding plainly, with the console actions that fix it', () => {
     const [stale] = diagnose([agent({ status: 'error', work: 'merged' })], [], [], NOW);
-    expect(finding(stale, name, 'merged', NOW)).toMatchObject({ text: "Margaret's last task #207 is already merged. Clear the desk?", fixes: ['clear'] });
+    expect(finding(stale, name, 'merged', NOW)).toMatchObject({ text: "La última tarea de Margaret, #207, ya está fusionada. ¿Despejas el puesto?", fixes: ['clear'] });
     const [quiet] = diagnose([agent({ activeAt: NOW - 45 * MIN })], [], [], NOW);
-    expect(finding(quiet, name, 'open', NOW)).toMatchObject({ text: 'Margaret has been quiet for 45 minutes on #207, even after a nudge. Stop them, or put the work back in line?', fixes: ['stop', 'requeue'] });
+    expect(finding(quiet, name, 'open', NOW)).toMatchObject({ text: 'Margaret lleva 45 minutos sin responder en #207, incluso después de un aviso. ¿Lo paras o vuelves a poner el trabajo en cola?', fixes: ['stop', 'requeue'] });
     const [unclosed] = diagnose([], [], [{ repoId: 'r1', issue: 207, pr: 215, mergedAt: NOW - 15 * MIN }], NOW);
     expect(finding(unclosed, name, null, NOW)).toMatchObject({ id: unclosed.key, fixes: ['close-issue'] });
-    expect(finding(unclosed, name, null, NOW).text).toBe('Issue #207 is still open, but PR #215, which closes it, was merged 15 minutes ago. Close it?');
+    expect(finding(unclosed, name, null, NOW).text).toBe('El issue #207 sigue abierto, pero la PR #215, que lo cierra, se fusionó hace 15 minutos. ¿Lo cierras?');
   });
 });

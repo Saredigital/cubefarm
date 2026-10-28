@@ -24,7 +24,7 @@ describe('formatting', () => {
   });
 
   it("puts a floor's numbers on one line for its sign", () => {
-    expect(signLine({ ...EMPTY_NUMBERS, mergedToday: 3, leadMs: 102 * MIN, ciPass: 0.92, costToday: 4.2 })).toBe('🚀 3 today · ⏱ 1h 42m lead · ✅ CI 92% · 💵 ~$4.20');
+    expect(signLine({ ...EMPTY_NUMBERS, mergedToday: 3, leadMs: 102 * MIN, ciPass: 0.92, costToday: 4.2 })).toBe('🚀 3 hoy · ⏱ 1h 42m de ciclo · ✅ CI 92% · 💵 ~$4.20');
   });
 });
 
@@ -34,19 +34,19 @@ describe('usage', () => {
 
   it('shows the chip only while new work is held back', () => {
     expect(usageChip({ state: 'normal', until: null, warning }, 3, NOW)).toBeNull();
-    expect(usageChip(pacing, 3, NOW)).toMatch(/^🐢 Paced until [A-Z][a-z]{2} 00:00: new issues start when fewer than 3 sessions run$/);
-    expect(usageChip(pacing, 1, NOW)).toMatch(/fewer than 1 session run$/);
-    expect(usageChip({ state: 'paused', until: NOW + 5 * MIN, warning: null }, 3, NOW)).toBe("⏸ Paused until 12:05: at Claude's usage limit, nothing new starts");
+    expect(usageChip(pacing, 3, NOW)).toMatch(/^🐢 Ritmo reducido hasta \S+ 00:00: los issues nuevos empiezan cuando hay menos de 3 sesiones en marcha$/);
+    expect(usageChip(pacing, 1, NOW)).toMatch(/menos de 1 sesión en marcha$/);
+    expect(usageChip({ state: 'paused', until: NOW + 5 * MIN, warning: null }, 3, NOW)).toBe('⏸ En pausa hasta 12:05: se alcanzó el límite de uso de Claude y no empieza nada nuevo');
   });
 
   it("reads the meter: the state, and the last warning's limit, fill and reset", () => {
-    expect(usageMeter(pacing, NOW)).toMatchObject({ state: 'Pacing', tone: 'warn', limit: 'weekly limit · 91%', pct: 91 });
+    expect(usageMeter(pacing, NOW)).toMatchObject({ state: 'Ritmo reducido', tone: 'warn', limit: 'weekly limit · 91%', pct: 91 });
     expect(usageMeter(pacing, NOW).resets).toMatch(/00:00$/);
-    expect(usageMeter({ state: 'normal', until: null, warning: null }, NOW)).toEqual({ state: 'Normal', tone: 'good', limit: 'No usage warnings', pct: null, resets: null });
+    expect(usageMeter({ state: 'normal', until: null, warning: null }, NOW)).toEqual({ state: 'Normal', tone: 'good', limit: 'Sin avisos de uso', pct: null, resets: null });
     // after Resume full speed the warning is still shown, with its window's reset
     expect(usageMeter({ state: 'normal', until: null, warning }, NOW)).toMatchObject({ state: 'Normal', limit: 'weekly limit · 91%' });
     expect(usageMeter({ state: 'normal', until: null, warning: { ...warning, resetsAt: NOW - MIN } }, NOW).resets).toBeNull();
-    expect(usageMeter({ state: 'paused', until: NOW + 5 * MIN, warning: null }, NOW)).toMatchObject({ state: 'Paused', tone: 'bad', resets: '12:05' });
+    expect(usageMeter({ state: 'paused', until: NOW + 5 * MIN, warning: null }, NOW)).toMatchObject({ state: 'En pausa', tone: 'bad', resets: '12:05' });
   });
 });
 

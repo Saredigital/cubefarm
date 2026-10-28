@@ -1,16 +1,9 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { describe, expect, it } from 'vitest';
-import { EAST_DESKS, MAX_DESKS } from '../client/src/world/layout.ts';
-import { FLOOR_SEATS, type QaStatus } from '../shared/types.ts';
+import type { QaStatus } from '../shared/types.ts';
 import type { HttpError } from './httpError.ts';
 import { ceoJobPrompt, ceoSystemPrompt, checkCloseIssue, createOfficeTools, floorCapacity, IssueCap, jobLabel, planDependencies, plannedSize, scalePlan, type CeoJob, type DependsRequest, type TeamNow } from './ceo.ts';
-
-describe('seats', () => {
-  it('match the desks the client draws', () => {
-    expect(MAX_DESKS + EAST_DESKS.z.length).toBe(FLOOR_SEATS);
-  });
-});
 
 describe('scalePlan (scale_team)', () => {
   // Desks 0-3: Ada and Linus are free, Grace and Alan busy; one new agent waits in the lobby.
@@ -65,27 +58,27 @@ describe('jobLabel', () => {
   const floor = { floor: 3, fullName: 'leonvanzyl/office-swarm' };
 
   it('names the floor and repo for floor jobs', () => {
-    expect(jobLabel(job('onboard'), floor)).toBe('Onboarding floor 3 · office-swarm');
-    expect(jobLabel(job('plan'), floor)).toBe('Planning floor 3 · office-swarm');
+    expect(jobLabel(job('onboard'), floor)).toBe('Incorporando planta 3 · office-swarm');
+    expect(jobLabel(job('plan'), floor)).toBe('Planificando planta 3 · office-swarm');
   });
 
   it('falls back to the full name when it has no owner', () => {
-    expect(jobLabel(job('plan'), { floor: 1, fullName: 'solo' })).toBe('Planning floor 1 · solo');
+    expect(jobLabel(job('plan'), { floor: 1, fullName: 'solo' })).toBe('Planificando planta 1 · solo');
   });
 
   it('says so when the floor is gone', () => {
-    expect(jobLabel(job('onboard'), null)).toBe('Onboarding a removed floor');
-    expect(jobLabel(job('plan'), null)).toBe('Planning a removed floor');
+    expect(jobLabel(job('onboard'), null)).toBe('Incorporando una planta eliminada');
+    expect(jobLabel(job('plan'), null)).toBe('Planificando una planta eliminada');
   });
 
   it('labels company-wide jobs without a floor', () => {
-    expect(jobLabel(job('review'), floor)).toBe('Reviewing the company');
-    expect(jobLabel(job('review'), null)).toBe('Reviewing the company');
-    expect(jobLabel({ kind: 'chat', text: 'hi', at: 0 }, null)).toBe('Replying to you');
+    expect(jobLabel(job('review'), floor)).toBe('Revisando la empresa');
+    expect(jobLabel(job('review'), null)).toBe('Revisando la empresa');
+    expect(jobLabel({ kind: 'chat', text: 'hi', at: 0 }, null)).toBe('Respondiéndote');
   });
 
   it('names the PR for a triage', () => {
-    expect(jobLabel({ kind: 'triage', repoId: 'r1', prNumber: 108, at: 0 }, floor)).toBe('Triaging PR #108 · floor 3 · office-swarm');
+    expect(jobLabel({ kind: 'triage', repoId: 'r1', prNumber: 108, at: 0 }, floor)).toBe('Triaje de la PR #108 · planta 3 · office-swarm');
   });
 });
 
@@ -166,12 +159,12 @@ describe('checkCloseIssue (close_issue)', () => {
   it('refuses a closed or unknown issue, which is how another floor\'s issue looks too', () => {
     expect(status('CLOSED')).toBe(404);
     expect(status(null)).toBe(404);
-    expect(() => checkCloseIssue({ floor: 2, number: 6, state: 'CLOSED', pulls })).toThrow('#6 on floor 2 is already closed.');
+    expect(() => checkCloseIssue({ floor: 2, number: 6, state: 'CLOSED', pulls })).toThrow('#6 de la planta 2 ya está cerrado.');
   });
 
   it('refuses an issue an open PR closes', () => {
     expect(status('OPEN', 4)).toBe(409);
-    expect(() => checkCloseIssue({ floor: 1, number: 4, state: 'OPEN', pulls })).toThrow('PR #20 closes #4. Close or finish that pull request first.');
+    expect(() => checkCloseIssue({ floor: 1, number: 4, state: 'OPEN', pulls })).toThrow('La PR #20 cierra #4. Cierra o termina antes esa pull request.');
   });
 });
 
@@ -197,34 +190,34 @@ describe('planDependencies (set_dependencies)', () => {
   it('rewrites the Depends on line and leaves the rest of the body alone', () => {
     expect(deps({ number: 5, dependsOn: [6] }).body).toBe('Depends on #6\n\nIntro\n\nMore');
     expect(deps({ number: 5, dependsOn: [] }).body).toBe('Intro\n\nMore');
-    expect(deps({ number: 6, dependsOn: [1, 4] })).toEqual({ body: 'Depends on #1, #4\n\nFree', summary: '#6 on floor 1: depends on #1, #4.' });
-    expect(deps({ number: 4, dependsOn: [] })).toEqual({ body: null, summary: '#4 on floor 1: no dependencies.' });
+    expect(deps({ number: 6, dependsOn: [1, 4] })).toEqual({ body: 'Depends on #1, #4\n\nFree', summary: '#6 en la planta 1: depende de #1, #4.' });
+    expect(deps({ number: 4, dependsOn: [] })).toEqual({ body: null, summary: '#4 en la planta 1: sin dependencias.' });
   });
 
   it('refuses a closed or unknown issue', () => {
-    expect(() => deps({ number: 9 })).toThrow('#9 is closed.');
-    expect(() => deps({ number: 42 })).toThrow('There is no open issue #42 on floor 1.');
+    expect(() => deps({ number: 9 })).toThrow('#9 está cerrado.');
+    expect(() => deps({ number: 42 })).toThrow('No hay ningún issue abierto #42 en la planta 1.');
   });
 
   it('refuses dependencies on itself, on closed and on unknown issues', () => {
-    expect(() => deps({ dependsOn: [4] })).toThrow("#4 can't depend on itself.");
-    expect(() => deps({ dependsOn: [9] })).toThrow("#9 is closed, so there's nothing to wait for.");
-    expect(() => deps({ dependsOn: [42] })).toThrow('There is no open issue #42 on floor 1.');
+    expect(() => deps({ dependsOn: [4] })).toThrow('#4 no puede depender de sí mismo.');
+    expect(() => deps({ dependsOn: [9] })).toThrow('#9 está cerrado, así que no hay nada que esperar.');
+    expect(() => deps({ dependsOn: [42] })).toThrow('No hay ningún issue abierto #42 en la planta 1.');
   });
 
   it('refuses a cycle', () => {
-    expect(() => deps({ number: 1, dependsOn: [3] })).toThrow('#3 already waits for #1, directly or through other issues, so that would be a cycle.');
-    expect(() => deps({ number: 4, dependsOn: [5] })).toThrow(/#5 already waits for #4/);
+    expect(() => deps({ number: 1, dependsOn: [3] })).toThrow('#3 ya espera a #1, directamente o a través de otros issues, así que eso sería un ciclo.');
+    expect(() => deps({ number: 4, dependsOn: [5] })).toThrow(/#5 ya espera a #4/);
   });
 
   it('refuses a chain deeper than two steps', () => {
-    expect(() => deps({ number: 1, dependsOn: [6] })).toThrow('That makes a dependency chain 3 steps deep through #1. Keep chains to 2 steps at most: fold the dependent pieces into one issue instead of splitting further.');
-    expect(() => deps({ number: 6, dependsOn: [3] })).toThrow(/3 steps deep/);
+    expect(() => deps({ number: 1, dependsOn: [6] })).toThrow('Eso crea una cadena de dependencias de 3 pasos a través de #1. Limita las cadenas a 2 pasos como mucho: junta las partes dependientes en un solo issue en lugar de dividir más.');
+    expect(() => deps({ number: 6, dependsOn: [3] })).toThrow(/de 3 pasos/);
     expect(deps({ number: 6, dependsOn: [2] }).body).toBe('Depends on #2\n\nFree');
   });
 
   it('leaves an issue in progress alone', () => {
-    expect(() => deps({ inProgress: true })).toThrow("#4 is already in progress, so its dependencies can't change.");
+    expect(() => deps({ inProgress: true })).toThrow('#4 ya está en curso, así que sus dependencias no pueden cambiar.');
   });
 });
 
@@ -236,29 +229,29 @@ describe('planning guidance', () => {
 
   it('plans whole features, not slices per developer', () => {
     for (const old of ['small, well-specified', 'one agent-session each', 'at least one per developer', 'split big pieces', 'keep foundation issues small']) expect(system).not.toContain(old);
-    expect(system).toContain('An issue is a whole feature the manager would recognise');
-    expect(system).toContain('Split a feature only when its parts are truly independent AND touch different files, or when one risky foundation part should land and be tested first.');
-    expect(system).toContain('Never split a feature just to give idle agents something to do');
+    expect(system).toContain('Un issue es una funcionalidad completa que el responsable reconocería');
+    expect(system).toContain('Divide una funcionalidad solo cuando sus partes sean de verdad independientes Y toquen ficheros distintos, o cuando una parte base arriesgada deba llegar y probarse primero.');
+    expect(system).toContain('Nunca dividas una funcionalidad solo para dar algo que hacer a agentes parados');
   });
 
   it('keeps the dependency rules and the issue cap, and points at the QA queue', () => {
-    expect(system).toContain('the same agents build and test, so PRs queued for QA (capacity.prsAwaitingQa) mean fewer, bigger issues');
-    expect(system).toContain('Most briefs need 1 to 4 issues.');
-    expect(system).toContain('Keep dependency chains to two steps at most.');
-    expect(system).toContain('with set_dependencies');
-    expect(system).toContain('File at most 12 issues per job');
+    expect(system).toContain('los mismos agentes construyen y prueban, así que PRs en cola para QA (capacity.prsAwaitingQa) significan menos issues y más grandes');
+    expect(system).toContain('La mayoría de los encargos necesitan de 1 a 4 issues.');
+    expect(system).toContain('Limita las cadenas de dependencias a dos pasos como mucho.');
+    expect(system).toContain('con set_dependencies');
+    expect(system).toContain('Abre como mucho 12 issues por trabajo');
   });
 
   it('plan job: one issue per feature, a skeleton first only for an empty repo', () => {
-    expect(plan).not.toContain('side by side');
-    expect(plan).toContain('One issue per whole feature.');
-    expect(plan).toContain('Only for an empty or nearly empty repository does a skeleton issue come first');
+    expect(plan).not.toContain('una al lado de otra');
+    expect(plan).toContain('Un issue por funcionalidad completa.');
+    expect(plan).toContain('Solo en un repositorio vacío o casi vacío va primero un issue de esqueleto');
   });
 
   it('review job: sizes teams from throughput, and idle agents are no reason to slice features', () => {
-    expect(review).toContain('team size against throughput');
-    expect(review).toContain('PRs piling up in QA (then plan fewer, bigger issues)');
-    expect(review).toContain('Idle agents are not a reason to slice features');
+    expect(review).toContain('tamaño del equipo frente al rendimiento');
+    expect(review).toContain('PRs que se acumulan en QA (entonces planifica menos issues y más grandes)');
+    expect(review).toContain('Que haya agentes parados no es motivo para trocear funcionalidades');
   });
 });
 
@@ -266,15 +259,15 @@ describe('team guidance', () => {
   const prompt = (scaling: 'approve' | 'auto') => ceoSystemPrompt({ name: 'Luna', company: 'Acme', manager: 'Sam', notesFile: 'notes.md', sessionLimit: 0, maxAgents: 8, scaling });
 
   it('sizes teams from throughput, within the floor max, and keeps one agent', () => {
-    expect(prompt('approve')).toContain("Size each floor's team from its throughput");
-    expect(prompt('approve')).toContain('A floor holds at most 8.');
-    expect(prompt('approve')).toContain('Every floor keeps at least one agent.');
+    expect(prompt('approve')).toContain('Dimensiona el equipo de cada planta según su rendimiento');
+    expect(prompt('approve')).toContain('Una planta admite como mucho 8.');
+    expect(prompt('approve')).toContain('Cada planta conserva al menos un agente.');
     for (const old of ['QA tester', 'job description', 'specialty', 'propose_hire', 'update_job']) expect(prompt('approve')).not.toContain(old);
   });
 
   it('says who decides on team changes', () => {
-    expect(prompt('approve')).toContain('The manager approves every change, and sets up each new agent before hiring them.');
-    expect(prompt('auto')).toContain("Team changes apply straight away, within the floor's max, so be deliberate.");
+    expect(prompt('approve')).toContain('El responsable aprueba cada cambio y configura a cada agente nuevo antes de contratarlo.');
+    expect(prompt('auto')).toContain('Los cambios de equipo se aplican directamente, dentro del máximo de la planta, así que piénsalo bien.');
   });
 
   it('onboarding sizes the team instead of hiring specialists', () => {
@@ -307,20 +300,20 @@ describe('triage', () => {
 
   it('gives the job everything QA and GitHub know about the PR', () => {
     const prompt = ceoJobPrompt(job, floor, pr);
-    for (const fact of ['#108', 'Jukebox volume', 'QA round 3', pr.summary, pr.fixInstructions, pr.mergeNote, pr.why, 'GitHub checks: failing (failed: CI / e2e)', 'mergeable: CONFLICTING (DIRTY)', 'triage 1 of 2']) {
+    for (const fact of ['#108', 'Jukebox volume', 'Ronda de QA 3', pr.summary, pr.fixInstructions, pr.mergeNote, pr.why, 'Checks de GitHub: failing (fallidos: CI / e2e)', 'mergeable: CONFLICTING (DIRTY)', 'triaje 1 de 2']) {
       expect(prompt).toContain(fact);
     }
-    expect(prompt).toContain('retry_qa, send_back, rerun_checks, close_pull or escalate');
+    expect(prompt).toContain('retry_qa, send_back, rerun_checks, close_pull o escalate');
   });
 
   it('has nothing to do once the PR is no longer stuck', () => {
-    expect(ceoJobPrompt(job, floor, null)).toBe('Pull request #108 no longer needs triage. Reply "Nothing to do."');
+    expect(ceoJobPrompt(job, floor, null)).toBe('La pull request #108 ya no necesita triaje. Responde "Nada que hacer."');
   });
 
   it('adds a triage section to the system prompt and keeps its safety rules', () => {
-    expect(system).toContain('Triage jobs:');
-    expect(system).toContain('They are read-only to you. You cannot run shell commands.');
-    expect(system).toContain('Change things only through the mcp__office__ tools.');
+    expect(system).toContain('Trabajos de triaje:');
+    expect(system).toContain('Para ti son de solo lectura. No puedes ejecutar comandos de shell.');
+    expect(system).toContain('Cambia las cosas solo con las herramientas mcp__office__.');
   });
 });
 
@@ -367,7 +360,7 @@ describe('IssueCap', () => {
       cap.check();
       cap.record('a/b');
     }
-    expect(() => cap.check()).toThrow("You already filed 12 issues in this job. That's plenty for one milestone. The manager's next message allows more.");
+    expect(() => cap.check()).toThrow('Ya has abierto 12 issues en este trabajo. Es suficiente para un hito. El próximo mensaje del responsable permite más.');
   });
 
   it('resets when a manager message arrives, and still counts the whole job', () => {

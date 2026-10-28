@@ -6,14 +6,14 @@ const u = (over: Partial<OfficeUpdateView>): OfficeUpdateView => ({ state: 'none
 
 describe('officeUpdateText', () => {
   it('says each state in plain words', () => {
-    expect(officeUpdateText(u({}))).toBe('Up to date');
-    expect(officeUpdateText(u({ state: 'available', behind: 3 }))).toBe('3 updates ready');
-    expect(officeUpdateText(u({ state: 'available', behind: 1 }))).toBe('1 update ready');
-    expect(officeUpdateText(u({ state: 'draining', behind: 3, running: 2 }))).toBe('Waiting for 2 sessions to finish');
-    expect(officeUpdateText(u({ state: 'waiting', behind: 3, running: 1 }))).toBe('Waiting for 1 session to finish');
-    expect(officeUpdateText(u({ state: 'draining', behind: 3 }))).toBe('Updating shortly…');
-    expect(officeUpdateText(u({ state: 'updating', behind: 3 }))).toBe('Updating…');
-    expect(officeUpdateText(u({ state: 'failed', detail: 'npm ci failed' }))).toBe('Last update failed: npm ci failed');
+    expect(officeUpdateText(u({}))).toBe('Al día');
+    expect(officeUpdateText(u({ state: 'available', behind: 3 }))).toBe('3 actualizaciones listas');
+    expect(officeUpdateText(u({ state: 'available', behind: 1 }))).toBe('1 actualización lista');
+    expect(officeUpdateText(u({ state: 'draining', behind: 3, running: 2 }))).toBe('Esperando a que terminen 2 sesiones');
+    expect(officeUpdateText(u({ state: 'waiting', behind: 3, running: 1 }))).toBe('Esperando a que termine 1 sesión');
+    expect(officeUpdateText(u({ state: 'draining', behind: 3 }))).toBe('Actualizando en breve…');
+    expect(officeUpdateText(u({ state: 'updating', behind: 3 }))).toBe('Actualizando…');
+    expect(officeUpdateText(u({ state: 'failed', detail: 'npm ci failed' }))).toBe('La última actualización falló: npm ci failed');
   });
 });
 
@@ -23,9 +23,9 @@ describe('officeUpdateChip', () => {
     expect(officeUpdateChip(u({}))).toBeNull();
     expect(officeUpdateChip(u({ state: 'available', behind: 2 }))).toBeNull();
     expect(officeUpdateChip(u({ state: 'failed', detail: 'x' }))).toBeNull();
-    expect(officeUpdateChip(u({ state: 'draining', running: 2 }))).toBe('⟳ Updating the office after 2 sessions finish');
-    expect(officeUpdateChip(u({ state: 'waiting', running: 1 }))).toBe('⟳ Updating the office after 1 session finishes');
-    expect(officeUpdateChip(u({ state: 'updating' }))).toBe('⟳ Updating the office…');
+    expect(officeUpdateChip(u({ state: 'draining', running: 2 }))).toBe('⟳ Actualizando la oficina cuando terminen 2 sesiones');
+    expect(officeUpdateChip(u({ state: 'waiting', running: 1 }))).toBe('⟳ Actualizando la oficina cuando termine 1 sesión');
+    expect(officeUpdateChip(u({ state: 'updating' }))).toBe('⟳ Actualizando la oficina…');
   });
 });
 

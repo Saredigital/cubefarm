@@ -5,7 +5,7 @@
 export const SPEECH_MAX_CHARS = 1500;
 
 /** What the settings' Test button says, in ElevenLabs' voice or the browser's. */
-export const SAMPLE_LINE = "Hi! This is how I'll sound when I message you from the office.";
+export const SAMPLE_LINE = '¡Hola! Así sonaré cuando te escriba desde la oficina.';
 
 const EMOJI = /[\p{Extended_Pictographic}\p{Regional_Indicator}\u{1F3FB}-\u{1F3FF}‍︎️⃣]/gu;
 const URL = /\b(?:https?:\/\/|www\.)[^\s<>()]+[^\s<>().,;:!?'"]/gi;
@@ -19,13 +19,13 @@ export function speechText(text: string, max = SPEECH_MAX_CHARS): string {
   s = s.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
   s = s.replace(/<(https?:[^>\s]+)>/g, '$1');
   s = s.replace(/<\/?[a-z][^>]*>/gi, '');
-  s = s.replace(URL, 'a link');
+  s = s.replace(URL, 'un enlace');
   s = s.replace(EMOJI, '');
   s = s.replace(/(\*\*|__)(.+?)\1/g, '$2');
   s = s.replace(/(^|[^\w*])\*(?!\s)([^*\n]+?)\*(?!\w)/g, '$1$2');
   s = s.replace(/(^|[^\w])_(?!\s)([^_\n]+?)_(?!\w)/g, '$1$2');
   s = s.replace(/~~(.+?)~~/g, '$1');
-  s = s.replace(/#(\d+)\b/g, 'number $1');
+  s = s.replace(/#(\d+)\b/g, 'número $1');
 
   const lines: string[] = [];
   for (let line of s.split('\n')) {
@@ -64,8 +64,8 @@ export const DAY_PARTS = ['morning', 'afternoon', 'evening'] as const;
 export type DayPart = (typeof DAY_PARTS)[number];
 export const dayPart = (hour: number): DayPart => (hour >= 5 && hour < 12 ? 'morning' : hour >= 12 && hour < 17 ? 'afternoon' : 'evening');
 
-const COUNTS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
-const GREETING: Record<DayPart, string> = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening' };
+const COUNTS = ['ninguna', 'una', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'];
+const GREETING: Record<DayPart, string> = { morning: 'Buenos días', afternoon: 'Buenas tardes', evening: 'Buenas noches' };
 
 /**
  * What the CEO says at a stand-up at the whiteboard (the 3D office's rituals), for `count` new issues. The server only
@@ -73,6 +73,6 @@ const GREETING: Record<DayPart, string> = { morning: 'Morning', afternoon: 'Afte
  */
 export function standupLine(count: number, part: DayPart): string {
   const n = Math.max(1, Math.floor(count));
-  const how = n < COUNTS.length ? COUNTS[n] : 'a pile of';
-  return `${GREETING[part]} team, ${how} new feature${n === 1 ? '' : 's'} today!`;
+  const how = n < COUNTS.length ? COUNTS[n] : 'un montón de';
+  return `¡${GREETING[part]}, equipo! Hoy tenemos ${how} funcionalidad${n === 1 ? '' : 'es'} nueva${n === 1 ? '' : 's'}.`;
 }

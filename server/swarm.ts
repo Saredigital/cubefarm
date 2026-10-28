@@ -43,9 +43,8 @@ import { clampTrimIdleMin, DEFAULT_TRIM_IDLE_MIN, desksToTrim, formatBytes, free
 import { boxVersions, cliLabel, isCli } from './clis.ts';
 import { machineName, type MachineProvider } from './machines.ts';
 import { MACHINES_DIR, type DeskTrim } from './workspace.ts';
-import { envSecrets, Journal } from './journal.ts';
-import { sampleDay, seeded } from './journalSample.ts';
-import { addTenure, apply as applyLedger, buy as buyDecor, emptyLedger, grant as grantCoins, loadLedger, place as placeDecor, progressView, type CommandResult, type Effects, type LedgerEvent, type LedgerState } from './ledger.ts';
+import { envSecrets, legacyAgent, legacyRequest } from './legacyState.ts';
+import { apply as applyLedger, emptyLedger, loadLedger, progressView, type Effects, type LedgerEvent, type LedgerState } from './ledger.ts';
 import { AgentTerminal } from './terminal.ts';
 import { Ticker } from './ticker.ts';
 import { Outbox } from './outbox.ts';
@@ -55,15 +54,10 @@ import { clip, plainText, stuckAgents } from './notify.ts';
 import { DEFAULT_NOTIFY, notifySettings, officeUrl } from '../shared/notify.ts';
 import { cloudSettings, DEFAULT_CLOUD } from '../shared/cloud.ts';
 import { agentActivity, lineActivity, sameActivity, type SeenActivity } from '../shared/activity.ts';
-import { WeatherService } from './weather.ts';
 import { blockers, holdUps, waitsMessage } from '../shared/issues.ts';
-import { dayKey, journalFrame, legacyAgent, legacyRequest } from '../shared/journal.ts';
 import { cleanStyle, HAIR_COLORS, SKIN_TONES, type AgentStyle } from '../shared/looks.ts';
 import { achievementDef, type ProgressView } from '../shared/progress.ts';
-import { parsePongResult, PONG_PLAYER, recordGame } from '../shared/pong.ts';
 import { effectiveModel } from '../shared/models.ts';
-import { DEFAULT_WEATHER, DEFAULT_WORLD_EVENTS, weatherSettings, worldEventSettings } from '../shared/outside.ts';
-import { DEFAULT_THEME_SETTINGS, dueGreeting, themeSettings } from '../shared/themes.ts';
 import { CEO_ID, DEFAULT_DOG_NAME, DEFAULT_MAX_AGENTS, FLOOR_SEATS, INSTALL_STEP } from '../shared/types.ts';
 import type {
   AgentActivity,
@@ -88,7 +82,6 @@ import type {
   OfficeUpdateView,
   OpsView,
   PhoneMessage,
-  PongRow,
   PreviewConfig,
   PreviewView,
   PrPreviewView,
@@ -187,6 +180,9 @@ interface QaRecord extends Omit<QaView, 'ceoLooking'> {
 
 /** The PR work a desk is being set up for. author: the PR's author before a fix was handed out (restored if it can't start). */
 type PrepJob = { rec: QaRecord; task: 'qa' } | { rec: QaRecord; task: 'fix'; author: string | null };
+
+/** A project's name as the panel shows it: the repo without its owner. */
+const projectName = (r: { fullName: string }) => r.fullName.split('/')[1] ?? r.fullName;
 const prepKey = (repoId: string, prNumber: number, task: PrepJob['task']) => `${repoId}#${prNumber}:${task}`;
 
 /** Choices made when a project moves into the office. */
@@ -222,7 +218,6 @@ interface Persisted {
   ops: OpsHistory; // mission control's rolling week of merges, QA verdicts, check runs and costs
   held: HeldIssue[];
   progress: LedgerState; // coins, decorations, achievements and careers (ledger.ts)
-  pong: Record<string, PongRow[]>; // each floor's ping-pong leaderboard, by repo id
   officeId: string; // this office on a shared Upstash account: its Boxes carry it (docs/cloud.md)
 }
 
@@ -350,7 +345,7 @@ const oneLine = (err: unknown) => (err instanceof Error ? err.message : String(e
 const SIGN_IN_POLL_MS = 8_000;
 const SIGN_IN_IDLE_POLL_MS = 60_000;
 // What a session that lost its sign-in mid-task is told when it carries on.
-const SIGNED_IN_AGAIN = 'You were signed out in the middle of your task and are signed in again. Carry on where you left off.';
+const SIGNED_IN_AGAIN = 'Se cerró tu sesión en mitad de la tarea y ya la has vuelto a iniciar. Sigue donde lo dejaste.';
 
 /** A cloud agent's CLI that runs in a Box and can sign in there (OpenCode can't run in one). */
 type BoxCliId = 'claude' | 'codex';
@@ -358,7 +353,7 @@ type BoxCliId = 'claude' | 'codex';
 /** A cloud agent's CLI isn't signed in in their Box: their task waits for the manager to sign it in (docs/cloud.md). */
 class SignInNeeded extends Error {
   constructor(readonly cli: BoxCliId) {
-    super(`${cliLabel(cli)} isn't signed in in their cloud machine.`);
+    super(`${cliLabel(cli)} no tiene la sesión iniciada en su máquina en la nube.`);
   }
 }
 
@@ -408,38 +403,38 @@ const QA_SCHEMA: Record<string, unknown> = {
   additionalProperties: false,
   required: ['verdict', 'summary', 'checks', 'commands', 'screenshots'],
   properties: {
-    verdict: { type: 'string', enum: ['pass', 'fail'], description: 'pass only if the change works and meets the issue requirements' },
-    summary: { type: 'string', description: 'Two to four sentences for the pull request comment.' },
+    verdict: { type: 'string', enum: ['pass', 'fail'], description: 'pass solo si el cambio funciona y cumple los requisitos del issue; si no, fail (valores literales en inglés)' },
+    summary: { type: 'string', description: 'De dos a cuatro frases en español para el comentario de la pull request.' },
     checks: {
       type: 'array',
-      description: 'Each acceptance criterion, test run or scenario you verified.',
+      description: 'Cada criterio de aceptación, ejecución de tests o escenario que has verificado.',
       items: {
         type: 'object',
         additionalProperties: false,
         required: ['name', 'result', 'details'],
         properties: {
-          name: { type: 'string' },
+          name: { type: 'string', description: 'En español.' },
           result: { type: 'string', enum: ['pass', 'fail', 'skip'] },
-          details: { type: 'string', description: 'What you did and what you observed.' },
+          details: { type: 'string', description: 'Qué has hecho y qué has observado, en español.' },
         },
       },
     },
     commands: {
       type: 'array',
-      description: 'Test suites, linters, builds and other commands you ran.',
+      description: 'Baterías de tests, linters, builds y otros comandos que has ejecutado.',
       items: {
         type: 'object',
         additionalProperties: false,
         required: ['command', 'result'],
-        properties: { command: { type: 'string' }, result: { type: 'string', description: 'e.g. "42 passed, 0 failed"' } },
+        properties: { command: { type: 'string' }, result: { type: 'string', description: 'p. ej. "42 superados, 0 fallidos"' } },
       },
     },
     screenshots: {
       type: 'array',
-      description: 'One short caption per screenshot you took with browser_take_screenshot, in the order you took them.',
+      description: 'Un pie de foto breve, en español, por cada captura que hayas hecho con browser_take_screenshot, en el orden en que las hiciste.',
       items: { type: 'string' },
     },
-    fixInstructions: { type: 'string', description: 'When the verdict is fail: precise, actionable instructions for the developer.' },
+    fixInstructions: { type: 'string', description: 'Cuando el veredicto es fail: instrucciones precisas y accionables para el desarrollador, en español.' },
   },
 };
 
@@ -508,9 +503,6 @@ export class Swarm {
       pacingSessions: DEFAULT_PACING_SESSIONS,
       trimIdleDesksMin: DEFAULT_TRIM_IDLE_MIN,
       voice: { ...DEFAULT_VOICE },
-      themes: DEFAULT_THEME_SETTINGS,
-      weather: { ...DEFAULT_WEATHER },
-      worldEvents: { ...DEFAULT_WORLD_EVENTS },
       listen: { ...DEFAULT_LISTEN },
       notify: notifySettings(DEFAULT_NOTIFY, {}),
       cloud: { ...DEFAULT_CLOUD },
@@ -526,7 +518,6 @@ export class Swarm {
     ops: emptyHistory(),
     held: [],
     progress: emptyLedger(),
-    pong: {},
     officeId: officeId(),
   };
   /**
@@ -593,10 +584,6 @@ export class Swarm {
   private clis: CliView[] = []; // coding-agent CLIs found on this machine (detected at startup)
   /** Phone messages read aloud. The demo keeps its own key and clips, so it never touches the real ones. */
   readonly voice: Voice;
-  /** The real local weather (Settings → Weather), read by the server so it's cached and survives a restart. */
-  readonly weather: WeatherService;
-  /** What the office looked like over the last week, for the time-lapse replay. The demo keeps its own. */
-  readonly journal: Journal;
   private readonly envSecrets = envSecrets(process.env);
   /** Notifications to the manager's devices and chat apps (docs/pocket.md). The demo's only log what they'd send. */
   readonly notifier: Notifier;
@@ -609,13 +596,6 @@ export class Swarm {
   private toldStuck = new Set<string>(); // `${agentId}:${endedAt}`: agents in an error the manager was notified about
 
   constructor(private backend: Backend) {
-    this.weather = new WeatherService({
-      api: backend.weather,
-      file: path.join(HOME_DIR, backend.demo ? 'demo-weather.json' : 'weather.json'),
-      settings: () => this.state.settings.weather,
-      changed: (weather) => this.broadcast({ type: 'weather', weather }),
-      log: (line) => console.log(line),
-    });
     this.voice = new Voice({
       api: backend.voice,
       secretsFile: path.join(HOME_DIR, backend.demo ? 'demo-secrets.json' : 'secrets.json'),
@@ -627,11 +607,6 @@ export class Swarm {
       keyChanged: (view) => this.broadcast({ type: 'voiceKey', ...view }),
       cacheChanged: (voiceCache) => this.broadcast({ type: 'voiceCache', voiceCache }),
       log: (line) => console.log(line),
-    });
-    this.journal = new Journal({
-      dir: path.join(HOME_DIR, backend.demo ? 'demo-journal' : 'journal'),
-      frame: () => journalFrame(this.snapshot(), this.secrets()),
-      secrets: () => this.secrets(),
     });
     this.notifier = new Notifier({
       transport: backend.notify,
@@ -734,7 +709,6 @@ export class Swarm {
         ops: loadHistory(loaded.ops, Date.now()),
         held: loaded.held ?? [],
         progress: loadLedger(loaded.progress),
-        pong: loaded.pong && typeof loaded.pong === 'object' ? loaded.pong : {},
         officeId: typeof loaded.officeId === 'string' && /^[a-z0-9]{6}$/.test(loaded.officeId) ? loaded.officeId : this.state.officeId,
       };
       for (const m of this.state.messages) this.messageSeq = Math.max(this.messageSeq, m.id + 1);
@@ -763,9 +737,6 @@ export class Swarm {
       if (this.state.settings.scaling !== 'auto') this.state.settings.scaling = 'approve';
       this.state.settings.maxAgents = clampMaxAgents(this.state.settings.maxAgents);
       this.state.settings.voice = voiceSettings(DEFAULT_VOICE, loaded.settings?.voice);
-      this.state.settings.themes = themeSettings(DEFAULT_THEME_SETTINGS, loaded.settings?.themes);
-      this.state.settings.weather = weatherSettings(DEFAULT_WEATHER, loaded.settings?.weather);
-      this.state.settings.worldEvents = worldEventSettings(DEFAULT_WORLD_EVENTS, loaded.settings?.worldEvents);
       this.state.settings.listen = listenSettings(DEFAULT_LISTEN, loaded.settings?.listen);
       this.state.settings.notify = notifySettings(DEFAULT_NOTIFY, loaded.settings?.notify);
       this.state.settings.cloud = cloudSettings(DEFAULT_CLOUD, loaded.settings?.cloud);
@@ -777,7 +748,6 @@ export class Swarm {
       // first run
     }
     await this.voice.init();
-    await this.weather.init();
     await this.notifier.init();
     await this.cloud.init();
     if (this.state.settings.cloud.machineKind === 'box' && !this.cloud.boxApi()) this.state.settings.cloud.machineKind = 'local';
@@ -831,7 +801,7 @@ export class Swarm {
     try {
       this.user = await this.backend.user();
     } catch (err) {
-      this.ghError = `GitHub CLI is not ready: ${(err as Error).message}. Run "gh auth login".`;
+      this.ghError = `La CLI de GitHub no está lista: ${(err as Error).message}. Ejecuta "gh auth login".`;
       console.warn(this.ghError);
     }
 
@@ -882,15 +852,12 @@ export class Swarm {
     setInterval(() => {
       void this.trimIdleDesks();
       void this.voice.prune();
-      void this.journal.prune().catch((err) => console.warn('could not prune the journal', err));
     }, this.backend.demo ? 60_000 : TRIM_SWEEP_MS);
     setInterval(() => {
       this.state.repos.forEach((r, i) => setTimeout(() => void this.sweepFloor(r.id), i * 1500));
       void this.sweepMachines();
     }, DESK_SWEEP_INTERVAL_MS);
     void this.sweepMachines();
-    setInterval(() => this.greet(), 60_000);
-    setTimeout(() => this.greet(), 5000);
     setInterval(() => this.emitOps(), OPS_TICK_MS); // the clock moves the numbers too: the last hour, today, errors turning into alarms
     setInterval(() => this.notifyStuck(), 60_000);
     setInterval(() => this.watchdogTick(), WATCHDOG_MS);
@@ -901,9 +868,6 @@ export class Swarm {
         this.broadcast({ type: 'clis', clis });
       })
       .catch((err) => console.warn('could not look for agent CLIs', err));
-    await this.journal.start();
-    // A fresh demo office has yesterday to replay too.
-    if (this.backend.demo) void this.journal.hasPastDays().then((has) => (has ? undefined : this.journalSample())).catch((err) => console.warn('could not write the sample day', err));
     this.save();
     // Tabs connect after this, so each one's snapshot has at least these: later changes go out as patches on them.
     this.outbox.seed(
@@ -965,7 +929,7 @@ export class Swarm {
       }
       if (a.status === 'preparing') out.preparing.add(a);
       a.status = 'stopped';
-      a.lastError = 'The swarm server restarted while this agent was working.';
+      a.lastError = 'El servidor de la oficina se reinició mientras este agente trabajaba.';
       out.interrupted.push(a);
     }
     for (const r of this.state.repos) this.cleanUpClosed(r);
@@ -990,7 +954,7 @@ export class Swarm {
       if (!a.task) continue; // its issue or PR closed while the office was down: the startup sync cleared the desk
       const fix = a.task === 'fix' ? this.state.qa.find((q) => q.devAgentId === a.id && q.status === 'fixing') : undefined;
       if (requeue.has(a) || !resumesAfterRestart(a, preparing.has(a), this.backend.demo)) {
-        this.appendLog(a, [{ kind: 'system', text: '↺ The office server restarted. Starting over from the queue.' }]);
+        this.appendLog(a, [{ kind: 'system', text: '↺ El servidor de la oficina se ha reiniciado. Se empieza de nuevo desde la cola.' }]);
         const rec = a.task === 'qa' ? this.state.qa.find((q) => q.qaAgentId === a.id && q.status === 'testing') : undefined;
         if (rec) this.setQa(rec, { status: 'queued' });
         if (fix) this.setQa(fix, { status: 'failed' });
@@ -1015,7 +979,7 @@ export class Swarm {
       back.push(`#${rec.prNumber}${repo ? ` on ${repo.fullName}` : ''}`);
     }
     this.state.prLimits = PR_LIMITS_VERSION;
-    if (back.length) this.postMessage('office', `↩️ Developers now get more tries at their PRs, so ${back.join(', ')} went back to them instead of waiting for you.`);
+    if (back.length) this.postMessage('office', `↩️ Ahora los desarrolladores tienen más intentos con sus PRs, así que ${back.join(', ')} han vuelto a ellos en lugar de esperarte.`);
   }
 
   // ---------- views ----------
@@ -1119,6 +1083,11 @@ export class Swarm {
     };
   }
 
+  /** The office address the manager set for links in messages (Settings → Notificaciones), or ''; the origin guard trusts its host. */
+  officeAddress(): string {
+    return this.state.settings.notify.officeUrl;
+  }
+
   snapshot(): WorldSnapshot {
     return {
       user: this.user,
@@ -1142,7 +1111,6 @@ export class Swarm {
       clis: this.clis,
       ...this.voice.keyView(),
       voiceCache: this.voice.cacheInfo(),
-      weather: this.weather.current(),
       ticker: this.ticker.recent(),
       notifyChannels: this.notifier.channelsView(),
       cloud: this.cloud.view(),
@@ -1150,7 +1118,6 @@ export class Swarm {
       officeCommit: this.officeHead?.slice(0, 7) ?? null,
       officeUpdate: this.officeHead ? this.officeUpdateView() : undefined,
       progress: this.progressView(),
-      pong: this.state.pong,
     };
   }
 
@@ -1200,22 +1167,12 @@ export class Swarm {
   private observe(ev: ServerEvent) {
     for (const item of this.ticker.observe(ev)) this.broadcast({ type: 'ticker', item });
     if (OPS_EVENTS.has(ev.type)) this.opsSoon();
-    this.journal.record(ev);
   }
 
-  /** Values the journal must never write: the ElevenLabs key and secret-looking environment variables. */
+  /** Values never to show or log: the ElevenLabs key, cloud keys and secret-looking environment variables. */
   private secrets(): string[] {
     const key = this.voice.secret();
     return [...this.envSecrets, ...(key ? [key] : []), ...this.cloud.secretValues()];
-  }
-
-  /** POST /api/journal/sample (demo only): writes a made-up working day as yesterday's journal, to replay. */
-  async journalSample(): Promise<{ day: string }> {
-    if (!this.backend.demo) throw new HttpError(400, 'Sample days are only for the demo office');
-    const today = new Date();
-    const midnight = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1).getTime();
-    const day = await this.journal.writeDay(sampleDay(journalFrame(this.snapshot(), this.secrets()), midnight, seeded(Number(dayKey(midnight).replace(/-/g, '')))));
-    return { day };
   }
 
   private toast(level: 'info' | 'success' | 'error', text: string) {
@@ -1304,13 +1261,13 @@ export class Swarm {
 
   private repo(id: string) {
     const r = this.state.repos.find((x) => x.id === id);
-    if (!r) throw new HttpError(404, `Repo ${id} is not connected`);
+    if (!r) throw new HttpError(404, `El repo ${id} no está conectado`);
     return r;
   }
 
   private agent(id: string) {
     const a = this.state.agents.find((x) => x.id === id);
-    if (!a) throw new HttpError(404, `No agent ${id}`);
+    if (!a) throw new HttpError(404, `No existe el agente ${id}`);
     return a;
   }
 
@@ -1358,7 +1315,7 @@ export class Swarm {
     a.sessionId = null;
     a.sessionCli = null;
     for (const q of this.state.qa) if (q.devAgentId === a.id) q.devSessionId = null;
-    this.appendLog(a, [{ kind: 'system', text: '🖥️ Moving to a machine of their own: their own clone of the repository, worktree and temp folder.' }]);
+    this.appendLog(a, [{ kind: 'system', text: '🖥️ Se muda a una máquina propia: su propio clon del repositorio, worktree y carpeta temporal.' }]);
     this.save(); // a restart from here on must know the machine is theirs, or its sweep takes it
     return a.machine;
   }
@@ -1376,7 +1333,7 @@ export class Swarm {
   /** Remove a machine, saying where its unpushed work went; one still in use is tried again by sweepMachines. */
   private async removeMachine(machine: string, name: string | null, host: MachineHost = 'local') {
     const r = await this.machinesFor({ host }).remove(machine).catch(() => ({ removed: false, patches: [] as string[] }));
-    if (r.patches.length) this.postMessage('office', `🧳 ${name ?? 'A former agent'} left work that was on no GitHub branch: saved in ${path.dirname(r.patches[0])}.`);
+    if (r.patches.length) this.postMessage('office', `🧳 ${name ?? 'Un antiguo agente'} dejó trabajo que no estaba en ninguna rama de GitHub: guardado en ${path.dirname(r.patches[0])}.`);
     if (host === 'box' && r.removed) void this.cloud.count().catch(() => undefined);
   }
 
@@ -1405,7 +1362,7 @@ export class Swarm {
    */
   async connectRepo(fullName: string, opts: FloorOptions & { localPath?: string } = {}): Promise<RepoView> {
     const existing = this.state.repos.find((r) => r.id.toLowerCase() === fullName.toLowerCase());
-    if (existing) throw new HttpError(409, `${fullName} is already floor ${existing.floor}`);
+    if (existing) throw new HttpError(409, `${fullName} ya es la planta ${existing.floor}`);
     const meta = await this.backend.repoMeta(fullName);
     const folder = opts.localPath ?? (await this.projectFolderFor(meta.nameWithOwner));
     const floor = this.state.repos.reduce((m, r) => Math.max(m, r.floor), 0) + 1;
@@ -1433,7 +1390,7 @@ export class Swarm {
     this.repoRt.set(repo.id, { issues: [], pulls: [], lastSync: null, syncing: false, cloneStatus: 'pending', lastMergedAt: null, folderSync: null, merging: false, closedIssues: new Map(), closedPulls: new Map(), openAt: new Map() });
     this.save();
     this.emitRepo(repo);
-    this.toast('success', `${repo.fullName} moved into floor ${floor}`);
+    this.toast('success', `${repo.fullName} ya está conectado`);
     this.ensureAgent(repo);
     void this.cloneRepo(repo.id);
     void this.syncRepo(repo.id);
@@ -1451,13 +1408,13 @@ export class Swarm {
     if (match) return match.path;
     const name = fullName.split('/')[1];
     const taken = folders.find((f) => f.name.toLowerCase() === name.toLowerCase());
-    if (taken) throw new HttpError(409, `${taken.path} already exists and isn't a clone of ${fullName}. Connect that folder instead, or rename it first.`);
+    if (taken) throw new HttpError(409, `${taken.path} ya existe y no es un clon de ${fullName}. Conecta esa carpeta en su lugar, o cámbiale antes el nombre.`);
     return path.join(root, name); // cloned there when the floor opens
   }
 
   /** A brand-new project: a folder in your projects folder, pushed to a new GitHub repo. */
   async createRepo(name: string, opts: FloorOptions & { description?: string; visibility: 'private' | 'public'; owner?: string }) {
-    if (!/^[A-Za-z0-9._-]+$/.test(name)) throw new HttpError(400, 'Project names may only contain letters, numbers, ".", "-" and "_"');
+    if (!/^[A-Za-z0-9._-]+$/.test(name)) throw new HttpError(400, 'Los nombres de proyecto solo pueden contener letras, números, ".", "-" y "_"');
     const created = await this.backend.createProject(this.state.settings.projectsDir, name, opts).catch((err: Error) => {
       throw new HttpError(400, err.message);
     });
@@ -1481,7 +1438,7 @@ export class Swarm {
     const f = await this.backend.inspectFolder(dir).catch((err: Error) => {
       throw new HttpError(400, err.message);
     });
-    if (!f.github) throw new HttpError(400, `${f.name} ${f.git ? "isn't on GitHub yet" : "isn't a git repository yet"}. Publish it to GitHub first.`);
+    if (!f.github) throw new HttpError(400, `${f.name} ${f.git ? 'todavía no está en GitHub' : 'todavía no es un repositorio git'}. Publícalo antes en GitHub.`);
     return this.connectRepo(f.github, { ...opts, localPath: f.path });
   }
 
@@ -1501,7 +1458,7 @@ export class Swarm {
     const repo = this.repo(id);
     this.state.ceo.queue = this.state.ceo.queue.filter((j) => j.repoId !== id);
     for (const r of this.state.requests.filter((x) => x.repoId === id && x.status === 'pending')) {
-      this.decide(r, { status: 'rejected', note: 'The floor was disconnected.', decidedBy: null });
+      this.decide(r, { status: 'rejected', note: 'Se desconectó la planta.', decidedBy: null });
     }
     for (const a of this.state.agents.filter((x) => x.repoId === id)) this.fireAgent(a.id, true);
     void this.previews.remove({ ...repo });
@@ -1512,7 +1469,6 @@ export class Swarm {
     }
     this.state.qa = this.state.qa.filter((q) => q.repoId !== id);
     this.state.held = this.state.held.filter((h) => h.repoId !== id);
-    delete this.state.pong[id];
     for (const r of this.state.repos) r.links = r.links.filter((l) => l !== id);
     this.repoRt.delete(id);
     // Keep floors contiguous.
@@ -1521,7 +1477,7 @@ export class Swarm {
     this.save();
     this.broadcast({ type: 'repoRemoved', repoId: id });
     for (const r of this.state.repos) this.emitRepo(r);
-    this.toast('info', repo.localPath ? `${repo.fullName} left the building. Your folder ${repo.localPath} is untouched.` : `${repo.fullName} disconnected (its clone stays on disk)`);
+    this.toast('info', repo.localPath ? `${repo.fullName} ha dejado el edificio. Tu carpeta ${repo.localPath} sigue intacta.` : `${repo.fullName} desconectado (su clon se queda en el disco)`);
   }
 
   updateRepo(
@@ -1571,7 +1527,7 @@ export class Swarm {
           if (await this.advanceMerge(repo, rec, pr)) merged = true;
         } catch (err) {
           console.warn(`auto-merge of ${repo.fullName}#${pr.number} failed`, err);
-          this.mergeNote(rec, `auto-merge hit a problem: ${oneLine(err)}`);
+          this.mergeNote(rec, `el auto-merge ha tenido un problema: ${oneLine(err)}`);
         }
       }
     } finally {
@@ -1607,26 +1563,26 @@ export class Swarm {
         console.warn(`could not re-run the failed checks of ${repo.fullName}#${pr.number}`, err);
         return this.sendBack(repo, rec, step.reason, step.instructions, step.needsHuman);
       }
-      this.setQa(rec, { rerunSha: pr.headSha, rerunAt: Date.now(), pendingSince: null, alerted: false, mergeNote: 're-running a failed check' });
+      this.setQa(rec, { rerunSha: pr.headSha, rerunAt: Date.now(), pendingSince: null, alerted: false, mergeNote: 'relanzando un check fallido' });
       return false;
     }
     if (step.do === 'send-back') return this.sendBack(repo, rec, step.reason, step.instructions, step.needsHuman);
     if (step.do === 'wait') {
       if (step.alert) {
-        this.postMessage('office', `⏳ PR #${pr.number} on ${repo.fullName} passed QA, but its checks (${pr.pendingChecks.join(', ')}) have been running for over ${CHECKS_ALERT_MS / 60_000} minutes. It merges as soon as they finish.`);
+        this.postMessage('office', `⏳ La PR #${pr.number} de ${repo.fullName} ha pasado QA, pero sus checks (${pr.pendingChecks.join(', ')}) llevan más de ${CHECKS_ALERT_MS / 60_000} minutos en curso. Se fusionará en cuanto terminen.`);
       }
       return step.note === undefined ? false : this.mergeNote(rec, step.note);
     }
     if (step.do === 'update-branch') {
       // The repo only merges up-to-date branches. GitHub merges the base in cleanly (or refuses); CI checks the result.
-      this.mergeNote(rec, `updating the branch with ${repo.defaultBranch}`);
+      this.mergeNote(rec, `actualizando la rama con ${repo.defaultBranch}`);
       await this.backend.updateBranch(repo.fullName, pr.number);
       const details = await this.backend.prDetails(repo.fullName, pr.number);
       this.setQa(rec, { passedSha: details.headSha });
       return false;
     }
     if (step.do !== 'merge') return false;
-    this.mergeNote(rec, 'merging…');
+    this.mergeNote(rec, 'fusionando…');
     let error = '';
     for (const method of ['squash', 'merge', 'rebase'] as const) {
       try {
@@ -1638,16 +1594,16 @@ export class Swarm {
         if (!/not allowed/i.test(error)) break; // only a merge method the repo turned off is worth another try
       }
     }
-    if (error && /head (branch|commit)/i.test(error)) return this.mergeNote(rec, 'new commits arrived; QA checks them first'); // the next sync re-queues it
+    if (error && /head (branch|commit)/i.test(error)) return this.mergeNote(rec, 'han llegado commits nuevos; QA los revisa primero'); // the next sync re-queues it
     if (error) {
       rec.mergeRetryAt = Date.now() + MERGE_RETRY_MS;
       if (!rec.alerted) {
         rec.alerted = true;
-        this.postMessage('office', `⚠️ PR #${pr.number} on ${repo.fullName} passed QA and its checks, but GitHub won't merge it: ${error}. The office retries every ${MERGE_RETRY_MS / 60_000} minutes; merge it yourself, or change the repo's merge rules, if it keeps failing.`);
+        this.postMessage('office', `⚠️ La PR #${pr.number} de ${repo.fullName} ha pasado QA y sus checks, pero GitHub no la fusiona: ${error}. La oficina lo reintenta cada ${MERGE_RETRY_MS / 60_000} minutos; si sigue fallando, fusiónala tú o cambia las reglas de merge del repo.`);
       }
-      return this.mergeNote(rec, `merge blocked: ${error}`);
+      return this.mergeNote(rec, `merge bloqueado: ${error}`);
     }
-    this.toast('success', `🔀 Merged PR #${pr.number} into ${repo.defaultBranch}: ${pr.title}`);
+    this.toast('success', `🔀 PR #${pr.number} fusionada en ${repo.defaultBranch}: ${pr.title}`);
     this.notifyMerge(repo, pr.number, pr.title);
     await this.closeResolvedIssues(repo, pr.number, pr);
     return true;
@@ -1691,7 +1647,7 @@ export class Swarm {
   /** QA passed, but the PR can't merge as it is: a developer fixes it, and QA re-tests if the code changed. */
   private sendBack(repo: PersistedRepo, rec: QaRecord, reason: 'checks' | 'conflict', fixInstructions: string, needsHuman: boolean) {
     if (needsHuman) {
-      this.stuck(rec, { mergeNote: null }, `it still ${reason === 'conflict' ? `conflicts with ${repo.defaultBranch}` : 'fails its checks'} after ${MAX_MERGE_FIXES} fixes`);
+      this.stuck(rec, { mergeNote: null }, `sigue ${reason === 'conflict' ? `teniendo conflictos con ${repo.defaultBranch}` : 'fallando sus checks'} tras ${MAX_MERGE_FIXES} correcciones`);
       return false;
     }
     this.setQa(rec, { status: 'failed', fixReason: reason, fixInstructions, mergeFixes: rec.mergeFixes + 1, mergeNote: null, pendingSince: null });
@@ -1714,7 +1670,7 @@ export class Swarm {
     if (status && status !== before) {
       const name = repo.localPath ? path.basename(repo.localPath) : repo.fullName;
       if (status.startsWith('updated')) this.toast('success', `📁 ${name}: ${status}`);
-      else if (/behind|diverged|failed/.test(status)) this.toast('info', `📁 ${name} wasn't updated: ${status}`);
+      else if (/behind|diverged|failed/.test(status)) this.toast('info', `📁 ${name} no se ha actualizado: ${status}`);
     }
     return status;
   }
@@ -1740,11 +1696,11 @@ export class Swarm {
       const r = await this.backend.sweepDesks(repo.fullName, keep);
       for (const a of agents) if (a.machine) r.branches += await this.machinesFor(a).sweep(a.machine, repo.fullName, keep.branches).catch(() => 0);
       const desks = r.desks + r.folders;
-      const saved = r.patches.length ? ` (${r.patches.length} patch${r.patches.length === 1 ? '' : 'es'} saved to ${path.dirname(r.patches[0])})` : '';
+      const saved = r.patches.length ? ` (${r.patches.length} parche${r.patches.length === 1 ? '' : 's'} guardado${r.patches.length === 1 ? '' : 's'} en ${path.dirname(r.patches[0])})` : '';
       console.log(`desk sweep ${repo.fullName}: ${desks} desks, ${r.branches} branches removed${saved}${r.skipped.length ? `, ${r.skipped.length} still in use` : ''}`);
       if (!desks && !r.branches) return;
-      const removed = [desks && `${desks} old desk${desks === 1 ? '' : 's'}`, r.branches && `${r.branches} finished branch${r.branches === 1 ? '' : 'es'}`].filter(Boolean).join(' and ');
-      const text = `🧹 ${repo.fullName.split('/')[1]}: removed ${removed}${saved}`;
+      const removed = [desks && `${desks} puesto${desks === 1 ? '' : 's'} antiguo${desks === 1 ? '' : 's'}`, r.branches && `${r.branches} rama${r.branches === 1 ? '' : 's'} terminada${r.branches === 1 ? '' : 's'}`].filter(Boolean).join(' y ');
+      const text = `🧹 ${repo.fullName.split('/')[1]}: eliminados ${removed}${saved}`;
       this.toast('info', text);
       this.postMessage('office', text);
     } catch (err) {
@@ -1800,7 +1756,6 @@ export class Swarm {
   async shutdown(restart = false): Promise<void> {
     this.backend.cloud.detach(); // cloud agents' CLIs carry on in their Boxes: their records are final from here
     await this.writeState().catch((err) => console.warn('could not save the state', err));
-    await this.journal.close().catch((err) => console.warn('could not write the journal', err));
     await this.backend.releaseClis(restart); // before the terminals are saved: whatever they print next waits in the keeper
     await this.saveTerminals(true);
     await this.previews.stopAll(this.state.repos);
@@ -1821,7 +1776,7 @@ export class Swarm {
     } catch (err) {
       rt.cloneStatus = 'error';
       rt.cloneError = (err as Error).message;
-      this.toast('error', `Could not clone ${repo.fullName}: ${rt.cloneError}`);
+      this.toast('error', `No se ha podido clonar ${repo.fullName}: ${rt.cloneError}`);
     }
     if (this.repoRt.has(id)) this.emitRepo(repo);
   }
@@ -1904,10 +1859,10 @@ export class Swarm {
 
   async createIssue(repoId: string, title: string, body: string, assignTo?: string) {
     const repo = this.repo(repoId);
-    if (!title.trim()) throw new HttpError(400, 'An issue needs a title');
+    if (!title.trim()) throw new HttpError(400, 'Un issue necesita un título');
     const number = await this.backend.createIssue(repo.fullName, title.trim(), body);
     await this.syncRepo(repo.id);
-    this.toast('success', `Issue #${number} filed on ${repo.fullName}`);
+    this.toast('success', `Issue #${number} abierto en ${repo.fullName}`);
     if (assignTo) await this.assign(assignTo, number);
     else setTimeout(() => this.schedule(), 200);
     return number;
@@ -1917,7 +1872,7 @@ export class Swarm {
     const repo = this.repo(repoId);
     const pr = this.repoRt.get(repo.id)?.pulls.find((p) => p.number === number) ?? (await this.backend.prDetails(repo.fullName, number));
     await this.backend.mergePull(repo.fullName, number, method);
-    this.toast('success', `Merged PR #${number} into ${repo.defaultBranch}`);
+    this.toast('success', `PR #${number} fusionada en ${repo.defaultBranch}`);
     this.notifyMerge(repo, number, pr.title);
     await this.closeResolvedIssues(repo, number, pr);
     await this.syncRepo(repo.id);
@@ -1939,11 +1894,11 @@ export class Swarm {
     const rt = this.repoRt.get(repo.id);
     const state = rt?.issues.some((i) => i.number === number) ? 'OPEN' : await this.backend.issueState(repo.fullName, number).catch(() => null);
     checkCloseIssue({ floor: repo.floor, number, state, pulls: rt?.pulls ?? [] });
-    const by = this.state.settings.managerName || 'the manager';
+    const by = this.state.settings.managerName || 'el responsable';
     // From the office doctor, for an issue a merged PR resolved: closed as completed, not as not planned.
-    if (resolvedBy) await this.backend.closeIssue(repo.fullName, number, `Resolved by #${resolvedBy}; closed by ${by} from the cubefarm office.`, 'completed');
-    else await this.backend.closeIssue(repo.fullName, number, `Closed as not planned by ${by} from the cubefarm office.`, 'not planned');
-    this.toast('info', `Closed #${number} on ${repo.fullName}`);
+    if (resolvedBy) await this.backend.closeIssue(repo.fullName, number, `Resuelto por #${resolvedBy}; cerrado por ${by} desde la oficina de sareoffice.`, 'completed');
+    else await this.backend.closeIssue(repo.fullName, number, `Cerrado como no planificado por ${by} desde la oficina de sareoffice.`, 'not planned');
+    this.toast('info', `#${number} cerrado en ${repo.fullName}`);
     this.learnIssueClosed(repo, number);
     await this.syncRepo(repo.id);
   }
@@ -2018,7 +1973,7 @@ export class Swarm {
     for (const a of plan.clear.map(agent)) {
       const merged = c.kind === 'pr' && c.merged;
       if (a.task === 'qa') this.dropTask(a, null); // they only tested it
-      else this.dropTask(a, merged ? `🎉 PR #${c.number} was merged. Ready for the next issue.` : `↺ ${why[0].toUpperCase()}${why.slice(1)}. Cleared desk.`, merged ? 'done' : 'system');
+      else this.dropTask(a, merged ? `🎉 La PR #${c.number} se ha fusionado. Listo para el siguiente issue.` : `↺ ${why[0].toUpperCase()}${why.slice(1)}. Puesto despejado.`, merged ? 'done' : 'system');
     }
     if (plan.dropQa) this.dropRecord(repo, c.number);
     if (stopped.length) this.postMessage('office', stoppedMessage(stopped.map((a) => a.name), c, repo.fullName));
@@ -2032,9 +1987,9 @@ export class Swarm {
   /** End a session whose issue or PR closed, as ■ Stop does. Its desk is cleared once the session has ended. */
   private stopForClosure(a: PersistedAgent, why: string) {
     a.status = 'stopped';
-    a.lastError = `Stopped: ${why}`;
+    a.lastError = `Detenido: ${why}`;
     this.dropping.set(a.id, why);
-    this.appendLog(a, [{ kind: 'system', text: `■ Stopped: ${why}.` }]);
+    this.appendLog(a, [{ kind: 'system', text: `■ Detenido: ${why}.` }]);
     this.emitAgent(a);
     this.agentRt.get(a.id)?.session?.stop(); // no session yet (preparing): prepare() gives up and clears it
     const sign = this.signIns.get(a.id);
@@ -2055,7 +2010,7 @@ export class Swarm {
 
   /** A task given up before its session started: one stopped because its issue or PR closed clears the desk now. */
   private abandoned(a: PersistedAgent): null {
-    if (this.dropping.has(a.id)) this.dropTask(a, '↺ Cleared desk. Ready for new work.');
+    if (this.dropping.has(a.id)) this.dropTask(a, '↺ Puesto despejado. Listo para trabajo nuevo.');
     return null;
   }
 
@@ -2136,16 +2091,16 @@ export class Swarm {
     const repo = this.repo(repoId);
     const team = this.state.agents.filter((a) => a.repoId === repo.id);
     const max = this.state.settings.maxAgents;
-    if (team.length >= max) throw new HttpError(409, `Floor ${repo.floor} already has ${team.length} agents, its most (${max}). Raise "Most agents per floor" in Settings to add more.`);
+    if (team.length >= max) throw new HttpError(409, `${projectName(repo)} ya tiene ${team.length} agentes, su máximo (${max}). Sube "Máximo de agentes por proyecto" en Ajustes para añadir más.`);
     const used = new Set(team.map((a) => a.desk));
     let desk = 0;
     while (used.has(desk)) desk++;
-    if (desk >= FLOOR_SEATS) throw new HttpError(409, `Floor ${repo.floor} has no free desk (${FLOOR_SEATS} desks)`);
+    if (desk >= FLOOR_SEATS) throw new HttpError(409, `${projectName(repo)} ya tiene el máximo de ${FLOOR_SEATS} agentes`);
     const name = opts.name?.trim().slice(0, 24) || this.freeName();
     const cli = isCli(opts.cli) ? opts.cli : '';
     const host = this.hostFor(opts.host, cli || this.state.settings.defaultCli, !!opts.strict);
     // A cloud agent's CLI is the one the office installs in their Box, not this computer's.
-    if (cli && host === 'local' && !this.cliReady(cli)) throw new HttpError(400, `${cliLabel(cli)} isn't installed on this computer.`);
+    if (cli && host === 'local' && !this.cliReady(cli)) throw new HttpError(400, `${cliLabel(cli)} no está instalado en este ordenador.`);
     const id = opts.id && !this.state.agents.some((a) => a.id === opts.id) ? opts.id : crypto.randomUUID();
     const agent: PersistedAgent = {
       id,
@@ -2182,7 +2137,7 @@ export class Swarm {
     this.state.agents.push(agent);
     applyLedger(this.state.progress, { kind: 'hired', agentId: agent.id, at: Date.now() });
     this.agentRt.set(agent.id, { log: [], session: null, currentTool: null, browserUrl: null, screenshot: null, shots: [], terminal: null });
-    this.appendLog(agent, [{ kind: 'system', text: `👋 ${name} joined floor ${repo.floor} (${repo.fullName})${host === 'box' ? ', working in the cloud' : ''}.` }]);
+    this.appendLog(agent, [{ kind: 'system', text: `👋 ${name} se ha incorporado a ${projectName(repo)} (${repo.fullName})${host === 'box' ? ', trabajando en la nube' : ''}.` }]);
     this.save();
     this.broadcast({ type: 'agent', agent: this.agentView(agent, false) });
     if (host === 'box') this.bringUpBox(agent);
@@ -2201,11 +2156,11 @@ export class Swarm {
     const want: MachineHost = asked === 'box' || asked === 'local' ? asked : this.state.settings.cloud.machineKind;
     if (want === 'local') return 'local';
     const why = !this.cloud.boxApi()
-      ? 'Cloud agents need your Upstash Box API key first: Settings → Cloud agents.'
+      ? 'Los agentes en la nube necesitan antes tu clave de API de Upstash Box: Ajustes → Agentes en la nube.'
       : cli === 'opencode'
-        ? "OpenCode can't run in a cloud machine yet: give this agent Claude Code or Codex."
+        ? 'OpenCode todavía no puede ejecutarse en una máquina en la nube: dale a este agente Claude Code o Codex.'
         : !this.boxRoom(moving)
-          ? `Your Upstash plan's Box limit (${this.state.settings.cloud.boxLimit}) is reached. Raise it in Settings → Cloud agents if your plan allows more, or delete Boxes you don't need.`
+          ? `Has alcanzado el límite de Boxes de tu plan de Upstash (${this.state.settings.cloud.boxLimit}). Súbelo en Ajustes → Agentes en la nube si tu plan permite más, o borra Boxes que no necesites.`
           : null;
     if (!why) return 'box';
     if (strict || asked === 'box') throw new HttpError(409, why);
@@ -2225,14 +2180,14 @@ export class Swarm {
     void this.boxMachines
       .ensure(machine, note)
       .then(() => {
-        note('Their cloud machine is ready.');
+        note('Su máquina en la nube está lista.');
         void this.cloud.count().catch(() => undefined);
         void this.checkSignIn(a);
       })
       .catch((err) => {
         const why = redact(oneLine(err), this.secrets());
-        this.appendLog(a, [{ kind: 'error', text: `✗ Their cloud machine couldn't be set up: ${why}` }]);
-        this.postMessage('office', `⚠️ ${a.name}'s cloud machine couldn't be set up: ${why.slice(0, 240)}`);
+        this.appendLog(a, [{ kind: 'error', text: `✗ No se ha podido preparar su máquina en la nube: ${why}` }]);
+        this.postMessage('office', `⚠️ No se ha podido preparar la máquina en la nube de ${a.name}: ${why.slice(0, 240)}`);
       });
   }
 
@@ -2242,7 +2197,7 @@ export class Swarm {
    */
   private moveAgent(a: PersistedAgent, to: MachineHost) {
     if ((a.host ?? 'local') === to) return;
-    if (a.task || BUSY.includes(a.status)) throw new HttpError(409, `${a.name} is on a task: move them once it's done.`);
+    if (a.task || BUSY.includes(a.status)) throw new HttpError(409, `${a.name} está con una tarea: muévelo cuando termine.`);
     const host = this.hostFor(to, a.cli || this.state.settings.defaultCli, true, a);
     const from = a.host ?? 'local';
     this.agentRt.get(a.id)?.terminal?.releaseIdle?.(); // a CLI still waiting at its prompt stays where it was
@@ -2255,7 +2210,7 @@ export class Swarm {
     a.sessionId = null;
     a.sessionCli = null;
     for (const q of this.state.qa) if (q.devAgentId === a.id) q.devSessionId = null;
-    this.appendLog(a, [{ kind: 'system', text: host === 'box' ? '☁ Moving to the cloud: an Upstash Box of their own.' : '🖥️ Moving back to this computer.' }]);
+    this.appendLog(a, [{ kind: 'system', text: host === 'box' ? '☁ Se muda a la nube: un Upstash Box propio.' : '🖥️ Vuelve a este ordenador.' }]);
     if (host === 'box') this.bringUpBox(a);
   }
 
@@ -2266,11 +2221,11 @@ export class Swarm {
    */
   private async boxTarget(a: PersistedAgent, cli: AgentCli, browserTesting: boolean, check = true): Promise<BoxTarget> {
     const api = this.cloud.boxApi();
-    if (!api) throw new Error('Cloud agents need your Upstash Box API key: Settings → Cloud agents.');
+    if (!api) throw new Error('Los agentes en la nube necesitan tu clave de API de Upstash Box: Ajustes → Agentes en la nube.');
     const machine = this.machineOf(a);
     const boxId = await this.boxMachines.ensure(machine, (text) => this.appendLog(a, [{ kind: 'system', text: `☁ ${text}` }]));
     const creds = await this.cloud.credentials(cli);
-    if (creds.missing.length) throw new Error(`Cloud agents can't sign in yet. Missing: ${creds.missing.join('; ')}.`);
+    if (creds.missing.length) throw new Error(`Los agentes en la nube todavía no pueden iniciar sesión. Falta: ${creds.missing.join('; ')}.`);
     if (check && creds.ownLogin && cli !== 'opencode' && (await this.boxMachines.signedIn(machine, cli).catch(() => null)) === false) throw new SignInNeeded(cli);
     // The Box's own Chromium starts with a first tab; Playwright attaches to it.
     const browser = browserTesting ? await api.browser(boxId).catch(() => false) : false;
@@ -2309,7 +2264,7 @@ export class Swarm {
   }
 
   setCloudToken(kind: string, value: string) {
-    if (kind !== 'github' && kind !== 'anthropic' && kind !== 'openai') throw new HttpError(400, 'kind must be github, anthropic or openai');
+    if (kind !== 'github' && kind !== 'anthropic' && kind !== 'openai') throw new HttpError(400, 'kind debe ser github, anthropic u openai');
     return this.cloud.setToken(kind, value).then((view) => {
       // A key for their CLI now: agents waiting to sign in don't need to any more.
       for (const a of this.state.agents) if (a.host === 'box' && a.needsSignIn) void this.checkSignIn(a);
@@ -2333,17 +2288,17 @@ export class Swarm {
         if (a.status === 'preparing') task();
         else this.abandoned(a); // stopped meanwhile
       };
-      this.appendLog(a, [{ kind: 'system', text: `⏸ Their task waits until ${label} is signed in.` }]);
+      this.appendLog(a, [{ kind: 'system', text: `⏸ Su tarea espera hasta que ${label} tenga la sesión iniciada.` }]);
     }
     if (!a.needsSignIn) {
       a.needsSignIn = true;
       this.appendLog(a, [
         {
           kind: 'error',
-          text: `🔑 ${expired ? `${label}'s sign-in in their cloud machine expired.` : `${label} isn't signed in in their cloud machine yet.`} Sign it in in their terminal (at their desk, or 🔑 Sign in): open the link there and finish signing in.`,
+          text: `🔑 ${expired ? `La sesión de ${label} en su máquina en la nube ha caducado.` : `${label} todavía no tiene la sesión iniciada en su máquina en la nube.`} Inicia la sesión en su terminal (en su puesto, o con 🔑 Iniciar sesión): abre allí el enlace y termina de iniciar sesión.`,
         },
       ]);
-      this.postMessage('office', `🔑 ${a.name} needs you to sign ${label} in${expired ? ' again' : ''}: walk to their desk or tap 🔑 Sign in on their card, then follow the link in their terminal. Their cloud machine keeps the sign-in.`);
+      this.postMessage('office', `🔑 ${a.name} necesita que inicies sesión en ${label}${expired ? ' otra vez' : ''}: ve a su puesto o pulsa 🔑 Iniciar sesión en su ficha y sigue el enlace de su terminal. Su máquina en la nube conserva la sesión.`);
     }
     this.emitAgent(a);
     this.save();
@@ -2388,7 +2343,7 @@ export class Swarm {
       this.emitAgent(a); // their terminal is there to open now
       this.pollSignIn(a, s);
     } catch (err) {
-      this.appendLog(a, [{ kind: 'error', text: `✗ Couldn't start signing in: ${redact(oneLine(err), this.secrets())}` }]);
+      this.appendLog(a, [{ kind: 'error', text: `✗ No se ha podido empezar a iniciar sesión: ${redact(oneLine(err), this.secrets())}` }]);
     } finally {
       s.starting = false;
     }
@@ -2420,8 +2375,8 @@ export class Swarm {
     const ok = await this.boxMachines.signedIn(this.machineOf(a), s.cli).catch(() => null);
     if (this.signIns.get(a.id) !== s || s.run) return;
     if (ok) return this.signedIn(a);
-    this.agentRt.get(a.id)?.terminal?.note(`Not signed in yet. 🔑 Sign in starts it again.`);
-    this.appendLog(a, [{ kind: 'error', text: `🔑 ${cliLabel(s.cli)} didn't finish signing in${code > 0 ? ` (it exited with code ${code})` : ''}. 🔑 Sign in in their terminal starts it again.` }]);
+    this.agentRt.get(a.id)?.terminal?.note(`Todavía sin sesión iniciada. 🔑 Iniciar sesión vuelve a empezar.`);
+    this.appendLog(a, [{ kind: 'error', text: `🔑 ${cliLabel(s.cli)} no ha terminado de iniciar sesión${code > 0 ? ` (ha salido con el código ${code})` : ''}. 🔑 Iniciar sesión en su terminal vuelve a empezar.` }]);
   }
 
   /** Their CLI is signed in: the flag goes and the task it held starts (a sign-in still on screen gets a moment to finish). */
@@ -2433,7 +2388,7 @@ export class Swarm {
     if (run) setTimeout(() => run.stop(), 3000);
     if (!a.needsSignIn) return;
     a.needsSignIn = false;
-    this.appendLog(a, [{ kind: 'done', text: `✔ ${cliLabel(s?.cli ?? 'claude')} is signed in in their cloud machine.${s?.held ? ' Back to the task.' : ''}` }]);
+    this.appendLog(a, [{ kind: 'done', text: `✔ ${cliLabel(s?.cli ?? 'claude')} tiene la sesión iniciada en su máquina en la nube.${s?.held ? ' De vuelta a la tarea.' : ''}` }]);
     this.emitAgent(a);
     this.save();
     const held = s?.held;
@@ -2464,8 +2419,8 @@ export class Swarm {
   /** POST /api/agents/:id/sign-in: start a cloud agent's sign-in (over) in their terminal: it ended, went stale or never started. */
   signIn(id: string) {
     const a = this.agent(id);
-    if (a.host !== 'box') throw new HttpError(409, `${a.name} works on this computer: their coding agent signs in there.`);
-    if (!a.needsSignIn) throw new HttpError(409, `${a.name}'s coding agent is signed in already.`);
+    if (a.host !== 'box') throw new HttpError(409, `${a.name} trabaja en este ordenador: su agente de código inicia sesión aquí.`);
+    if (!a.needsSignIn) throw new HttpError(409, `El agente de código de ${a.name} ya tiene la sesión iniciada.`);
     const s = this.signIns.get(a.id);
     if (s?.run) {
       // Start over: a link that went stale (Codex's code lasts 15 minutes) or a sign-in that went wrong.
@@ -2481,7 +2436,7 @@ export class Swarm {
   /** The demo's stand-in for a login that expired (POST /api/cloud/demo-expire): every cloud agent's Box is signed out. */
   expireSignIns() {
     const expire = this.backend.cloud.expireSignIns;
-    if (!expire) throw new HttpError(404, 'Sign-ins can only be expired in the demo office.');
+    if (!expire) throw new HttpError(404, 'Las sesiones solo se pueden caducar en la oficina demo.');
     expire();
     // Idle ones notice at once, as their next task's check would; working ones when their session fails.
     for (const a of this.state.agents) if (a.host === 'box' && !a.task) void this.checkSignIn(a);
@@ -2517,8 +2472,8 @@ export class Swarm {
     if (patch.host !== undefined && a.role !== 'ceo' && (patch.host === 'box' || patch.host === 'local')) this.moveAgent(a, patch.host);
     if (patch.cli !== undefined && a.role !== 'ceo') {
       const cli = isCli(patch.cli) ? patch.cli : '';
-      if (a.host === 'box' && (cli || this.state.settings.defaultCli) === 'opencode') throw new HttpError(400, `${a.name} works in the cloud, where OpenCode can't run yet: move them to this computer first.`);
-      if (cli && a.host !== 'box' && !this.cliReady(cli)) throw new HttpError(400, `${cliLabel(cli)} isn't installed on this computer.`);
+      if (a.host === 'box' && (cli || this.state.settings.defaultCli) === 'opencode') throw new HttpError(400, `${a.name} trabaja en la nube, donde OpenCode todavía no puede ejecutarse: muévelo antes a este ordenador.`);
+      if (cli && a.host !== 'box' && !this.cliReady(cli)) throw new HttpError(400, `${cliLabel(cli)} no está instalado en este ordenador.`);
       const changed = cli !== a.cli;
       a.cli = cli;
       // Another coding agent in their Box has a login of its own (or needs one).
@@ -2540,12 +2495,12 @@ export class Swarm {
 
   fireAgent(id: string, force = false) {
     const a = this.agent(id);
-    if (a.role === 'ceo') throw new HttpError(409, `${a.name} runs the company and can't be let go.`);
+    if (a.role === 'ceo') throw new HttpError(409, `${a.name} dirige la empresa y no se le puede despedir.`);
     if (!force && this.state.agents.filter((x) => x.repoId === a.repoId).length <= 1) {
-      throw new HttpError(409, `${a.name} is the only agent on this floor, and every floor keeps at least one.`);
+      throw new HttpError(409, `${a.name} es el único agente de esta planta, y cada planta conserva al menos uno.`);
     }
     for (const r of this.state.requests.filter((x) => x.kind === 'let-go' && x.agentId === id && x.status === 'pending')) {
-      this.decide(r, { status: 'approved', note: 'They were let go directly.', decidedBy: 'manager' });
+      this.decide(r, { status: 'approved', note: 'Se le despidió directamente.', decidedBy: 'manager' });
     }
 
     // A desk being set up for them notices and gives up (prepare() checks the status), rather than start a session.
@@ -2584,7 +2539,7 @@ export class Swarm {
     if (!BUSY.includes(a.status)) return;
     a.status = 'stopped';
     a.lastError = 'Stopped by manager';
-    this.appendLog(a, [{ kind: 'manager', text: '■ Manager stopped this session.' }]);
+    this.appendLog(a, [{ kind: 'manager', text: '■ El responsable ha detenido esta sesión.' }]);
     const sign = this.signIns.get(id);
     if (sign) sign.held = null; // the task waiting for their sign-in stays stopped
     this.agentRt.get(id)?.session?.stop();
@@ -2596,7 +2551,7 @@ export class Swarm {
   private reattachSession(a: PersistedAgent) {
     const repo = this.state.repos.find((r) => r.id === a.repoId);
     if (!repo) return;
-    this.appendLog(a, [{ kind: 'system', text: '↻ The office restarted; their CLI kept working and the office is following it again.' }]);
+    this.appendLog(a, [{ kind: 'system', text: '↻ La oficina se ha reiniciado; su CLI siguió trabajando y la oficina vuelve a seguirlo.' }]);
     this.startAgentSession(a, repo, this.deskOf(a, repo), '', '', a.sessionId ?? undefined, undefined, 'reattach');
   }
 
@@ -2605,19 +2560,19 @@ export class Swarm {
     if (!BUSY.includes(a.status)) return;
     a.status = 'stopped';
     a.lastError = 'Interrupted in the terminal';
-    this.appendLog(a, [{ kind: 'manager', text: '■ Interrupted in the terminal. Type there to carry on.' }]);
+    this.appendLog(a, [{ kind: 'manager', text: '■ Interrumpido en el terminal. Escribe ahí para continuar.' }]);
   }
 
   resetAgent(id: string) {
     const a = this.agent(id);
-    if (BUSY.includes(a.status)) throw new HttpError(409, `${a.name} is busy; stop them first`);
+    if (BUSY.includes(a.status)) throw new HttpError(409, `${a.name} está ocupado; detenlo primero`);
     for (const q of this.state.qa) {
       if (q.qaAgentId === id && q.status === 'testing') this.setQa(q, { status: 'queued', qaAgentId: null });
       if (q.devAgentId === id && q.status === 'fixing') this.setQa(q, { status: 'failed' });
     }
     this.agentRt.get(id)?.terminal?.releaseIdle?.();
     this.clearTask(a);
-    this.appendLog(a, [{ kind: 'system', text: '↺ Cleared desk. Ready for new work.' }]);
+    this.appendLog(a, [{ kind: 'system', text: '↺ Puesto despejado. Listo para trabajo nuevo.' }]);
     this.save();
   }
 
@@ -2632,7 +2587,7 @@ export class Swarm {
 
   private ensureSlot() {
     if (this.slotsFull()) {
-      throw new HttpError(429, `All ${this.state.settings.sessionLimit} session slots are busy. Raise or clear the session limit in the manager's console, or wait.`);
+      throw new HttpError(429, `Las ${this.state.settings.sessionLimit} plazas de sesión están ocupadas. Sube o quita el límite de sesiones en la consola del responsable, o espera.`);
     }
   }
 
@@ -2640,16 +2595,16 @@ export class Swarm {
   async assign(agentId: string, issueNumber: number, note?: string, waitForDeps = false) {
     const a = this.agent(agentId);
     const repo = this.repo(a.repoId);
-    if (a.role === 'ceo') throw new HttpError(400, `${a.name} runs the company; give issues to the agents on the floors.`);
-    if (BUSY.includes(a.status)) throw new HttpError(409, `${a.name} is busy: ${this.agentDoing(a)}`);
+    if (a.role === 'ceo') throw new HttpError(400, `${a.name} dirige la empresa; da los issues a los agentes de las plantas.`);
+    if (BUSY.includes(a.status)) throw new HttpError(409, `${a.name} está ocupado: ${this.agentDoing(a)}`);
     this.ensureSlot();
     const issues = this.repoRt.get(repo.id)?.issues ?? [];
     const issue = issues.find((i) => i.number === issueNumber);
-    if (!issue) throw new HttpError(404, `Issue #${issueNumber} is not open on ${repo.fullName}`);
+    if (!issue) throw new HttpError(404, `El issue #${issueNumber} no está abierto en ${repo.fullName}`);
     const waits = waitForDeps ? blockers(issue.body, new Set(issues.map((i) => i.number))) : [];
     if (waits.length) throw new HttpError(409, waitsMessage(issueNumber, waits));
     const holder = this.state.agents.find((x) => x.id !== a.id && x.repoId === repo.id && x.issueNumber === issueNumber && BUSY.includes(x.status));
-    if (holder) throw new HttpError(409, `${holder.name} is already working on #${issueNumber}`);
+    if (holder) throw new HttpError(409, `${holder.name} ya está trabajando en #${issueNumber}`);
     if (this.isHeld(repo.id, issueNumber)) {
       // Assigned by hand: its wait after its PR closed is over.
       this.state.held = this.state.held.filter((h) => !(h.repoId === repo.id && h.issue === issueNumber));
@@ -2680,7 +2635,7 @@ export class Swarm {
       else if (a.sessionCli !== 'claude') resume = undefined;
     }
     if (!inTerminal) return { resumeSessionId: resume };
-    const what = a.role === 'ceo' ? a.issueTitle : a.task === 'qa' ? `QA · PR #${a.prNumber}` : a.task === 'fix' ? `fixing PR #${a.prNumber}` : a.issueNumber ? `#${a.issueNumber} ${a.issueTitle ?? ''}` : null;
+    const what = a.role === 'ceo' ? a.issueTitle : a.task === 'qa' ? `QA · PR #${a.prNumber}` : a.task === 'fix' ? `corrigiendo la PR #${a.prNumber}` : a.issueNumber ? `#${a.issueNumber} ${a.issueTitle ?? ''}` : null;
     return { terminal: this.terminalFor(a), cli, label: `${a.name}${what ? ` · ${what}` : ''}`.slice(0, 80).trim(), resumeSessionId: resume };
   }
 
@@ -2810,7 +2765,7 @@ export class Swarm {
       if (this.deskAlerts.get(a.id) !== a.lastError) {
         // Once per agent and error: retries that fail the same way don't ring the phone again.
         this.deskAlerts.set(a.id, a.lastError);
-        this.postMessage('office', `⚠️ ${a.name}'s desk couldn't be set up: ${a.lastError.slice(0, 240)}`);
+        this.postMessage('office', `⚠️ No se ha podido preparar el puesto de ${a.name}: ${a.lastError.slice(0, 240)}`);
       }
       this.emitAgent(a);
       this.save();
@@ -2826,7 +2781,7 @@ export class Swarm {
     const { rec, task } = job;
     this.appendLog(a, [
       { kind: 'error', text: `✗ ${error}` },
-      { kind: 'system', text: `Nothing ran, so ${a.name} is free for other work.` },
+      { kind: 'system', text: `No se ha ejecutado nada, así que ${a.name} queda libre para otro trabajo.` },
     ]);
     this.clearTask(a);
     this.save();
@@ -2838,16 +2793,16 @@ export class Swarm {
     this.setQa(rec, {
       ...(task === 'fix' ? { status: needsHuman ? 'needs-human' : 'failed', devAgentId: job.author } : { status: needsHuman ? 'needs-human' : 'queued', qaAgentId: null }),
       sessionFailures: step.sessionFailures,
-      ...(needsHuman ? { mergeNote: "its desk couldn't be set up", stuckWhy: "its desk couldn't be set up", escalated: true } : {}), // no CEO tool fixes a desk: straight to the manager
+      ...(needsHuman ? { mergeNote: 'no se ha podido preparar su puesto', stuckWhy: 'no se ha podido preparar su puesto', escalated: true } : {}), // no CEO tool fixes a desk: straight to the manager
     });
     if (step.next === 'retry') return;
-    const what = task === 'fix' ? 'fix' : 'QA run';
-    const why = `desks couldn't be set up for its ${what} twice in a row: ${error.slice(0, 240)}`;
+    const what = task === 'fix' ? 'corrección' : 'ronda de QA';
+    const why = `no se han podido preparar puestos para su ${what} dos veces seguidas: ${error.slice(0, 240)}`;
     this.postMessage(
       'office',
       needsHuman
-        ? `⚠️ PR #${rec.prNumber} on ${repo.fullName} needs you: ${why}`
-        : `⚠️ PR #${rec.prNumber} on ${repo.fullName} waits ${Math.round(PREP_HOLD_MS / 60_000)} minutes before anyone tries its ${what} again: ${why}`,
+        ? `⚠️ La PR #${rec.prNumber} de ${repo.fullName} te necesita: ${why}`
+        : `⚠️ La PR #${rec.prNumber} de ${repo.fullName} espera ${Math.round(PREP_HOLD_MS / 60_000)} minutos antes de que nadie vuelva a intentar su ${what}: ${why}`,
     );
   }
 
@@ -2883,14 +2838,14 @@ export class Swarm {
       a,
       { task: 'issue', issueNumber: issue.number, issueTitle: issue.title, branch, prNumber: null, prUrl: null, sessionId: null },
       `Issue #${issue.number}: ${issue.title}`,
-      `Preparing worktree on ${branch}…`,
+      `Preparando el worktree en ${branch}…`,
     );
     // GitHub's word, not the last sync's: an issue closed since then isn't started.
     const live = await this.backend.issueState(repo.fullName, issue.number).catch(() => null);
     if (a.status !== 'preparing') return void this.abandoned(a);
     const rt = this.repoRt.get(repo.id);
     if (rt && !stillOpen({ kind: 'issue', number: issue.number }, this.floorState(rt), live)) {
-      this.appendLog(a, [{ kind: 'system', text: `Issue #${issue.number} is closed; nothing to do.` }]);
+      this.appendLog(a, [{ kind: 'system', text: `El issue #${issue.number} está cerrado; no hay nada que hacer.` }]);
       this.clearTask(a);
       this.learnIssueClosed(repo, issue.number);
       return;
@@ -2900,12 +2855,12 @@ export class Swarm {
     const { cwd } = desk;
 
     const prompt = [
-      `Please resolve GitHub issue #${issue.number}: ${issue.title}`,
+      `Resuelve el issue de GitHub #${issue.number}: ${issue.title}`,
       `URL: ${issue.url}`,
-      issue.labels.length ? `Labels: ${issue.labels.join(', ')}` : '',
+      issue.labels.length ? `Etiquetas: ${issue.labels.join(', ')}` : '',
       '',
-      issue.body?.trim() || '(The issue has no description.)',
-      note ? `\nNote from the manager: ${note}` : '',
+      issue.body?.trim() || '(El issue no tiene descripción.)',
+      note ? `\nNota del responsable: ${note}` : '',
     ]
       .filter(Boolean)
       .join('\n');
@@ -3047,7 +3002,7 @@ export class Swarm {
     const creds = cli === 'opencode' ? null : await this.cloud.credentials(cli).catch(() => null);
     if (cli === 'opencode' || !creds?.ownLogin || a.status === 'stopped' || this.dropping.has(a.id) || a.host !== 'box') {
       // A key from Settings that was turned away has nothing to sign in here: the session failed like any other.
-      const errors = creds && !creds.ownLogin ? [`${cliLabel(cli)} turned the key it was given away: check it in Settings → Cloud agents.`] : result.errors;
+      const errors = creds && !creds.ownLogin ? [`${cliLabel(cli)} ha rechazado la clave que se le dio: revísala en Ajustes → Agentes en la nube.`] : result.errors;
       return this.onFinished(a, repo, { ...result, errors });
     }
     if (this.silenced.delete(a.id)) return; // the demo's pretend restart cut it off: reconciled like after a real one
@@ -3077,7 +3032,7 @@ export class Swarm {
     void this.releaseDesk(a, repo).catch(() => undefined);
     if (result.interrupted) this.interrupted(a);
 
-    if (this.dropping.has(a.id)) this.dropTask(a, '↺ Cleared desk. Ready for new work.'); // stopped: its issue or PR closed
+    if (this.dropping.has(a.id)) this.dropTask(a, '↺ Puesto despejado. Listo para trabajo nuevo.'); // stopped: its issue or PR closed
     else if (a.task === 'qa') await this.onQaFinished(a, repo, result);
     else if (a.task === 'fix') await this.onFixFinished(a, repo, result);
     else await this.onIssueFinished(a, repo, result);
@@ -3097,7 +3052,7 @@ export class Swarm {
     a.status = 'error';
     a.lastError = result.errors.join('; ') || 'Session failed';
     this.appendLog(a, [{ kind: 'error', text: `✗ ${a.lastError}` }]);
-    this.toast('error', `${a.name} hit a problem on ${what}: ${a.lastError.slice(0, 120)}`);
+    this.toast('error', `${a.name} ha tenido un problema con ${what}: ${a.lastError.slice(0, 120)}`);
   }
 
   private async onIssueFinished(a: PersistedAgent, repo: PersistedRepo, result: SessionResult) {
@@ -3122,16 +3077,16 @@ export class Swarm {
     this.issueFailures.delete(`${repo.id}#${a.issueNumber}`);
     a.status = 'done';
     if (a.prNumber) this.ledger({ kind: 'opened', repoId: repo.id, pr: a.prNumber, title: a.issueTitle ?? '', author: a.id, at: Date.now() }, false);
-    this.appendLog(a, [{ kind: 'done', text: `✔ Finished in ${this.minutes(a)}m · ${a.turns} turns${a.prNumber ? ` · PR #${a.prNumber}` : ' · no PR found'}` }]);
+    this.appendLog(a, [{ kind: 'done', text: `✔ Terminado en ${this.minutes(a)} min · ${a.turns} turnos${a.prNumber ? ` · PR #${a.prNumber}` : ' · sin PR'}` }]);
     const failedEarly = a.prNumber ? this.state.qa.find((q) => q.repoId === repo.id && q.prNumber === a.prNumber && q.status === 'failed') : undefined;
     if (failedEarly) {
       // QA failed the PR while this session was still going (#199): the fix was kept for them, and resumes this session.
       this.setQa(failedEarly, { devAgentId: a.id, devSessionId: a.sessionId ?? failedEarly.devSessionId });
-      this.appendLog(a, [{ kind: 'system', text: `📨 QA already failed PR #${a.prNumber}; fixing it is next.` }]);
+      this.appendLog(a, [{ kind: 'system', text: `📨 QA ya suspendió la PR #${a.prNumber}; lo siguiente es corregirla.` }]);
     } else if (a.prNumber) {
       this.queueQa(repo, a.prNumber, a, a.issueNumber);
-      this.appendLog(a, [{ kind: 'system', text: `📨 Handed PR #${a.prNumber} to QA.` }]);
-      this.toast('success', `${a.name} opened PR #${a.prNumber} for #${a.issueNumber}; it's off to QA`);
+      this.appendLog(a, [{ kind: 'system', text: `📨 PR #${a.prNumber} entregada a QA.` }]);
+      this.toast('success', `${a.name} ha abierto la PR #${a.prNumber} para #${a.issueNumber}; pasa a QA`);
     } else {
       this.noPullRequest(a, repo);
     }
@@ -3148,14 +3103,14 @@ export class Swarm {
     // message() starts the session before its first await, so the scheduler can't hand this developer other work first.
     void this.message(
       a.id,
-      `You finished without opening a pull request for #${a.issueNumber}. Finish the remaining steps now: commit, push your branch and open the PR with "Closes #${a.issueNumber}". If the issue can't be done, open a draft PR that explains why.`,
+      `Has terminado sin abrir una pull request para #${a.issueNumber}. Completa ahora los pasos que faltan: haz commit, sube tu rama y abre la PR con "Closes #${a.issueNumber}" (tal cual, en inglés) en el cuerpo. Si el issue no se puede hacer, abre una PR en borrador que explique por qué.`,
     ).catch(() => this.releaseIssue(a, repo));
   }
 
   private releaseIssue(a: PersistedAgent, repo: PersistedRepo) {
     const n = a.issueNumber;
     this.clearTask(a);
-    this.postMessage('office', `⚠️ ${a.name} finished #${n} on ${repo.fullName} without opening a pull request, so it's back on the board for anyone.`);
+    this.postMessage('office', `⚠️ ${a.name} ha terminado #${n} de ${repo.fullName} sin abrir una pull request, así que vuelve al tablero para quien sea.`);
   }
 
   // ---------- QA ----------
@@ -3211,9 +3166,9 @@ export class Swarm {
   async sendToQa(repoId: string, prNumber: number, agentId?: string) {
     const repo = this.repo(repoId);
     const pr = this.repoRt.get(repo.id)?.pulls.find((p) => p.number === prNumber && p.state === 'OPEN');
-    if (!pr) throw new HttpError(404, `PR #${prNumber} is not open on ${repo.fullName}`);
+    if (!pr) throw new HttpError(404, `La PR #${prNumber} no está abierta en ${repo.fullName}`);
     const rec = this.state.qa.find((q) => q.repoId === repo.id && q.prNumber === prNumber);
-    if (rec?.status === 'testing' || rec?.status === 'fixing') throw new HttpError(409, `PR #${prNumber} is already ${rec.status}`);
+    if (rec?.status === 'testing' || rec?.status === 'fixing') throw new HttpError(409, `La PR #${prNumber} ya está en estado ${rec.status}`);
     if (rec && (rec.status === 'needs-human' || rec.status === 'passed' || rec.status === 'failed')) {
       // a fresh start: the manager decided it deserves another round
       rec.round += 1;
@@ -3223,16 +3178,16 @@ export class Swarm {
     }
     const dev = this.state.agents.find((a) => a.repoId === repo.id && a.role !== 'ceo' && a.task !== 'qa' && (a.prNumber === prNumber || a.branch === pr.headRefName));
     const tester = agentId ? this.agent(agentId) : null;
-    if (tester && (tester.repoId !== repo.id || tester.role === 'ceo')) throw new HttpError(400, `${tester.name} doesn't work on ${repo.fullName}`);
-    if (tester && BUSY.includes(tester.status)) throw new HttpError(409, `${tester.name} is busy: ${this.agentDoing(tester)}`);
+    if (tester && (tester.repoId !== repo.id || tester.role === 'ceo')) throw new HttpError(400, `${tester.name} no trabaja en ${repo.fullName}`);
+    if (tester && BUSY.includes(tester.status)) throw new HttpError(409, `${tester.name} está ocupado: ${this.agentDoing(tester)}`);
     if (tester) this.ensureSlot();
     this.clearPrepStrikes(repo.id, prNumber);
     this.queueQa(repo, prNumber, dev ?? null, pr.closesIssues[0] ?? null);
     const queued = this.state.qa.find((q) => q.repoId === repo.id && q.prNumber === prNumber && q.status === 'queued');
     if (tester && queued) {
       void this.runQa(tester, repo, queued); // marks it testing at once, before the scheduler's next pass
-      this.toast('info', `${tester.name} is testing PR #${prNumber}`);
-    } else this.toast('info', `PR #${prNumber} is queued for QA`);
+      this.toast('info', `${tester.name} está probando la PR #${prNumber}`);
+    } else this.toast('info', `La PR #${prNumber} está en cola para QA`);
   }
 
   /** Manager's "send back to dev" for a PR that needs a human or failed QA: a developer fixes it, with the note. */
@@ -3249,7 +3204,7 @@ export class Swarm {
     this.clearPrepStrikes(repo.id, prNumber);
     this.setQa(rec!, { ...patch, preQa: null });
     setTimeout(() => this.schedule(), 200);
-    this.toast('info', `PR #${prNumber} goes back to a developer${patch.fixReason === 'conflict' ? ' to resolve its conflicts' : ''}`);
+    this.toast('info', `La PR #${prNumber} vuelve a un desarrollador${patch.fixReason === 'conflict' ? ' para resolver sus conflictos' : ''}`);
   }
 
   private buildQaSystemAppend(a: PersistedAgent, repo: PersistedRepo, cwd: string, branch: string, pr: PrDetails, testStep: string, deps?: DepsOutcome) {
@@ -3293,7 +3248,7 @@ export class Swarm {
     }
     if (a.status !== 'preparing') return stopped();
     if (pr.state !== 'OPEN') {
-      this.appendLog(a, [{ kind: 'system', text: `PR #${pr.number} is ${pr.state.toLowerCase()}; nothing to test.` }]);
+      this.appendLog(a, [{ kind: 'system', text: `La PR #${pr.number} está ${pr.state === 'MERGED' ? 'fusionada' : 'cerrada'}; no hay nada que probar.` }]);
       this.clearTask(a);
       this.dropRecord(repo, rec.prNumber);
       this.learnPull(repo, pr, pr.state);
@@ -3302,7 +3257,7 @@ export class Swarm {
     // QA never spends a session on a stale branch: a conflict goes to the developer first, a branch behind is updated.
     const gate = qaGate(pr, rec, repo.autoMerge);
     if (gate.do === 'send-back') {
-      this.appendLog(a, [{ kind: 'system', text: `PR #${pr.number} conflicts with ${repo.defaultBranch}; it goes back to its developer before QA.` }]);
+      this.appendLog(a, [{ kind: 'system', text: `La PR #${pr.number} tiene conflictos con ${repo.defaultBranch}; vuelve a su desarrollador antes de QA.` }]);
       this.clearTask(a);
       if (gate.needsHuman) {
         this.sendBack(repo, rec, 'conflict', rec.fixInstructions ?? '', true);
@@ -3314,12 +3269,12 @@ export class Swarm {
       return;
     }
     if (gate.do === 'update-branch') {
-      this.appendLog(a, [{ kind: 'system', text: `Updating PR #${pr.number}'s branch with ${repo.defaultBranch} first…` }]);
+      this.appendLog(a, [{ kind: 'system', text: `Actualizando primero la rama de la PR #${pr.number} con ${repo.defaultBranch}…` }]);
       try {
         await this.backend.updateBranch(repo.fullName, pr.number);
         pr = await this.backend.prDetails(repo.fullName, pr.number);
       } catch (err) {
-        this.appendLog(a, [{ kind: 'system', text: `  ⎿ GitHub couldn't update it (${oneLine(err)}); testing it as it is.` }]);
+        this.appendLog(a, [{ kind: 'system', text: `  ⎿ GitHub no ha podido actualizarla (${oneLine(err)}); se prueba tal como está.` }]);
       }
     }
     rec.testedSha = pr.headSha;
@@ -3344,15 +3299,15 @@ export class Swarm {
       defaultBranch: repo.defaultBranch,
     });
     const prompt = [
-      `Please QA pull request #${pr.number}: ${pr.title}`,
+      `Haz QA de la pull request #${pr.number}: ${pr.title}`,
       `URL: ${pr.url}`,
-      `Author: ${dev ? (dev.id === a.id ? `you, in an earlier session` : dev.name) : 'a teammate'} · QA round ${rec.round}`,
+      `Autor: ${dev ? (dev.id === a.id ? `tú, en una sesión anterior` : dev.name) : 'un compañero'} · ronda de QA ${rec.round}`,
       qa.checks,
       qa.retest,
       '',
-      'PR description:',
-      pr.body.trim() || '(empty)',
-      issue ? `\nLinked issue: ${issue.title}\n${issue.body.trim() || '(no description)'}` : '',
+      'Descripción de la PR:',
+      pr.body.trim() || '(vacía)',
+      issue ? `\nIssue enlazado: ${issue.title}\n${issue.body.trim() || '(sin descripción)'}` : '',
     ]
       .filter((l) => l !== '')
       .join('\n');
@@ -3374,18 +3329,18 @@ export class Swarm {
       // Same session, context and screenshots: they likely ended a turn to wait on something that never woke them.
       rt.qaResume = null;
       a.endedAt = null;
-      this.appendLog(a, [{ kind: 'system', text: '↻ The session ended without a QA report. Resuming it once to finish.' }]);
+      this.appendLog(a, [{ kind: 'system', text: '↻ La sesión ha terminado sin informe de QA. Se reanuda una vez para terminar.' }]);
       this.startAgentSession(a, repo, resume.cwd, QA_RESUME_PROMPT, resume.systemAppend, a.sessionId, QA_SCHEMA);
       return;
     }
 
     if (next === 'give-up' || !report) {
-      if (a.status !== 'stopped') this.fail(a, { ...result, errors: result.errors.length ? result.errors : ['QA finished without a usable report'] }, `QA of PR #${a.prNumber}`);
+      if (a.status !== 'stopped') this.fail(a, { ...result, errors: result.errors.length ? result.errors : ['QA ha terminado sin un informe utilizable'] }, `el QA de la PR #${a.prNumber}`);
       if (rec) {
         const failures = rec.sessionFailures + (this.limited() ? 0 : 1); // the usage limit isn't the PR's fault
         const patch = { qaAgentId: null, sessionFailures: failures, summary: a.status === 'stopped' ? QA_STOPPED : rec.summary };
         if (a.status === 'stopped') this.setQa(rec, { ...patch, status: 'needs-human', escalated: true }); // the manager stopped it: theirs to decide
-        else if (failures >= MAX_QA_FAILURES) this.stuck(rec, patch, `QA ended without a usable report ${failures} times in a row`);
+        else if (failures >= MAX_QA_FAILURES) this.stuck(rec, patch, `QA ha terminado sin un informe utilizable ${failures} veces seguidas`);
         else this.setQa(rec, { ...patch, status: 'queued' });
       }
       return;
@@ -3394,7 +3349,7 @@ export class Swarm {
     a.status = 'done';
     const pass = report.verdict === 'pass';
     if (rec) this.ledger({ kind: 'qa', repoId: repo.id, pr: rec.prNumber, round: rec.round, pass, tester: a.id, author: rec.devAgentId, at: Date.now() });
-    this.appendLog(a, [{ kind: pass ? 'done' : 'error', text: `${pass ? '✅ QA passed' : '❌ QA failed'} PR #${a.prNumber} · ${report.checks.length} checks · ${rt.shots.length} screenshots` }]);
+    this.appendLog(a, [{ kind: pass ? 'done' : 'error', text: `${pass ? '✅ QA ha aprobado' : '❌ QA ha suspendido'} la PR #${a.prNumber} · ${report.checks.length} comprobaciones · ${rt.shots.length} capturas` }]);
 
     // Evidence + comment on the PR
     let commentUrl: string | null = null;
@@ -3414,12 +3369,12 @@ export class Swarm {
       const pull = !pass ? await this.backend.prDetails(repo.fullName, rec.prNumber).catch(() => null) : null;
       const next = qaOutcome(pass, rec, pull);
       try {
-        this.appendLog(a, [{ kind: 'system', text: '📎 Uploading evidence and posting the QA report on the PR…' }]);
+        this.appendLog(a, [{ kind: 'system', text: '📎 Subiendo las capturas y publicando el informe de QA en la PR…' }]);
         const body = await this.renderQaComment(a, repo, rec, report, rt.shots, next);
         commentUrl = (await this.backend.commentPull(repo.fullName, rec.prNumber, body)) || null;
-        this.appendLog(a, [{ kind: 'system', text: `  ⎿ ${commentUrl ?? 'comment posted'}` }]);
+        this.appendLog(a, [{ kind: 'system', text: `  ⎿ ${commentUrl ?? 'comentario publicado'}` }]);
       } catch (err) {
-        this.appendLog(a, [{ kind: 'error', text: `  ⎿ Could not post the QA report: ${(err as Error).message}` }]);
+        this.appendLog(a, [{ kind: 'error', text: `  ⎿ No se ha podido publicar el informe de QA: ${(err as Error).message}` }]);
       }
       const qaRounds = rec.round - rec.retests; // rounds QA itself asked for
       const nextStatus = next === 'conflict' ? 'failed' : next;
@@ -3443,17 +3398,17 @@ export class Swarm {
       });
       // QA's findings travel with the merge fix; the developer's push then gets one more QA round.
       if (next === 'conflict') this.sendBack(repo, rec, 'conflict', conflictFixInstructions(fixInstructions, repo.defaultBranch), false);
-      const stillConflicts = pull && (pull.mergeable === 'CONFLICTING' || pull.mergeState === 'DIRTY') ? `, and it still conflicts with ${repo.defaultBranch} with its ${MAX_MERGE_FIXES} merge fixes used up` : '';
-      const triaged = nextStatus === 'needs-human' && this.stuck(rec, {}, `it failed QA ${qaRounds} times, the most QA rounds a PR gets (${MAX_QA_ROUNDS})${stillConflicts}`);
+      const stillConflicts = pull && (pull.mergeable === 'CONFLICTING' || pull.mergeState === 'DIRTY') ? `, y sigue teniendo conflictos con ${repo.defaultBranch} tras agotar sus ${MAX_MERGE_FIXES} correcciones de merge` : '';
+      const triaged = nextStatus === 'needs-human' && this.stuck(rec, {}, `ha suspendido QA ${qaRounds} veces, el máximo de rondas de QA de una PR (${MAX_QA_ROUNDS})${stillConflicts}`);
       this.toast(
         pass ? 'success' : 'error',
         pass
-          ? `✅ ${a.name} passed PR #${rec.prNumber}${repo.autoMerge ? "; it merges once GitHub's checks are green" : ': ready to merge'}`
+          ? `✅ ${a.name} ha aprobado la PR #${rec.prNumber}${repo.autoMerge ? '; se fusiona cuando los checks de GitHub estén en verde' : ': lista para fusionar'}`
           : nextStatus === 'needs-human'
-            ? `❌ PR #${rec.prNumber} failed QA ${qaRounds} times${triaged ? `; ${this.ceo().name} takes a look before it comes to you` : ' and needs a human'}`
+            ? `❌ La PR #${rec.prNumber} ha suspendido QA ${qaRounds} veces${triaged ? `; ${this.ceo().name} la revisa antes de que te llegue` : ' y necesita a una persona'}`
             : next === 'conflict'
-              ? `❌ ${a.name} failed PR #${rec.prNumber}, and it conflicts with ${repo.defaultBranch}; sending it back to merge and fix`
-              : `❌ ${a.name} failed PR #${rec.prNumber}; sending it back to the developer`,
+              ? `❌ ${a.name} ha suspendido la PR #${rec.prNumber}, y tiene conflictos con ${repo.defaultBranch}; vuelve para hacer merge y corregir`
+              : `❌ ${a.name} ha suspendido la PR #${rec.prNumber}; vuelve al desarrollador`,
       );
     }
   }
@@ -3473,28 +3428,28 @@ export class Swarm {
         const caption = report.screenshots[n - 1] ?? `Screenshot ${n}`;
         images.push(`**${n}. ${caption}**${shot.url ? ` · \`${shot.url}\`` : ''}\n\n<img src="${url}" alt="${caption.replace(/"/g, "'")}" width="760">`);
       } catch (err) {
-        this.appendLog(a, [{ kind: 'error', text: `  ⎿ screenshot ${n} upload failed: ${(err as Error).message.slice(0, 120)}` }]);
+        this.appendLog(a, [{ kind: 'error', text: `  ⎿ no se ha podido subir la captura ${n}: ${(err as Error).message.slice(0, 120)}` }]);
       }
     }
     const dev = rec.devAgentId ? this.state.agents.find((x) => x.id === rec.devAgentId) : null;
     const lines = [
-      `## 🔍 QA report: ${pass ? '✅ Passed' : '❌ Failed'}`,
-      `**Tester:** ${a.name} (cubefarm agent, in a fresh session) · **Round:** ${rec.round}${dev ? ` · **Author:** ${dev.name}` : ''}`,
+      `## 🔍 Informe de QA: ${pass ? '✅ Aprobada' : '❌ Suspendida'}`,
+      `**QA:** ${a.name} (agente de sareoffice, en una sesión nueva) · **Ronda:** ${rec.round}${dev ? ` · **Autor:** ${dev.name}` : ''}`,
       '',
       report.summary,
       '',
-      '| | Check | Details |',
+      '| | Comprobación | Detalles |',
       '|---|---|---|',
       ...report.checks.map((c) => `| ${ICON[c.result]} | ${cell(c.name)} | ${cell(c.details)} |`),
     ];
     if (report.commands.length) {
-      lines.push('', '<details><summary>🧪 Commands run</summary>', '', '| Command | Result |', '|---|---|', ...report.commands.map((c) => `| \`${cell(c.command)}\` | ${cell(c.result)} |`), '', '</details>');
+      lines.push('', '<details><summary>🧪 Comandos ejecutados</summary>', '', '| Comando | Resultado |', '|---|---|', ...report.commands.map((c) => `| \`${cell(c.command)}\` | ${cell(c.result)} |`), '', '</details>');
     }
-    if (!pass && report.fixInstructions) lines.push('', '### 🔧 What needs fixing', '', report.fixInstructions);
-    if (images.length) lines.push('', '### 📸 Evidence', '', ...images.flatMap((img) => [img, '']));
-    else lines.push('', '_No browser screenshots were taken in this round._');
-    const merge = repo.autoMerge ? "merges automatically once GitHub's checks pass" : 'ready for the manager to merge';
-    lines.push('', `<sub>Posted by cubefarm · ${pass ? merge : next === 'needs-human' ? 'needs a human decision' : next === 'conflict' ? `sent back to the developer to merge ${repo.defaultBranch} and fix` : 'sent back to the developer for fixes'}</sub>`);
+    if (!pass && report.fixInstructions) lines.push('', '### 🔧 Qué hay que corregir', '', report.fixInstructions);
+    if (images.length) lines.push('', '### 📸 Capturas', '', ...images.flatMap((img) => [img, '']));
+    else lines.push('', '_En esta ronda no se hicieron capturas del navegador._');
+    const merge = repo.autoMerge ? 'se fusiona automáticamente cuando pasen los checks de GitHub' : 'lista para que el responsable la fusione';
+    lines.push('', `<sub>Publicado por sareoffice · ${pass ? merge : next === 'needs-human' ? 'necesita que decida una persona' : next === 'conflict' ? `devuelta al desarrollador para hacer merge de ${repo.defaultBranch} y corregir` : 'devuelta al desarrollador para corregir'}</sub>`);
     return lines.join('\n');
   }
 
@@ -3512,8 +3467,8 @@ export class Swarm {
       dev,
       // The session they held was another task's (QA, say); the author's own is resumed below, from rec.devSessionId.
       { task: 'fix', issueNumber: rec.issueNumber, issueTitle: pull?.title ?? `PR #${rec.prNumber}`, branch: headRef, prNumber: rec.prNumber, prUrl: pull?.url ?? null, sessionId: null },
-      rec.fixReason === 'conflict' ? `Resolving conflicts on PR #${rec.prNumber}` : rec.fixReason === 'checks' ? `Fixing checks on PR #${rec.prNumber}` : `Fixing PR #${rec.prNumber} after QA round ${rec.round}`,
-      `Checking out PR #${rec.prNumber}…`,
+      rec.fixReason === 'conflict' ? `Resolviendo conflictos en la PR #${rec.prNumber}` : rec.fixReason === 'checks' ? `Arreglando checks en la PR #${rec.prNumber}` : `Corrigiendo la PR #${rec.prNumber} tras la ronda de QA ${rec.round}`,
+      `Descargando la PR #${rec.prNumber}…`,
     );
     // GitHub's word, not the last sync's: a PR closed or merged since then gets no fix.
     const live = await this.backend.prDetails(repo.fullName, rec.prNumber).catch(() => null);
@@ -3522,7 +3477,7 @@ export class Swarm {
       return void this.abandoned(dev);
     }
     if (live && live.state !== 'OPEN') {
-      this.appendLog(dev, [{ kind: 'system', text: `PR #${rec.prNumber} is ${live.state.toLowerCase()}; nothing to fix.` }]);
+      this.appendLog(dev, [{ kind: 'system', text: `La PR #${rec.prNumber} está ${live.state === 'MERGED' ? 'fusionada' : 'cerrada'}; no hay nada que corregir.` }]);
       this.clearTask(dev);
       this.dropRecord(repo, rec.prNumber);
       this.learnPull(repo, live, live.state);
@@ -3535,8 +3490,8 @@ export class Swarm {
     }
     const { cwd } = desk;
     const failed = rec.checks.filter((c) => c.result === 'fail');
-    const takeover = original ? '' : ' A teammate wrote it, so read the PR and the linked issue first.';
-    const push = `push to the same branch: git push origin HEAD:${headRef}`;
+    const takeover = original ? '' : ' La escribió un compañero, así que lee primero la PR y el issue enlazado.';
+    const push = `sube los cambios a la misma rama: git push origin HEAD:${headRef}`;
     const runId = rec.fixReason === 'checks' ? failedRunId(rec.fixInstructions) : null;
     const runLog = runId ? logTail(await this.backend.failedRunLog(repo.fullName, runId).catch(() => '')) : '';
     // A conflict QA never passed (it failed the last round) goes out as a QA fix: its instructions add the merge.
@@ -3544,39 +3499,39 @@ export class Swarm {
       rec.fixReason === 'conflict' && (rec.preQa || rec.passedSha)
         ? [
             rec.preQa
-              ? `Pull request #${rec.prNumber} (${pull?.url ?? ''}) conflicts with ${repo.defaultBranch} because other work was merged first, so it comes back to you before QA tests it.${takeover}`
-              : `QA passed pull request #${rec.prNumber} (${pull?.url ?? ''}), but it now conflicts with ${repo.defaultBranch} because other work was merged first.${takeover}`,
+              ? `La pull request #${rec.prNumber} (${pull?.url ?? ''}) tiene conflictos con ${repo.defaultBranch} porque antes se fusionó otro trabajo, así que vuelve a ti antes de que QA la pruebe.${takeover}`
+              : `QA aprobó la pull request #${rec.prNumber} (${pull?.url ?? ''}), pero ahora tiene conflictos con ${repo.defaultBranch} porque antes se fusionó otro trabajo.${takeover}`,
             // A conflict found before QA keeps QA's last findings for the re-test, not for this fix.
-            !rec.preQa && rec.fixInstructions ? `\nWhat needs fixing:\n${rec.fixInstructions}` : '',
+            !rec.preQa && rec.fixInstructions ? `\nQué hay que corregir:\n${rec.fixInstructions}` : '',
             '',
-            `Bring it up to date: git fetch origin && git merge origin/${repo.defaultBranch}. Resolve the conflicts so both this change and the newly merged work keep working, run the project's checks, and ${push}`,
+            `Actualízala: git fetch origin && git merge origin/${repo.defaultBranch}. Resuelve los conflictos de forma que tanto este cambio como el trabajo recién fusionado sigan funcionando, ejecuta las comprobaciones del proyecto y ${push}`,
           ]
         : rec.fixReason === 'checks'
           ? [
-              `QA passed pull request #${rec.prNumber} (${pull?.url ?? ''}), but GitHub checks failed on it.${takeover}`,
+              `QA aprobó la pull request #${rec.prNumber} (${pull?.url ?? ''}), pero han fallado sus checks de GitHub.${takeover}`,
               '',
-              `Failed checks:\n${rec.fixInstructions ?? ''}`,
+              `Checks fallidos:\n${rec.fixInstructions ?? ''}`,
               ...(runId ? failedLogLines(runId, runLog) : []),
               '',
-              `Read the logs with gh pr checks ${rec.prNumber} -R ${repo.fullName} (for GitHub Actions: gh run view <run id> -R ${repo.fullName} --log-failed). Fix the cause, run the same checks locally where you can, and ${push}`,
-              `If a failure clearly has nothing to do with this change (a flaky test or a service outage), re-run it instead with gh run rerun <run id> -R ${repo.fullName} --failed, and say so.`,
+              `Lee los logs con gh pr checks ${rec.prNumber} -R ${repo.fullName} (para GitHub Actions: gh run view <run id> -R ${repo.fullName} --log-failed). Corrige la causa, ejecuta en local los mismos checks donde puedas y ${push}`,
+              `Si un fallo claramente no tiene nada que ver con este cambio (un test inestable o una caída de un servicio), relánzalo con gh run rerun <run id> -R ${repo.fullName} --failed y dilo.`,
             ]
           : null;
     const qaFix = [
       original
-        ? `${qaAgent && qaAgent.id !== dev.id ? qaAgent.name : 'QA'} tested your pull request #${rec.prNumber} and it FAILED (round ${rec.round}).`
-        : `You are taking over pull request #${rec.prNumber} (${pull?.url ?? ''}), written by a teammate, because QA failed it (round ${rec.round}). Read the PR and the linked issue first.`,
+        ? `${qaAgent && qaAgent.id !== dev.id ? qaAgent.name : 'QA'} ha probado tu pull request #${rec.prNumber} y la ha SUSPENDIDO (ronda ${rec.round}).`
+        : `Te haces cargo de la pull request #${rec.prNumber} (${pull?.url ?? ''}), escrita por un compañero, porque QA la ha suspendido (ronda ${rec.round}). Lee primero la PR y el issue enlazado.`,
       '',
-      `QA summary: ${rec.summary ?? ''}`,
-      failed.length ? `Failed checks:\n${failed.map((c) => `- ${c.name}: ${c.details}`).join('\n')}` : '',
-      rec.fixInstructions ? `\nWhat needs fixing:\n${rec.fixInstructions}` : '',
-      rec.commentUrl ? `\nFull report with screenshots: ${rec.commentUrl}` : '',
+      `Resumen de QA: ${rec.summary ?? ''}`,
+      failed.length ? `Comprobaciones fallidas:\n${failed.map((c) => `- ${c.name}: ${c.details}`).join('\n')}` : '',
+      rec.fixInstructions ? `\nQué hay que corregir:\n${rec.fixInstructions}` : '',
+      rec.commentUrl ? `\nInforme completo con capturas: ${rec.commentUrl}` : '',
       '',
-      `Fix these problems, re-run the relevant checks, and push to the same branch: git push origin HEAD:${headRef}`,
+      `Corrige estos problemas, vuelve a ejecutar las comprobaciones relevantes y sube los cambios a la misma rama: git push origin HEAD:${headRef}`,
       ownPrLine(repo.defaultBranch),
-      'Then reply with a short summary of what you changed. Do not open a new pull request; QA will re-test automatically.',
+      'Después responde con un breve resumen de lo que has cambiado. No abras una pull request nueva; QA volverá a probarla automáticamente.',
     ];
-    const mergeEnd = 'Then reply with a short summary of what you did. Do not open a new pull request; the office merges it once the checks pass, after another QA round if the code changed.';
+    const mergeEnd = 'Después responde con un breve resumen de lo que has hecho. No abras una pull request nueva; la oficina la fusiona cuando pasan los checks, tras otra ronda de QA si el código ha cambiado.';
     const prompt = (mergeFix ? [...mergeFix, ownPrLine(repo.defaultBranch), mergeEnd] : qaFix).filter((l) => l !== '').join('\n');
     const resume = original && rec.devSessionId ? rec.devSessionId : undefined;
     this.startAgentSession(dev, repo, cwd, prompt, this.buildSystemAppend(dev, repo, cwd, headRef, { pr: rec.prNumber, headRef }, desk.deps), resume);
@@ -3591,16 +3546,16 @@ export class Swarm {
       return;
     }
     if (!result.ok) {
-      this.fail(a, result, `the fix for PR #${a.prNumber}`);
+      this.fail(a, result, `la corrección de la PR #${a.prNumber}`);
       // Someone else gets a go before it lands on the manager.
       const failures = rec ? rec.sessionFailures + (this.limited() ? 0 : 1) : 0;
-      if (rec && failures >= MAX_FIX_FAILURES) this.stuck(rec, { sessionFailures: failures }, `${failures} fix sessions in a row failed`);
+      if (rec && failures >= MAX_FIX_FAILURES) this.stuck(rec, { sessionFailures: failures }, `han fallado ${failures} sesiones de corrección seguidas`);
       else if (rec) this.setQa(rec, { status: 'failed', sessionFailures: failures });
       return;
     }
     if (!rec || !this.state.qa.includes(rec)) {
       a.status = 'done';
-      this.appendLog(a, [{ kind: 'done', text: `✔ Fix pushed for PR #${a.prNumber} in ${this.minutes(a)}m. Back to QA.` }]);
+      this.appendLog(a, [{ kind: 'done', text: `✔ Corrección subida para la PR #${a.prNumber} en ${this.minutes(a)} min. Vuelve a QA.` }]);
       return;
     }
     const head = current?.headSha ?? null;
@@ -3613,15 +3568,15 @@ export class Swarm {
       if (next.do === 'retest') {
         this.fixNudged.delete(key);
         a.status = 'done';
-        this.appendLog(a, [{ kind: 'done', text: `✔ No change needed for PR #${rec.prNumber}: ${noChange?.replace(/[.!\s]+$/, '')}. Back to QA for a re-test.` }]);
+        this.appendLog(a, [{ kind: 'done', text: `✔ La PR #${rec.prNumber} no necesita cambios: ${noChange?.replace(/[.!\s]+$/, '')}. Vuelve a QA para otra prueba.` }]);
         this.setQa(rec, { ...next.set, devSessionId: a.sessionId ?? rec.devSessionId });
-        this.toast('info', `${a.name} says PR #${rec.prNumber} needs no change; QA re-tests it`);
+        this.toast('info', `${a.name} dice que la PR #${rec.prNumber} no necesita cambios; QA vuelve a probarla`);
         return;
       }
       if (next.do === 'nudge') {
         this.fixNudged.add(key);
         a.status = 'done';
-        this.appendLog(a, [{ kind: 'system', text: `No new commits were pushed for PR #${rec.prNumber}; asking ${a.name} once more.` }]);
+        this.appendLog(a, [{ kind: 'system', text: `No se han subido commits nuevos a la PR #${rec.prNumber}; se le pregunta a ${a.name} una vez más.` }]);
         // message() starts the session before its first await, so the scheduler can't hand this developer other work first.
         void this.message(a.id, noPushNudge(rec.prNumber, repo.defaultBranch)).catch(() => {
           if (rec.status !== 'fixing') return;
@@ -3639,12 +3594,12 @@ export class Swarm {
     this.toast(
       'info',
       step.set.status === 'passed'
-        ? `${a.name} fixed PR #${rec.prNumber}; it merges once it passes again`
+        ? `${a.name} ha corregido la PR #${rec.prNumber}; se fusiona cuando vuelva a pasar`
         : 'preQa' in step.set
-          ? `${a.name} brought PR #${rec.prNumber} up to date; QA tests it`
+          ? `${a.name} ha actualizado la PR #${rec.prNumber}; QA la prueba`
           : step.set.retests
-            ? `${a.name} re-ran the failed checks on PR #${rec.prNumber}; QA re-tests it`
-            : `${a.name} pushed fixes for PR #${rec.prNumber}; QA round ${rec.round} is queued`,
+            ? `${a.name} ha relanzado los checks fallidos de la PR #${rec.prNumber}; QA vuelve a probarla`
+            : `${a.name} ha subido correcciones a la PR #${rec.prNumber}; la ronda de QA ${rec.round} está en cola`,
     );
   }
 
@@ -3654,11 +3609,11 @@ export class Swarm {
     this.fixNudged.delete(`${repo.id}#${rec.prNumber}`);
     const needsHuman = step.set.status === 'needs-human';
     a.status = 'error';
-    a.lastError = `No new commits were pushed for PR #${rec.prNumber}`;
+    a.lastError = `No se han subido commits nuevos a la PR #${rec.prNumber}`;
     this.appendLog(a, [step.log]);
-    const triaged = needsHuman ? this.stuck(rec, step.set, `it went back for fixes, but ${step.set.sessionFailures} fix sessions in a row ended without pushing a commit`) : (this.setQa(rec, step.set), false);
-    const next = !needsHuman ? '; it goes back for another try' : triaged ? `; ${this.ceo().name} takes a look` : '; it needs you';
-    this.toast('error', `${a.name} ended the fix for PR #${rec.prNumber} without pushing a commit${next}`);
+    const triaged = needsHuman ? this.stuck(rec, step.set, `volvió para corregirse, pero ${step.set.sessionFailures} sesiones de corrección seguidas terminaron sin subir ningún commit`) : (this.setQa(rec, step.set), false);
+    const next = !needsHuman ? '; vuelve para otro intento' : triaged ? `; ${this.ceo().name} la revisa` : '; te necesita';
+    this.toast('error', `${a.name} ha terminado la corrección de la PR #${rec.prNumber} sin subir ningún commit${next}`);
   }
 
   /** The PR's head commit and checks now; null (with a warning in the agent's log) when GitHub can't be asked. */
@@ -3667,7 +3622,7 @@ export class Swarm {
       return await this.backend.prDetails(repo.fullName, prNumber);
     } catch (err) {
       console.warn(`could not read the head of ${repo.fullName}#${prNumber}`, err);
-      this.appendLog(a, [{ kind: 'system', text: `⚠ Could not check PR #${prNumber} for new commits (${oneLine(err)}); taking the fix at its word.` }]);
+      this.appendLog(a, [{ kind: 'system', text: `⚠ No se ha podido comprobar si la PR #${prNumber} tiene commits nuevos (${oneLine(err)}); se da la corrección por buena.` }]);
       return null;
     }
   }
@@ -3677,17 +3632,17 @@ export class Swarm {
     const a = this.agent(id);
     if (a.role === 'ceo') return this.messageCeo(text);
     const repo = this.repo(a.repoId);
-    if (!text.trim()) throw new HttpError(400, 'Empty message');
+    if (!text.trim()) throw new HttpError(400, 'Mensaje vacío');
     const rt = this.agentRt.get(id)!;
     if (rt.session) {
-      this.appendLog(a, [{ kind: 'manager', text: `▶ Manager: ${text}` }]);
+      this.appendLog(a, [{ kind: 'manager', text: `▶ Responsable: ${text}` }]);
       if (!typed) rt.session.send(text);
       return;
     }
-    if (a.status === 'preparing') throw new HttpError(409, `${a.name} is still setting up; try again in a moment`);
-    if (!a.sessionId || !a.branch || a.task === 'qa') throw new HttpError(409, `${a.name} has no session to continue. Give them an issue or a PR to test instead.`);
+    if (a.status === 'preparing') throw new HttpError(409, `${a.name} todavía se está preparando; vuelve a intentarlo en un momento`);
+    if (!a.sessionId || !a.branch || a.task === 'qa') throw new HttpError(409, `${a.name} no tiene ninguna sesión que continuar. Dale un issue o una PR que probar.`);
     this.ensureSlot();
-    this.appendLog(a, [{ kind: 'manager', text: `▶ Manager: ${text}` }]);
+    this.appendLog(a, [{ kind: 'manager', text: `▶ Responsable: ${text}` }]);
     const cwd = this.deskOf(a, repo);
     a.lastError = null;
     a.startedAt = Date.now();
@@ -3727,24 +3682,15 @@ export class Swarm {
       s.voice = voiceSettings(s.voice, patch.voice);
       if (s.voice.keepDays !== keepDays) setTimeout(() => void this.voice.prune(), 500);
     }
-    if (patch.themes !== undefined) {
-      s.themes = themeSettings(s.themes, patch.themes);
-      setTimeout(() => this.greet(), 1000);
-    }
-    if (patch.weather !== undefined) {
-      s.weather = weatherSettings(s.weather, patch.weather);
-      this.weather.settingsChanged();
-    }
-    if (patch.worldEvents !== undefined) s.worldEvents = worldEventSettings(s.worldEvents, patch.worldEvents);
     if (patch.listen !== undefined) s.listen = listenSettings(s.listen, patch.listen);
     if (patch.notify !== undefined) {
       const url = (patch.notify as { officeUrl?: unknown } | null)?.officeUrl;
-      if (url !== undefined && officeUrl(url) === null) throw new HttpError(400, 'The office URL must be an http(s) address, e.g. https://office.your-tailnet.ts.net');
+      if (url !== undefined && officeUrl(url) === null) throw new HttpError(400, 'La URL de la oficina debe ser una dirección http(s), p. ej. https://office.your-tailnet.ts.net');
       s.notify = notifySettings(s.notify, patch.notify);
     }
     if (patch.cloud !== undefined) {
       const next: CloudSettings = cloudSettings(s.cloud, patch.cloud);
-      if (next.machineKind === 'box' && !this.cloud.boxApi()) throw new HttpError(400, 'Save your Upstash Box API key first: cloud agents run in your Upstash account.');
+      if (next.machineKind === 'box' && !this.cloud.boxApi()) throw new HttpError(400, 'Guarda antes tu clave de API de Upstash Box: los agentes en la nube se ejecutan en tu cuenta de Upstash.');
       s.cloud = next;
     }
     this.save();
@@ -3877,7 +3823,7 @@ export class Swarm {
     if (until <= this.pausedUntil) return;
     const fresh = Date.now() >= this.pausedUntil;
     this.pausedUntil = until;
-    if (fresh) this.postMessage('office', `⏸ Claude's usage limit was reached. The office starts no new work until ${new Date(until).toLocaleTimeString()}; sessions already running carry on.`);
+    if (fresh) this.postMessage('office', `⏸ Se ha alcanzado el límite de uso de Claude. La oficina no empieza trabajo nuevo hasta las ${new Date(until).toLocaleTimeString('es-ES')}; las sesiones en curso continúan.`);
     this.emitUsage();
   }
 
@@ -3902,7 +3848,7 @@ export class Swarm {
     if (refused) throw new HttpError(409, refused);
     this.waiver = { until: this.pacingUntil, limit: this.pacingLimit };
     this.pacingUntil = 0;
-    this.postMessage('office', '⏩ You resumed full speed: new issues start as usual again. If Claude turns a session away at the limit, the office still pauses until it resets.');
+    this.postMessage('office', '⏩ Has vuelto a la velocidad máxima: los issues nuevos vuelven a empezar con normalidad. Si Claude rechaza una sesión por el límite, la oficina seguirá parándose hasta que se restablezca.');
     this.emitUsage();
     setTimeout(() => this.schedule(), 200);
     return this.usageNow();
@@ -3911,8 +3857,8 @@ export class Swarm {
   /** The demo's stand-in for Claude's usage warning or limit (POST /api/usage/simulate), so pacing and the pause can be tried. */
   simulateUsage(kind: unknown): UsageView {
     const fake = this.backend.simulateUsage;
-    if (!fake) throw new HttpError(404, 'Usage can only be simulated in the demo office.');
-    if (kind !== 'warning' && kind !== 'limit') throw new HttpError(400, 'kind must be "warning" or "limit"');
+    if (!fake) throw new HttpError(404, 'El uso solo se puede simular en la oficina demo.');
+    if (kind !== 'warning' && kind !== 'limit') throw new HttpError(400, 'kind debe ser "warning" o "limit"');
     const usage = fake(kind, Date.now());
     if ('limitResetsAt' in usage) this.pauseForLimit(usage.limitResetsAt);
     else {
@@ -3940,8 +3886,8 @@ export class Swarm {
     this.broadcast({ type: 'usage', usage });
     if (usage.state !== was && usage.state !== 'normal') {
       const until = usage.until ? new Date(usage.until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'it resets';
-      if (usage.state === 'paused') this.notifier.notify('usage', "Claude's usage limit was reached", `The office starts no new work until ${until}; running sessions carry on.`);
-      else this.notifier.notify('usage', 'Pacing new work', `Claude warned that usage is high, so new issues start slowly until ${until}.`);
+      if (usage.state === 'paused') this.notifier.notify('usage', 'Se ha alcanzado el límite de uso de Claude', `La oficina no empieza trabajo nuevo hasta las ${until}; las sesiones en curso continúan.`);
+      else this.notifier.notify('usage', 'Dosificando el trabajo nuevo', `Claude ha avisado de que el uso es alto, así que los issues nuevos empiezan despacio hasta las ${until}.`);
     }
   }
 
@@ -3949,7 +3895,7 @@ export class Swarm {
   private tickUsage() {
     if (this.pacingUntil && Date.now() >= this.pacingUntil) {
       this.pacingUntil = 0;
-      this.postMessage('office', "✅ Claude's usage is back to normal. The office starts new work at full speed again.");
+      this.postMessage('office', '✅ El uso de Claude ha vuelto a la normalidad. La oficina vuelve a empezar trabajo nuevo a toda velocidad.');
     }
     this.emitUsage();
   }
@@ -4009,7 +3955,7 @@ export class Swarm {
     const failures = (this.issueFailures.get(key) ?? 0) + 1;
     this.issueFailures.set(key, failures);
     if (failures === MAX_ISSUE_FAILURES) {
-      this.postMessage('office', `⚠️ Issue #${n} on ${repo.fullName} failed ${failures} sessions in a row, so auto-assign skips it now. Assign it to someone by hand once it's sorted.`);
+      this.postMessage('office', `⚠️ El issue #${n} de ${repo.fullName} ha fallado ${failures} sesiones seguidas, así que la asignación automática lo salta. Asígnaselo a alguien a mano cuando esté resuelto.`);
     }
   }
 
@@ -4071,7 +4017,7 @@ export class Swarm {
     const input = this.drainInput();
     const d = drainDecision(input);
     const until = u.postponedUntil ? new Date(u.postponedUntil).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-    const detail = d.state === 'failed' ? u.failed : d.state === 'waiting' ? `Postponed until ${until}, or until a newer commit lands.` : null;
+    const detail = d.state === 'failed' ? u.failed : d.state === 'waiting' ? `Aplazado hasta las ${until}, o hasta que llegue un commit más nuevo.` : null;
     return { state: d.state, behind: input.behind, launcher: input.launcher, drainingSince: u.drainingSince ?? d.drainingSince, running: input.running, detail };
   }
 
@@ -4105,7 +4051,7 @@ export class Swarm {
       const running = this.running();
       this.postMessage(
         'office',
-        `⬆️ Updating the office (${u.behind} new commit${u.behind === 1 ? '' : 's'}). Nothing new starts${running ? ` while ${running} running session${running === 1 ? '' : 's'} finish` : ''}; then it installs and restarts.`,
+        `⬆️ Actualizando la oficina (${u.behind} commit${u.behind === 1 ? '' : 's'} nuevo${u.behind === 1 ? '' : 's'}). No empieza nada nuevo${running ? ` mientras termina${running === 1 ? '' : 'n'} ${running} sesi${running === 1 ? 'ón' : 'ones'} en curso` : ''}; después se instala y se reinicia.`,
       );
     }
     u.drainingSince = d.drainingSince;
@@ -4121,7 +4067,7 @@ export class Swarm {
     u.sent = true;
     // Cloud agents working in their Boxes carry on through the restart: the restarted office picks them up.
     const busy = this.state.agents.filter((a) => BUSY.includes(a.status) && !this.inBoxes().includes(a));
-    if (timedOut) this.postMessage('office', `⏱ ${busy.length} session${busy.length === 1 ? ' was' : 's were'} still running after 20 minutes. Stopped; the work goes back to the queue after the update.`);
+    if (timedOut) this.postMessage('office', `⏱ ${busy.length === 1 ? 'Una sesión seguía' : `${busy.length} sesiones seguían`} en curso tras 20 minutos. Detenida${busy.length === 1 ? '' : 's'}; el trabajo vuelve a la cola tras la actualización.`);
     this.emitOfficeUpdate();
     u.handedOver = true;
     await this.writeState().catch((err) => console.warn('could not save the state', err)); // still "working": the restarted office recovers them
@@ -4130,7 +4076,7 @@ export class Swarm {
       const result = await this.backend.office.update(from);
       if (result) await this.afterUpdate(result); // the demo: nothing restarts
     } catch (err) {
-      await this.afterUpdate({ from, to: from, ok: false, error: `the launcher didn't take the update: ${oneLine(err)}`, installed: false, built: false, at: Date.now() });
+      await this.afterUpdate({ from, to: from, ok: false, error: `el lanzador no ha aceptado la actualización: ${oneLine(err)}`, installed: false, built: false, at: Date.now() });
     }
   }
 
@@ -4141,7 +4087,7 @@ export class Swarm {
     const interrupted = this.state.agents.filter((a) => BUSY.includes(a.status) && !this.inBoxes().includes(a));
     const preparing = new Set(interrupted.filter((a) => a.status === 'preparing'));
     for (const a of interrupted) {
-      Object.assign(a, { status: 'stopped', lastError: 'The office updated itself while this agent was working.' });
+      Object.assign(a, { status: 'stopped', lastError: 'La oficina se actualizó mientras este agente trabajaba.' });
       const rt = this.agentRt.get(a.id);
       if (rt) Object.assign(rt, { session: null, currentTool: null });
     }
@@ -4166,11 +4112,11 @@ export class Swarm {
 
   /** The manager's Update now (drain now, even with automatic updates off) or Later (not for 2 hours, or until a newer commit). */
   updateOffice(action: unknown): OfficeUpdateView {
-    if (action !== 'now' && action !== 'later') throw new HttpError(400, 'action must be "now" or "later"');
+    if (action !== 'now' && action !== 'later') throw new HttpError(400, 'action debe ser "now" o "later"');
     const u = this.officeUpdate;
-    if (!this.officeHead || !this.backend.office.launcher) throw new HttpError(409, 'The office can only update itself when its launcher started it (npm run dev or npm start).');
-    if (u.sent) throw new HttpError(409, 'The update is already under way.');
-    if (u.behind <= 0) throw new HttpError(409, 'The office is up to date: there is nothing to update.');
+    if (!this.officeHead || !this.backend.office.launcher) throw new HttpError(409, 'La oficina solo puede actualizarse cuando la ha arrancado su lanzador (npm run dev o npm start).');
+    if (u.sent) throw new HttpError(409, 'La actualización ya está en marcha.');
+    if (u.behind <= 0) throw new HttpError(409, 'La oficina está al día: no hay nada que actualizar.');
     if (action === 'now') Object.assign(u, { requested: true, postponedUntil: null });
     else Object.assign(u, { requested: false, postponedUntil: Date.now() + POSTPONE_MS, postponedBehind: u.behind });
     this.officeUpdateTick();
@@ -4221,14 +4167,14 @@ export class Swarm {
       };
       this.state.agents.push(a);
       this.agentRt.set(a.id, { log: [], session: null, currentTool: null, browserUrl: null, screenshot: null, shots: [], terminal: null });
-      this.appendLog(a, [{ kind: 'system', text: `🏛️ ${a.name} moved into the corner office. The CEO studies every floor, sizes its team and plans its work.` }]);
+      this.appendLog(a, [{ kind: 'system', text: `🏛️ ${a.name} se ha instalado en el despacho de la esquina. El CEO estudia cada planta, dimensiona su equipo y planifica su trabajo.` }]);
     }
     const i = interrupted.indexOf(a);
     if (i >= 0) {
       interrupted.splice(i, 1);
       a.status = 'idle';
       a.lastError = null;
-      this.appendLog(a, [{ kind: 'system', text: '↺ The office server restarted. Picking the job back up.' }]);
+      this.appendLog(a, [{ kind: 'system', text: '↺ El servidor de la oficina se ha reiniciado. Se retoma el trabajo.' }]);
     }
     if (this.state.ceo.job) {
       this.state.ceo.queue.unshift(this.state.ceo.job);
@@ -4295,7 +4241,7 @@ export class Swarm {
     const rt = job.repoId ? this.repoRt.get(job.repoId) : undefined;
     if (job.repoId && (!rt || rt.cloneStatus === 'error')) {
       const repo = this.state.repos.find((r) => r.id === job.repoId);
-      if (repo) this.postMessage('office', `⚠️ ${a.name} couldn't study floor ${repo.floor}: the repository clone failed (${rt?.cloneError ?? 'unknown error'}).`);
+      if (repo) this.postMessage('office', `⚠️ ${a.name} no ha podido estudiar ${projectName(repo)}: ha fallado el clon del repositorio (${rt?.cloneError ?? 'error desconocido'}).`);
       this.emitCeo();
       this.save();
       return this.startCeoWork();
@@ -4318,7 +4264,7 @@ export class Swarm {
       { kind: 'system', text: '' },
       { kind: 'system', text: `━━━ ${label} ━━━` },
     ]);
-    if (job.kind === 'chat') this.appendLog(a, [{ kind: 'manager', text: `▶ Manager: ${job.text}` }]);
+    if (job.kind === 'chat') this.appendLog(a, [{ kind: 'manager', text: `▶ Responsable: ${job.text}` }]);
     if (job.kind === 'review') {
       this.state.ceo.lastReviewAt = Date.now();
       this.state.ceo.lastFingerprint = this.fingerprint();
@@ -4392,12 +4338,12 @@ export class Swarm {
       a.status = 'error';
       a.lastError = result.errors.join('; ') || 'Session failed';
       this.appendLog(a, [{ kind: 'error', text: `✗ ${a.lastError}` }]);
-      const what = job ? jobLabel(job, this.ceoFloor(job.repoId)).toLowerCase() : 'working';
-      this.postMessage('office', `⚠️ ${a.name} hit a problem while ${what}: ${a.lastError.slice(0, 240)}`);
+      const what = job ? jobLabel(job, this.ceoFloor(job.repoId)).toLowerCase() : 'trabajando';
+      this.postMessage('office', `⚠️ ${a.name} ha tenido un problema (${what}): ${a.lastError.slice(0, 240)}`);
     } else {
       a.status = 'done';
-      const filed = this.ceoIssues.total ? ` · ${this.ceoIssues.total} issue${this.ceoIssues.total === 1 ? '' : 's'} filed` : '';
-      this.appendLog(a, [{ kind: 'done', text: `✔ Done in ${this.minutes(a)}m · ${a.turns} turns${filed}` }]);
+      const filed = this.ceoIssues.total ? ` · ${this.ceoIssues.total} issue${this.ceoIssues.total === 1 ? '' : 's'} abierto${this.ceoIssues.total === 1 ? '' : 's'}` : '';
+      this.appendLog(a, [{ kind: 'done', text: `✔ Hecho en ${this.minutes(a)} min · ${a.turns} turnos${filed}` }]);
     }
     for (const id of this.ceoIssues.repos) void this.syncRepo(id);
     this.emitAgent(a);
@@ -4409,22 +4355,22 @@ export class Swarm {
   /** The manager's phone → the CEO. Injected into a running session, otherwise the CEO picks it up next. */
   async messageCeo(text: string) {
     const t = text.trim().slice(0, 4000);
-    if (!t) throw new HttpError(400, 'Empty message');
+    if (!t) throw new HttpError(400, 'Mensaje vacío');
     const a = this.ceo();
     this.postMessage('manager', t);
     const rt = this.agentRt.get(a.id)!;
     if (rt.session) {
-      this.appendLog(a, [{ kind: 'manager', text: `▶ Manager: ${t}` }]);
+      this.appendLog(a, [{ kind: 'manager', text: `▶ Responsable: ${t}` }]);
       this.ceoIssues.managerMessage(); // a new request: the issue cap counts from here
       this.ceoAsked = true;
-      rt.session.send(`Message from the manager (they read your reply on their phone, so keep it short):\n${t}`);
+      rt.session.send(`Mensaje del responsable (lee tu respuesta en el móvil, así que sé breve):\n${t}`);
       return;
     }
     this.enqueueCeo({ kind: 'chat', text: t, at: Date.now() });
   }
 
   requestReview() {
-    if (this.state.repos.length === 0) throw new HttpError(400, 'Connect a repo first: the CEO needs a floor to review.');
+    if (this.state.repos.length === 0) throw new HttpError(400, 'Conecta antes un repo: el CEO necesita una planta que revisar.');
     this.enqueueCeo({ kind: 'review', at: Date.now() });
   }
 
@@ -4440,7 +4386,7 @@ export class Swarm {
       repo.mission = mission.trim().slice(0, 4000);
       this.emitRepo(repo);
     }
-    if (!repo.mission) throw new HttpError(400, 'Write a brief first: what should this floor build?');
+    if (!repo.mission) throw new HttpError(400, 'Escribe antes un encargo: ¿qué debe construir esta planta?');
     this.enqueueCeo({ kind: 'plan', repoId: repo.id, at: Date.now() });
   }
 
@@ -4497,7 +4443,7 @@ export class Swarm {
     if (rec.status !== 'needs-human' || rec.escalated) return;
     this.setQa(rec, { escalated: true });
     const repo = this.state.repos.find((r) => r.id === rec.repoId);
-    if (repo) this.postMessage('office', `⚠️ PR #${rec.prNumber} on ${repo.fullName} needs you: ${rec.stuckWhy ?? 'it is stuck'}.${note ? ` ${note}` : ''}`);
+    if (repo) this.postMessage('office', `⚠️ La PR #${rec.prNumber} de ${repo.fullName} te necesita: ${rec.stuckWhy ?? 'está atascada'}.${note ? ` ${note}` : ''}`);
   }
 
   /** The CEO's triage job for this PR, queued or running. */
@@ -4562,15 +4508,15 @@ export class Swarm {
   private async triageRetryQa(x: { floor: number; pr: number }) {
     const { repo, rec } = await this.triageTarget(x);
     await this.sendToQa(repo.id, rec.prNumber);
-    return `PR #${rec.prNumber} is queued for QA round ${rec.round}.`;
+    return `La PR #${rec.prNumber} está en cola para la ronda de QA ${rec.round}.`;
   }
 
   private async triageSendBack(x: { floor: number; pr: number; note: string }) {
     const { repo, rec } = await this.triageTarget(x);
     const note = String(x.note ?? '').trim();
-    if (!note) throw new HttpError(400, 'Say what the developer should do: the note goes with the fix.');
-    await this.sendBackToDev(repo.id, rec.prNumber, note, `${this.ceo().name}, the CEO`);
-    return `PR #${rec.prNumber} goes back to a developer with QA's findings and your note.`;
+    if (!note) throw new HttpError(400, 'Di qué debe hacer el desarrollador: la nota acompaña a la corrección.');
+    await this.sendBackToDev(repo.id, rec.prNumber, note, `${this.ceo().name}, el CEO`);
+    return `La PR #${rec.prNumber} vuelve a un desarrollador con los hallazgos de QA y tu nota.`;
   }
 
   private async triageRerunChecks(x: { floor: number; pr: number }) {
@@ -4578,40 +4524,40 @@ export class Swarm {
     const runIds = failedRunIds(listed?.failedChecks ?? []);
     if (!listed || !runIds.length) {
       const failed = listed?.failedChecks.map((c) => c.name) ?? [];
-      throw new HttpError(409, `PR #${rec.prNumber} has no failed GitHub Actions runs to re-run${failed.length ? ` (${failed.join(', ')} can't be re-run from here)` : ''}.`);
+      throw new HttpError(409, `La PR #${rec.prNumber} no tiene ejecuciones fallidas de GitHub Actions que relanzar${failed.length ? ` (${failed.join(', ')} no se pueden relanzar desde aquí)` : ''}.`);
     }
     await this.backend.rerunFailedJobs(repo.fullName, runIds);
     const runs = `${runIds.length} failed run${runIds.length === 1 ? '' : 's'}`;
     if (rec.passedSha && rec.passedSha === listed.headSha) {
       // QA signed off on this commit: the merge gate waits for the re-run and merges if it goes green.
-      this.setQa(rec, { status: 'passed', rerunSha: listed.headSha, rerunAt: Date.now(), pendingSince: null, mergeNote: 're-running a failed check' });
-      return `Re-running ${runs} on PR #${rec.prNumber}. QA passed this commit, so it merges if they go green.`;
+      this.setQa(rec, { status: 'passed', rerunSha: listed.headSha, rerunAt: Date.now(), pendingSince: null, mergeNote: 'relanzando un check fallido' });
+      return `Relanzando ${runs} en la PR #${rec.prNumber}. QA aprobó este commit, así que se fusiona si se ponen en verde.`;
     }
     await this.sendToQa(repo.id, rec.prNumber);
-    return `Re-running ${runs} on PR #${rec.prNumber}, and it is queued for QA round ${rec.round}.`;
+    return `Relanzando ${runs} en la PR #${rec.prNumber}, y está en cola para la ronda de QA ${rec.round}.`;
   }
 
   private async triageClosePull(x: { floor: number; pr: number; comment: string }) {
     const { repo, rec, listed } = await this.triageTarget(x);
     const comment = String(x.comment ?? '').trim();
-    if (!comment) throw new HttpError(400, 'Say why the pull request is closing: the comment is posted on it.');
+    if (!comment) throw new HttpError(400, 'Di por qué se cierra la pull request: el comentario se publica en ella.');
     const issues = listed ? issuesResolvedBy(listed) : [];
     const ceo = this.ceo().name;
-    await this.backend.commentPull(repo.fullName, rec.prNumber, `${comment}\n\n<sub>Closed by ${ceo}, the cubefarm CEO, after triage.${issues.length ? ' Its issue stays open, so it is built again.' : ''}</sub>`);
+    await this.backend.commentPull(repo.fullName, rec.prNumber, `${comment}\n\n<sub>Cerrada por ${ceo}, CEO de sareoffice, tras el triaje.${issues.length ? ' Su issue sigue abierto, así que se construirá de nuevo.' : ''}</sub>`);
     // Closing deletes no branch and leaves the issue open, so the scheduler hands it out again.
     await this.backend.closePull(repo.fullName, rec.prNumber);
-    this.postMessage('office', `🗂️ ${ceo} closed PR #${rec.prNumber} on floor ${repo.floor}: ${comment.split('\n')[0].slice(0, 200)}`);
+    this.postMessage('office', `🗂️ ${ceo} ha cerrado la PR #${rec.prNumber} de ${projectName(repo)}: ${comment.split('\n')[0].slice(0, 200)}`);
     this.dropRecord(repo, rec.prNumber);
     this.learnPull(repo, { number: rec.prNumber, headRefName: listed?.headRefName ?? '', closesIssues: listed?.closesIssues ?? [] }, 'CLOSED', true); // built again
     void this.syncRepo(repo.id);
-    return `Closed PR #${rec.prNumber}.${issues.length ? ` ${issues.map((n) => `#${n}`).join(', ')} stay${issues.length === 1 ? 's' : ''} open, so a developer builds it again.` : ''}`;
+    return `PR #${rec.prNumber} cerrada.${issues.length ? ` ${issues.map((n) => `#${n}`).join(', ')} sigue${issues.length === 1 ? '' : 'n'} abierto${issues.length === 1 ? '' : 's'}, así que un desarrollador lo construirá de nuevo.` : ''}`;
   }
 
   private async triageEscalate(x: { floor: number; pr: number; reason: string }) {
     const { rec } = await this.triageTarget(x);
     const step = triageStep({ kind: 'escalate', reason: String(x.reason ?? '').split('\n')[0].slice(0, 300) });
     if (step.do === 'escalate') this.escalate(rec, step.note && `${this.ceo().name}: ${step.note}`);
-    return `The manager has PR #${rec.prNumber} now, with your diagnosis.`;
+    return `El responsable tiene ahora la PR #${rec.prNumber}, con tu diagnóstico.`;
   }
 
   // ---------- idle desks ----------
@@ -4641,13 +4587,13 @@ export class Swarm {
       for (const a of this.state.agents) {
         const repo = this.state.repos.find((r) => r.id === a.repoId);
         if (!repo) continue;
-        const name = `${a.name}'s desk on ${repo.fullName}`;
+        const name = `el puesto de ${a.name} en ${repo.fullName}`;
         const trim = a.machine ? (idle: () => boolean) => this.machinesFor(a).trimDesk(a.machine!, repo.fullName, idle) : (idle: () => boolean) => this.backend.trimDesk(repo.fullName, this.agentSlug(a), idle);
         desks.push({ key: a.id, name, endedAt: a.endedAt, busy: () => this.deskBusy(a), trim });
       }
       for (const repo of this.state.repos) {
         const busy = () => !this.state.repos.includes(repo) || this.previews.active(repo);
-        desks.push({ key: `preview:${repo.id}`, name: `the preview desk of ${repo.fullName}`, endedAt: null, busy, trim: (idle) => this.backend.trimDesk(repo.fullName, PREVIEW_SLUG, idle) });
+        desks.push({ key: `preview:${repo.id}`, name: `el puesto de vista previa de ${repo.fullName}`, endedAt: null, busy, trim: (idle) => this.backend.trimDesk(repo.fullName, PREVIEW_SLUG, idle) });
       }
       for (const key of this.deskWatch.keys()) if (!desks.some((d) => d.key === key)) this.deskWatch.delete(key);
       const seen = desks.map((d) => {
@@ -4697,7 +4643,7 @@ export class Swarm {
    */
   private async restoreDesk(a: PersistedAgent, repo: PersistedRepo): Promise<string | null> {
     a.status = 'preparing';
-    this.appendLog(a, [{ kind: 'system', text: 'Their desk folder is gone, so it is set up again first.' }]);
+    this.appendLog(a, [{ kind: 'system', text: 'La carpeta de su puesto ha desaparecido, así que primero se vuelve a preparar.' }]);
     this.emitAgent(a);
     const desk = await this.prepare(a, repo, { pr: a.prNumber ?? undefined }, a.branch ?? `swarm/desk-${this.agentSlug(a)}`);
     return desk?.cwd ?? null;
@@ -4746,7 +4692,7 @@ export class Swarm {
     if (heal) {
       const done = auto.map(({ problem, remedy }) => this.remedy(problem, remedy, now)).filter((t): t is string => !!t);
       if (done.length) {
-        this.postMessage('office', `🩺 The watchdog ${nameList(done)}.`);
+        this.postMessage('office', `🩺 El vigilante ${nameList(done)}.`);
         setTimeout(() => this.schedule(), 200);
       }
     }
@@ -4766,26 +4712,26 @@ export class Swarm {
       const session = a && this.agentRt.get(a.id)?.session;
       if (!a || !session) return null;
       this.watch.nudged.set(p.key, now);
-      this.appendLog(a, [{ kind: 'system', text: `🩺 No sign of life for ${mins} minutes: the office nudged them.` }]);
+      this.appendLog(a, [{ kind: 'system', text: `🩺 Sin señales de vida durante ${mins} minutos: la oficina le ha dado un toque.` }]);
       session.send(nudgeText(now - p.since));
       return null;
     }
     this.watch.remedied.set(p.key, now);
     if (remedy === 'requeue' && a) {
-      this.requeue(a, `the watchdog put ${what} back in line after ${mins} ${p.kind === 'quiet' ? 'quiet minutes and a nudge' : 'minutes setting up a desk'}`);
-      return `put ${a.name}'s ${what} back in line (${p.kind === 'quiet' ? `quiet for ${mins} minutes, even after a nudge` : `stuck setting up a desk for ${mins} minutes`})`;
+      this.requeue(a, `el vigilante ha devuelto ${what} a la cola tras ${mins} ${p.kind === 'quiet' ? 'minutos en silencio y un toque' : 'minutos preparando un puesto'}`);
+      return `ha devuelto ${what} de ${a.name} a la cola (${p.kind === 'quiet' ? `en silencio durante ${mins} minutos, incluso tras un toque` : `atascado preparando un puesto durante ${mins} minutos`})`;
     }
     if (remedy === 'clear' && a) {
-      this.requeue(a, `${what} is already ${this.workOf(a) === 'merged' ? 'merged' : 'closed'}`);
-      return `cleared ${a.name}'s desk (${what} was finished)`;
+      this.requeue(a, `${what} ya está ${this.workOf(a) === 'merged' ? 'fusionado' : 'cerrado'}`);
+      return `ha despejado el puesto de ${a.name} (${what} estaba terminado)`;
     }
     if (remedy === 'retry-qa' && rec) {
       this.setQa(rec, { status: 'queued', qaAgentId: null });
-      return `sent PR #${rec.prNumber} back to QA (nobody was testing it)`;
+      return `ha devuelto la PR #${rec.prNumber} a QA (nadie la estaba probando)`;
     }
     if (remedy === 'refix' && rec) {
       this.setQa(rec, { status: 'failed' });
-      return `put PR #${rec.prNumber}'s fix back in line (nobody was on it)`;
+      return `ha devuelto la corrección de la PR #${rec.prNumber} a la cola (nadie estaba con ella)`;
     }
     return null;
   }
@@ -4801,7 +4747,7 @@ export class Swarm {
       const repo = this.state.repos.find((r) => r.id === a.repoId);
       if (repo && a.status === 'preparing') void this.releaseDesk(a, repo).catch(() => undefined);
       this.stopForClosure(a, why);
-    } else this.dropTask(a, `↺ ${why[0].toUpperCase()}${why.slice(1)}. Cleared desk.`);
+    } else this.dropTask(a, `↺ ${why[0].toUpperCase()}${why.slice(1)}. Puesto despejado.`);
     this.save();
   }
 
@@ -4820,17 +4766,17 @@ export class Swarm {
   /** The doctor's one-click fix (POST /api/doctor/fix): the console's own actions, for the finding they were offered on. */
   async doctorFix(id: unknown, fix: unknown) {
     const f = this.doctor.find((x) => x.id === id);
-    if (!f) throw new HttpError(404, 'That finding is gone: the office may have sorted it out already.');
-    if (!f.fixes.includes(fix as DoctorFix)) throw new HttpError(400, `"${String(fix)}" doesn't fix this one. Try ${f.fixes.join(' or ')}.`);
+    if (!f) throw new HttpError(404, 'Ese hallazgo ya no está: puede que la oficina ya lo haya resuelto.');
+    if (!f.fixes.includes(fix as DoctorFix)) throw new HttpError(400, `"${String(fix)}" no arregla este. Prueba ${f.fixes.join(' o ')}.`);
     const a = f.agentId ? this.state.agents.find((x) => x.id === f.agentId) : undefined;
     const rec = f.prNumber != null ? this.state.qa.find((q) => q.repoId === f.repoId && q.prNumber === f.prNumber) : undefined;
     const need = <T>(x: T | undefined, what: string): T => {
-      if (!x) throw new HttpError(404, `${what} is gone: the office may have sorted it out already.`);
+      if (!x) throw new HttpError(404, `${what} ya no está: puede que la oficina ya lo haya resuelto.`);
       return x;
     };
     if (fix === 'stop') this.stopAgent(need(a, 'That agent').id);
     else if (fix === 'clear') this.resetAgent(need(a, 'That agent').id);
-    else if (fix === 'requeue') this.requeue(need(a, 'That agent'), 'the manager put the work back in line from the office doctor');
+    else if (fix === 'requeue') this.requeue(need(a, 'Ese agente'), 'el responsable ha devuelto el trabajo a la cola desde el médico de la oficina');
     else if (fix === 'retry-qa') {
       this.clearPrepStrikes(f.repoId, f.prNumber!);
       this.setQa(need(rec, `PR #${f.prNumber}'s QA record`), { status: 'queued', qaAgentId: null });
@@ -4847,7 +4793,7 @@ export class Swarm {
 
   /** "Ignore" on a finding: hidden until it goes away (and shows again if it comes back). */
   doctorIgnore(id: unknown) {
-    if (!this.doctor.some((f) => f.id === id)) throw new HttpError(404, 'That finding is gone already.');
+    if (!this.doctor.some((f) => f.id === id)) throw new HttpError(404, 'Ese hallazgo ya no está.');
     this.ignored.add(String(id));
     this.emitDoctor();
     return this.doctorView();
@@ -4860,16 +4806,16 @@ export class Swarm {
    */
   async demoDoctor(action: unknown): Promise<{ text: string; doctor: DoctorFinding[] }> {
     const dd = this.backend.demoDoctor;
-    if (!dd) throw new HttpError(404, 'The office doctor can only be tried out in the demo office.');
-    let text = 'The watchdog looked.';
+    if (!dd) throw new HttpError(404, 'El médico de la oficina solo se puede probar en la oficina demo.');
+    let text = 'El vigilante ha echado un vistazo.';
     if (action === 'restart') text = await this.demoRestart(dd);
     else if (action === 'stuck') {
       const a = this.state.agents.find((x) => x.role !== 'ceo' && x.status === 'working' && !this.stalled.has(x.id) && this.agentRt.get(x.id)?.session && dd.stall(x.id));
-      if (!a) throw new HttpError(409, 'Nobody is working right now. Wait for someone to start an issue, then try again.');
+      if (!a) throw new HttpError(409, 'Ahora mismo no trabaja nadie. Espera a que alguien empiece un issue y vuelve a intentarlo.');
       this.stalled.add(a.id);
       this.activity.set(a.id, Date.now() - QUIET_MS - 60_000);
       this.watchdogTick();
-      text = `${a.name} went quiet 21 minutes ago (pretend), and the watchdog nudged them.`;
+      text = `${a.name} se quedó en silencio hace 21 minutos (simulado), y el vigilante le ha dado un toque.`;
     } else if (action === 'later') {
       const skip = NUDGE_WAIT_MS + 60_000;
       for (const id of this.stalled) {
@@ -4878,16 +4824,16 @@ export class Swarm {
       }
       for (const [key, at] of this.watch.nudged) if ([...this.stalled].some((id) => key.includes(`:${id}:`))) this.watch.nudged.set(key, at - skip);
       this.watchdogTick();
-      text = 'Eleven more minutes passed for the stuck sessions.';
+      text = 'Han pasado once minutos más para las sesiones atascadas.';
     } else if (action === 'unclosed') {
       const repo = this.state.repos[0];
       const made = repo && dd.unclosedMerge(repo.fullName, 15 * 60_000);
-      if (!made) throw new HttpError(409, 'The first floor has no open issue to leave open.');
+      if (!made) throw new HttpError(409, 'La primera planta no tiene ningún issue abierto que dejar abierto.');
       await this.syncRepo(repo.id);
       this.watchdogTick();
-      text = `PR #${made.pr} merged 15 minutes ago (pretend), but issue #${made.issue} is still open.`;
+      text = `La PR #${made.pr} se fusionó hace 15 minutos (simulado), pero el issue #${made.issue} sigue abierto.`;
     } else if (action === 'check') this.watchdogTick();
-    else throw new HttpError(400, 'action must be "restart", "stuck", "later", "unclosed" or "check"');
+    else throw new HttpError(400, 'action debe ser "restart", "stuck", "later", "unclosed" o "check"');
     return { text, doctor: this.doctorView() };
   }
 
@@ -4897,9 +4843,9 @@ export class Swarm {
    * Then the office reconciles as it does after a real restart.
    */
   private async demoRestart(dd: NonNullable<Backend['demoDoctor']>): Promise<string> {
-    if (this.state.agents.some((a) => a.status === 'preparing')) throw new HttpError(409, 'Someone is still setting up a desk. Try again in a moment.');
+    if (this.state.agents.some((a) => a.status === 'preparing')) throw new HttpError(409, 'Alguien todavía está preparando un puesto. Vuelve a intentarlo en un momento.');
     const busy = this.state.agents.filter((a) => a.role !== 'ceo' && a.status === 'working' && a.task && this.agentRt.get(a.id)?.session);
-    if (busy.length < 2) throw new HttpError(409, 'Wait until at least two people are working, then try again.');
+    if (busy.length < 2) throw new HttpError(409, 'Espera a que al menos dos personas estén trabajando y vuelve a intentarlo.');
     const [keep, ...rest] = busy;
     rest.forEach((a, i) => {
       const repo = this.repo(a.repoId);
@@ -4919,7 +4865,7 @@ export class Swarm {
     const restart = await this.reconcileRestart((a) => a === keep); // keep's session never stopped: nothing to reattach
     this.finishRestart(restart);
     setTimeout(() => this.schedule(), 500);
-    return restartMessage(restart.counts) ?? 'Restarted: nothing to do.';
+    return restartMessage(restart.counts) ?? 'Reiniciado: no hay nada que hacer.';
   }
 
   // ---------- progress: coins, decorations, achievements and careers (#210, #226) ----------
@@ -4931,7 +4877,6 @@ export class Swarm {
 
   private fanout(fx: Effects, emitAgents = true) {
     if (!fx.changed) return;
-    if (fx.reward) this.broadcast({ type: 'reward', reward: fx.reward });
     if (emitAgents) {
       for (const id of fx.careers) {
         const a = this.state.agents.find((x) => x.id === id);
@@ -4941,8 +4886,8 @@ export class Swarm {
     for (const u of fx.unlocked) {
       const def = achievementDef(u.id);
       if (!def) continue;
-      this.postMessage('office', `🏆 Achievement unlocked: ${def.icon} ${def.name}. ${def.blurb} (${u.detail}). Its trophy is on the lobby's shelf.`);
-      this.toast('success', `🏆 Achievement unlocked: ${def.icon} ${def.name}`);
+      this.postMessage('office', `🏆 Logro desbloqueado: ${def.icon} ${def.name}. ${def.blurb} (${u.detail}).`);
+      this.toast('success', `🏆 Logro desbloqueado: ${def.icon} ${def.name}`);
     }
     if (fx.progress) this.broadcast({ type: 'progress', progress: this.progressView() });
     this.save();
@@ -4973,45 +4918,6 @@ export class Swarm {
     }
   }
 
-  private command(r: CommandResult): ProgressView {
-    if ('error' in r) throw new HttpError(409, r.error);
-    this.fanout(r.effects);
-    return this.progressView();
-  }
-
-  /** The lobby kiosk's Buy: a decoration for a floor, paid with its coins. It waits in the floor's decor box. */
-  buyDecoration(repoId: string, item: unknown): ProgressView {
-    return this.command(buyDecor(this.state.progress, this.repo(repoId).id, item));
-  }
-
-  /** Put a decoration in one of a floor's slots, move it to another, or (slot null) back in the floor's decor box. */
-  placeDecoration(repoId: string, body: { item?: unknown; slot?: unknown; from?: unknown }): ProgressView {
-    const repo = this.repo(repoId);
-    const spot = (v: unknown) => (v === null || v === undefined ? null : typeof v === 'string' ? v : undefined);
-    const slot = spot(body.slot);
-    const from = spot(body.from);
-    if (slot === undefined || from === undefined) throw new HttpError(400, 'slot and from are decoration spots (or null)');
-    return this.command(placeDecor(this.state.progress, repo.id, repo.fullName, { item: body.item, slot, from }, Date.now()));
-  }
-
-  /** The player finished a coffee; `id` is the browser's own for it, so a retried report counts once. */
-  drankCoffee(id: unknown) {
-    if (typeof id !== 'string' || !/^[\w-]{4,80}$/.test(id)) throw new HttpError(400, 'A coffee needs an id');
-    this.ledger({ kind: 'coffee', id, at: Date.now() });
-    return { coffees: this.state.progress.coffees };
-  }
-
-  /** Demo only, for QA: coins for a floor (`coins`), or more time on the team (`tenure`, everyone without an agent id). */
-  demoProgress(body: { action?: unknown; repoId?: unknown; coins?: unknown; agentId?: unknown; days?: unknown }): ProgressView {
-    if (!this.backend.demo) throw new HttpError(403, 'Only the demo office hands out coins and tenure');
-    if (body.action === 'coins') return this.command(grantCoins(this.state.progress, this.repo(String(body.repoId ?? '')).id, Number(body.coins)));
-    if (body.action === 'tenure') {
-      const agentId = typeof body.agentId === 'string' && body.agentId ? this.agent(body.agentId).id : undefined;
-      return this.command(addTenure(this.state.progress, Number(body.days), agentId));
-    }
-    throw new HttpError(400, 'action is "coins" or "tenure"');
-  }
-
   // ---------- the phone ----------
 
   private postMessage(from: PhoneMessage['from'], text: string, requestId?: string) {
@@ -5027,24 +4933,18 @@ export class Swarm {
     return m;
   }
 
-  /** The team's holiday greeting (shared/themes.ts) from the CEO, once a day while a theme is on. */
-  private greet() {
-    const text = dueGreeting(new Date(), this.state.settings.themes, this.state.settings.managerName || this.user || '', this.state.messages);
-    if (text) this.postMessage('ceo', text);
-  }
-
   // ---------- notifications ----------
 
   private notifyNeedsHuman(rec: QaRecord) {
     const repo = this.state.repos.find((r) => r.id === rec.repoId);
     const title = this.repoRt.get(rec.repoId)?.pulls.find((p) => p.number === rec.prNumber)?.title;
     const name = repo?.fullName.split('/')[1] ?? rec.repoId;
-    this.notifier.notify('needsHuman', `PR #${rec.prNumber} needs you`, `${name}${title ? `: ${title}` : ''}. ${rec.stuckWhy ? `Stuck because ${rec.stuckWhy}.` : rec.summary ?? ''}`, `${name} #${rec.prNumber}${title ? ` ${title}` : ''}`);
+    this.notifier.notify('needsHuman', `La PR #${rec.prNumber} te necesita`, `${name}${title ? `: ${title}` : ''}. ${rec.stuckWhy ? `Atascada porque ${rec.stuckWhy}.` : rec.summary ?? ''}`, `${name} #${rec.prNumber}${title ? ` ${title}` : ''}`);
   }
 
   private notifyMerge(repo: PersistedRepo, n: number, title: string) {
     const name = repo.fullName.split('/')[1];
-    this.notifier.notify('merge', `Merged PR #${n}`, `${name}${title ? `: ${title}` : ''}`, `${name} #${n}${title ? ` ${title}` : ''}`);
+    this.notifier.notify('merge', `PR #${n} fusionada`, `${name}${title ? `: ${title}` : ''}`, `${name} #${n}${title ? ` ${title}` : ''}`);
   }
 
   /** Agents stuck in an error for STUCK_ERROR_MS: the manager hears once per error (checked every minute). */
@@ -5054,7 +4954,7 @@ export class Swarm {
       this.toldStuck.add(key);
       const repo = this.state.repos.find((r) => r.id === a.repoId);
       const mins = Math.round((now - (a.endedAt ?? now)) / 60_000);
-      this.notifier.notify('agentError', `${a.name} needs help`, `In an error for ${mins} minutes${repo ? ` on floor ${repo.floor}` : ''}: ${clip(a.lastError ?? 'their session failed', 200)}`, `${a.name}${repo ? ` (floor ${repo.floor})` : ''}`);
+      this.notifier.notify('agentError', `${a.name} necesita ayuda`, `Con un error desde hace ${mins} minutos${repo ? ` en ${projectName(repo)}` : ''}: ${clip(a.lastError ?? 'su sesión ha fallado', 200)}`, `${a.name}${repo ? ` (${projectName(repo)})` : ''}`);
     }
     for (const key of this.toldStuck) if (!this.state.agents.some((a) => key === `${a.id}:${a.endedAt ?? 0}` && a.status === 'error')) this.toldStuck.delete(key);
   }
@@ -5065,29 +4965,6 @@ export class Swarm {
     this.state.phoneReadAt = t;
     this.broadcast({ type: 'phoneRead', at: t });
     this.save();
-  }
-
-  // ---------- ping-pong ----------
-
-  /**
-   * A ping-pong game finished on `repoId`'s floor (the client plays it): onto that floor's leaderboard it goes.
-   * `players` are 'player' (the manager) or agents on the floor, `score` their points in the same order.
-   */
-  recordPong(repoId: string, body: unknown) {
-    this.repo(repoId);
-    const game = parsePongResult(body);
-    if ('error' in game) throw new HttpError(400, game.error);
-    const [a, b] = game.players.map((id) => {
-      if (id === PONG_PLAYER) return { id, name: this.state.settings.managerName.trim() || 'Manager' };
-      const agent = this.state.agents.find((x) => x.id === id && x.repoId === repoId);
-      if (!agent) throw new HttpError(400, `${id} doesn't work on this floor`);
-      return { id, name: agent.name };
-    });
-    const board = recordGame(this.state.pong[repoId] ?? [], { players: [a, b], score: game.score, at: Date.now() });
-    this.state.pong[repoId] = board;
-    this.broadcast({ type: 'pong', repoId, board });
-    this.save();
-    return board;
   }
 
   // ---------- team changes ----------
@@ -5111,18 +4988,18 @@ export class Swarm {
 
   /** "Codex · gpt-6 · high": what an agent runs, where it isn't the office default ('' when it all is). */
   private setupLabel(x: { cli: AgentCli | ''; model: string; effort: EffortLevel | ''; host?: MachineHost | '' }) {
-    return [x.cli ? cliLabel(x.cli) : '', x.model, x.effort ? `${x.effort} effort` : '', x.host === 'box' ? 'in the cloud' : ''].filter(Boolean).join(' · ');
+    return [x.cli ? cliLabel(x.cli) : '', x.model, x.effort ? `esfuerzo ${x.effort}` : '', x.host === 'box' ? 'en la nube' : ''].filter(Boolean).join(' · ');
   }
 
   /** A team change goes through: the new agent joins as set up here (the manager's changes win), or an agent leaves. */
   approveRequest(id: string, overrides: { name?: string; cli?: string; model?: string; effort?: string; host?: string; note?: string } = {}, by: 'manager' | 'auto' = 'manager') {
     const req = this.state.requests.find((r) => r.id === id);
-    if (!req) throw new HttpError(404, 'That team change no longer exists');
-    if (req.status !== 'pending') throw new HttpError(409, `That team change was already ${req.status}`);
+    if (!req) throw new HttpError(404, 'Ese cambio de equipo ya no existe');
+    if (req.status !== 'pending') throw new HttpError(409, `Ese cambio de equipo ya estaba ${req.status === 'approved' ? 'aprobado' : req.status === 'rejected' ? 'rechazado' : req.status}`);
     const repo = this.repo(req.repoId);
     // The manager's note (from the lobby card) reaches the CEO as managerNote, as a decline's does.
     const note = (overrides.note ?? '').trim().slice(0, 400);
-    const quoted = note ? ` Your note: "${note}"` : '';
+    const quoted = note ? ` Tu nota: "${note}"` : '';
     if (req.kind === 'hire') {
       const name = overrides.name?.trim() || req.name;
       const agent = this.hireAgent(repo.id, {
@@ -5140,12 +5017,12 @@ export class Swarm {
       Object.assign(req, { agentId: agent.id, name: agent.name, cli: agent.cli, host: agent.host ?? 'local', model: agent.model, effort: agent.effort });
       this.decide(req, { status: 'approved', note, decidedBy: by });
       const setup = this.setupLabel(req);
-      this.postMessage('office', by === 'auto' ? `🤖 ${agent.name} joined floor ${repo.floor}${setup ? ` (${setup})` : ''}.` : `✅ You hired ${agent.name} for floor ${repo.floor}${setup ? ` (${setup})` : ''}.${quoted}`, req.id);
-      this.toast('success', `${agent.name} joined floor ${repo.floor}`);
+      this.postMessage('office', by === 'auto' ? `🤖 ${agent.name} se ha incorporado a ${projectName(repo)}${setup ? ` (${setup})` : ''}.` : `✅ Has incorporado a ${agent.name} a ${projectName(repo)}${setup ? ` (${setup})` : ''}.${quoted}`, req.id);
+      this.toast('success', `${agent.name} se ha incorporado a ${projectName(repo)}`);
       return;
     }
     const a = req.agentId ? this.state.agents.find((x) => x.id === req.agentId) : undefined;
-    this.decide(req, { status: 'approved', note: a ? note : 'They had already left.', decidedBy: by });
+    this.decide(req, { status: 'approved', note: a ? note : 'Ya se había ido.', decidedBy: by });
     if (a) {
       try {
         this.fireAgent(a.id);
@@ -5154,17 +5031,17 @@ export class Swarm {
         throw err;
       }
     }
-    this.postMessage('office', `👋 ${req.name} left floor ${repo.floor}${by === 'auto' ? '' : ' (you agreed)'}.${a ? quoted : ''}`, req.id);
+    this.postMessage('office', `👋 ${req.name} ha dejado ${projectName(repo)}${by === 'auto' ? '' : ' (con tu visto bueno)'}.${a ? quoted : ''}`, req.id);
   }
 
   rejectRequest(id: string, note = '') {
     const req = this.state.requests.find((r) => r.id === id);
-    if (!req) throw new HttpError(404, 'That team change no longer exists');
-    if (req.status !== 'pending') throw new HttpError(409, `That team change was already ${req.status}`);
+    if (!req) throw new HttpError(404, 'Ese cambio de equipo ya no existe');
+    if (req.status !== 'pending') throw new HttpError(409, `Ese cambio de equipo ya estaba ${req.status === 'approved' ? 'aprobado' : req.status === 'rejected' ? 'rechazado' : req.status}`);
     this.decide(req, { status: 'rejected', note: note.trim().slice(0, 400), decidedBy: 'manager' });
     const floor = this.state.repos.find((r) => r.id === req.repoId)?.floor;
-    const what = req.kind === 'hire' ? `adding ${req.name} to floor ${floor ?? '?'}` : `letting ${req.name} go`;
-    this.postMessage('office', `✋ You declined ${what}${req.note ? `: "${req.note}"` : '.'}`, req.id);
+    const what = req.kind === 'hire' ? `añadir a ${req.name} a la planta ${floor ?? '?'}` : `despedir a ${req.name}`;
+    this.postMessage('office', `✋ Has rechazado ${what}${req.note ? `: "${req.note}"` : '.'}`, req.id);
   }
 
   /**
@@ -5177,7 +5054,7 @@ export class Swarm {
       const a = req.agentId ? this.state.agents.find((x) => x.id === req.agentId) : undefined;
       if (req.kind === 'let-go' && a && BUSY.includes(a.status)) continue;
       if (req.kind === 'let-go' && a && this.state.agents.filter((x) => x.repoId === a.repoId).length <= 1) {
-        this.decide(req, { status: 'rejected', note: `${a.name} is the floor's last agent.`, decidedBy: 'auto' });
+        this.decide(req, { status: 'rejected', note: `${a.name} es el último agente de la planta.`, decidedBy: 'auto' });
         continue;
       }
       try {
@@ -5255,22 +5132,22 @@ export class Swarm {
   private scaleTeam(x: { floor: number; size: number; reason: string; cli?: string; model?: string; effort?: string }) {
     const repo = this.floorRepo(x.floor);
     const reason = String(x.reason ?? '').trim().slice(0, 600);
-    if (!reason) throw new Error('Say why: the manager reads the reason.');
+    if (!reason) throw new Error('Di por qué: el responsable lee el motivo.');
     const cli: AgentCli | '' = isCli(x.cli) ? x.cli : '';
-    if (cli && !this.cliReady(cli)) throw new Error(`${cliLabel(cli)} isn't installed here. Installed: ${this.clis.filter((c) => c.installed).map((c) => c.id).join(', ') || 'none'}.`);
+    if (cli && !this.cliReady(cli)) throw new Error(`${cliLabel(cli)} no está instalado aquí. Instalados: ${this.clis.filter((c) => c.installed).map((c) => c.id).join(', ') || 'ninguno'}.`);
     const max = this.state.settings.maxAgents;
     const team = this.teamNow(repo);
     const before = plannedSize(team);
     const plan = scalePlan(team, Number(x.size), max);
-    const counting = team.pendingHires.length + team.pendingLetGos.length ? ', counting the team changes waiting for the manager' : '';
-    if (plan.size === before) return `Floor ${repo.floor} already has ${before} agent${before === 1 ? '' : 's'}${counting}${Number(x.size) > max ? ` (its most: ${max})` : ''}. Nothing changed.`;
+    const counting = team.pendingHires.length + team.pendingLetGos.length ? ', contando los cambios de equipo pendientes del responsable' : '';
+    if (plan.size === before) return `La planta ${repo.floor} ya tiene ${before} ${before === 1 ? 'agente' : 'agentes'}${counting}${Number(x.size) > max ? ` (su máximo: ${max})` : ''}. No ha cambiado nada.`;
     for (const id of [...plan.cancelHires, ...plan.cancelLetGos]) {
       const req = this.state.requests.find((r) => r.id === id);
-      if (req) this.decide(req, { status: 'rejected', note: `${this.ceo().name} changed the plan.`, decidedBy: 'auto' });
+      if (req) this.decide(req, { status: 'rejected', note: `${this.ceo().name} ha cambiado el plan.`, decidedBy: 'auto' });
     }
     const setup = { cli, model: String(x.model ?? '').trim(), effort: EFFORTS.includes(x.effort as EffortLevel) ? (x.effort as EffortLevel) : ('' as const) };
     const made = [...Array.from({ length: plan.hire }, () => this.newHire(repo, reason, setup)), ...plan.letGo.map((id) => this.newLetGo(this.agent(id), reason))];
-    const capped = Number(x.size) > max ? ` (you asked for ${x.size}; its most is ${max})` : '';
+    const capped = Number(x.size) > max ? ` (has pedido ${x.size}; su máximo es ${max})` : '';
     const names = (reqs: HireRequestView[]) => nameList(reqs.map((r) => r.name));
     if (this.state.settings.scaling === 'auto') {
       const now = made.filter((r) => r.kind === 'hire' || !BUSY.includes(this.agent(r.agentId!).status));
@@ -5278,18 +5155,19 @@ export class Swarm {
       const joined = now.filter((r) => r.kind === 'hire');
       const left = now.filter((r) => r.kind === 'let-go');
       const later = made.filter((r) => !now.includes(r));
-      const parts = [joined.length ? `${names(joined)} joined` : '', left.length ? `${names(left)} left` : '', later.length ? `${names(later)} will leave after their current task` : ''].filter(Boolean);
-      return `Floor ${repo.floor} goes from ${before} to ${plan.size} agents${capped}: ${parts.join('; ') || 'withdrew the waiting changes'}.`;
+      const parts = [joined.length ? `${joined.length === 1 ? 'se incorpora' : 'se incorporan'} ${names(joined)}` : '', left.length ? `${left.length === 1 ? 'se va' : 'se van'} ${names(left)}` : '', later.length ? `${names(later)} se ${later.length === 1 ? 'irá' : 'irán'} tras su tarea actual` : ''].filter(Boolean);
+      return `La planta ${repo.floor} pasa de ${before} a ${plan.size} agentes${capped}: ${parts.join('; ') || 'se han retirado los cambios pendientes'}.`;
     }
     const hires = made.filter((r) => r.kind === 'hire');
     const leaves = made.filter((r) => r.kind === 'let-go');
-    const asks = [hires.length ? `add ${names(hires)}` : '', leaves.length ? `let ${names(leaves)} go` : ''].filter(Boolean).join(' and ');
+    const asks = [hires.length ? `añadir a ${names(hires)}` : '', leaves.length ? `despedir a ${names(leaves)}` : ''].filter(Boolean).join(' y ');
     if (made.length) {
-      const text = `📈 Floor ${repo.floor}: from ${before} to ${plan.size} agents? I'd ${asks}. ${reason}`;
-      this.postMessage('ceo', hires.length ? `${text} ${hires.length === 1 ? `${hires[0].name} waits` : 'They wait'} in the lobby, where you can set them up before hiring.` : text, made.length === 1 ? made[0].id : undefined);
-      this.notifier.notify('hire', `Floor ${repo.floor}: ${before} → ${plan.size} agents?`, `${this.ceo().name} would ${asks}. ${plainText(reason)}`, `floor ${repo.floor} team change`);
+      const project = repo.fullName.split('/')[1] ?? repo.fullName;
+      const text = `📈 ${project}: ¿de ${before} a ${plan.size} agentes? Propongo ${asks}. ${reason}`;
+      this.postMessage('ceo', hires.length ? `${text} ${hires.length === 1 ? `${hires[0].name} espera` : 'Esperan'} en Aprobaciones, donde puedes configurar${hires.length === 1 ? 'lo' : 'los'} antes de aceptar${hires.length === 1 ? 'lo' : 'los'}.` : text, made.length === 1 ? made[0].id : undefined);
+      this.notifier.notify('hire', `${project}: ¿${before} → ${plan.size} agentes?`, `${this.ceo().name} propone ${asks}. ${plainText(reason)}`, `cambio de equipo en ${project}`);
     }
-    return `Floor ${repo.floor} goes from ${before} to ${plan.size} agents${capped} once the manager agrees: ${asks || 'withdrew the waiting changes'}.`;
+    return `La planta ${repo.floor} pasará de ${before} a ${plan.size} agentes${capped} cuando el responsable lo acepte: ${asks || 'se han retirado los cambios pendientes'}.`;
   }
 
   /**
@@ -5297,44 +5175,44 @@ export class Swarm {
    * __swarmHiring). It goes through scale_team: same checks, phone message and auto mode.
    */
   demoPropose(kind: unknown, floor?: unknown) {
-    if (!this.backend.demo) throw new HttpError(404, 'Only the demo office makes up team changes');
-    if (kind !== 'hire' && kind !== 'let-go') throw new HttpError(400, 'kind must be "hire" or "let-go"');
+    if (!this.backend.demo) throw new HttpError(404, 'Solo la oficina demo se inventa cambios de equipo');
+    if (kind !== 'hire' && kind !== 'let-go') throw new HttpError(400, 'kind debe ser "hire" o "let-go"');
     const floors = [...this.state.repos].sort((x, y) => x.floor - y.floor).filter((r) => floor === undefined || floor === null || r.floor === Number(floor));
-    if (!floors.length) throw new HttpError(404, floor === undefined || floor === null ? 'There are no floors yet' : `There is no floor ${floor}`);
+    if (!floors.length) throw new HttpError(404, floor === undefined || floor === null ? 'Todavía no hay plantas' : `No existe la planta ${floor}`);
     for (const r of floors) {
       const size = plannedSize(this.teamNow(r));
       const ready = this.repoRt.get(r.id)?.lastSync ? this.readyIssues(r).length : 0;
       if (kind === 'hire' ? size >= this.state.settings.maxAgents : size <= 1 || !this.available(r).length) continue;
       const reason =
         kind === 'hire'
-          ? `${ready} issue${ready === 1 ? '' : 's'} could start, and ${this.available(r).length} of ${size} agents are free.`
-          : `${this.available(r).length} of ${size} agents have nothing to do, and ${ready} issue${ready === 1 ? '' : 's'} could start.`;
+          ? `${ready} issue${ready === 1 ? '' : 's'} podría${ready === 1 ? '' : 'n'} empezar, y ${this.available(r).length} de ${size} agentes están libres.`
+          : `${this.available(r).length} de ${size} agentes no tienen nada que hacer, y ${ready} issue${ready === 1 ? '' : 's'} podría${ready === 1 ? '' : 'n'} empezar.`;
       try {
         return { text: this.scaleTeam({ floor: r.floor, size: kind === 'hire' ? size + 1 : size - 1, reason }) };
       } catch (err) {
         throw new HttpError(409, (err as Error).message);
       }
     }
-    throw new HttpError(409, kind === 'hire' ? 'Every floor already has its most agents' : 'No floor has an idle agent to let go');
+    throw new HttpError(409, kind === 'hire' ? 'Todas las plantas tienen ya su máximo de agentes' : 'Ninguna planta tiene un agente libre al que despedir');
   }
 
   // ---------- the CEO's office tools ----------
 
   private floorRepo(floor: number) {
     const r = this.state.repos.find((x) => x.floor === Number(floor));
-    if (!r) throw new Error(`There is no floor ${floor}. Floors: ${this.state.repos.map((x) => `${x.floor} (${x.fullName})`).join(', ') || 'none'}.`);
+    if (!r) throw new Error(`No existe la planta ${floor}. Plantas: ${this.state.repos.map((x) => `${x.floor} (${x.fullName})`).join(', ') || 'ninguna'}.`);
     return r;
   }
 
   private agentByRef(ref: string) {
     const r = String(ref ?? '').trim().toLowerCase();
     const a = this.state.agents.find((x) => x.id === ref || x.name.toLowerCase() === r);
-    if (!a) throw new Error(`No agent "${ref}". Use the ids from company_status.`);
+    if (!a) throw new Error(`No existe el agente "${ref}". Usa los ids de company_status.`);
     return a;
   }
 
   private agentDoing(a: PersistedAgent) {
-    return !BUSY.includes(a.status) ? null : a.task === 'qa' ? `testing PR #${a.prNumber}` : a.task === 'fix' ? `fixing PR #${a.prNumber}` : `issue #${a.issueNumber}`;
+    return !BUSY.includes(a.status) ? null : a.task === 'qa' ? `probando la PR #${a.prNumber}` : a.task === 'fix' ? `corrigiendo la PR #${a.prNumber}` : `issue #${a.issueNumber}`;
   }
 
   /** What an agent runs, defaults resolved, for the CEO. */
@@ -5343,7 +5221,7 @@ export class Swarm {
     const cli = ceo ? 'claude' : a.cli || this.state.settings.defaultCli;
     return {
       codingAgent: cli,
-      model: ceo ? a.model || CEO_MODEL : this.modelFor(a, cli) || 'the coding agent default',
+      model: ceo ? a.model || CEO_MODEL : this.modelFor(a, cli) || 'el predeterminado del agente de código',
       effort: a.effort || (ceo ? CEO_EFFORT : this.state.settings.defaultEffort),
     };
   }
@@ -5363,7 +5241,7 @@ export class Swarm {
           floor: r.floor,
           repo: r.fullName,
           description: r.description,
-          clone: rt.cloneStatus === 'ready' ? this.backend.mainDir(r.fullName) : `(not available: clone ${rt.cloneStatus})`,
+          clone: rt.cloneStatus === 'ready' ? this.backend.mainDir(r.fullName) : `(no disponible: clon ${rt.cloneStatus})`,
           brief: r.mission || null,
           profile: r.summary || null,
           qaBrief: r.qaBrief || null,
@@ -5395,13 +5273,13 @@ export class Swarm {
             title: i.title,
             waitsFor: blockers(i.body, open),
             inProgress: this.issueTaken(r, i.number),
-            ...(this.isHeld(r.id, i.number) ? { waitsForManager: 'its PR was closed; only the manager hands it out again' } : {}),
+            ...(this.isHeld(r.id, i.number) ? { waitsForManager: 'se cerró su PR; solo el responsable vuelve a asignarlo' } : {}),
           })),
           pullRequests: rt.pulls
             .filter((p) => p.state === 'OPEN')
             .map((p) => {
               const q = this.state.qa.find((x) => x.repoId === r.id && x.prNumber === p.number);
-              return { number: p.number, title: p.title, qa: q ? `${q.status}${q.round > 1 ? ` (round ${q.round})` : ''}` : 'not tested', merge: q?.mergeNote ?? null, checks: p.checks };
+              return { number: p.number, title: p.title, qa: q ? `${q.status}${q.round > 1 ? ` (ronda ${q.round})` : ''}` : 'sin probar', merge: q?.mergeNote ?? null, checks: p.checks };
             }),
           mergedRecently: rt.pulls.filter((p) => p.state === 'MERGED').map((p) => `#${p.number} ${p.title}`),
         };
@@ -5419,7 +5297,7 @@ export class Swarm {
       {
         company: {
           ceo: this.ceo().name,
-          scaling: s.scaling === 'auto' ? 'team changes apply straight away' : 'the manager approves every team change',
+          scaling: s.scaling === 'auto' ? 'los cambios de equipo se aplican directamente' : 'el responsable aprueba cada cambio de equipo',
           maxAgentsPerFloor: s.maxAgents,
           sessionLimit: s.sessionLimit || 'none',
           sessionsRunning: this.running(),
@@ -5469,12 +5347,12 @@ export class Swarm {
   /** configure_agent: an agent's coding agent, model or effort, from their next task. */
   private configureAgent(x: { agent_id: string; cli?: string; model?: string; effort?: string }) {
     const a = this.agentByRef(x.agent_id);
-    if (a.role === 'ceo') throw new Error("That's you: the manager sets the CEO up.");
-    if (x.cli === undefined && x.model === undefined && x.effort === undefined) throw new Error('Nothing to change: pass cli, model, effort or a mix.');
+    if (a.role === 'ceo') throw new Error('Ese eres tú: al CEO lo configura el responsable.');
+    if (x.cli === undefined && x.model === undefined && x.effort === undefined) throw new Error('Nada que cambiar: pasa cli, model, effort o una combinación.');
     this.updateAgent(a.id, { cli: x.cli, model: x.model, effort: x.effort });
-    const setup = this.setupLabel(a) || 'the office defaults';
-    this.appendLog(a, [{ kind: 'system', text: `⚙️ ${this.ceo().name} set ${a.name} up with ${setup}.` }]);
-    return `${a.name} runs ${setup} from their next task.`;
+    const setup = this.setupLabel(a) || 'los valores por defecto de la oficina';
+    this.appendLog(a, [{ kind: 'system', text: `⚙️ ${this.ceo().name} ha configurado a ${a.name} con ${setup}.` }]);
+    return `${a.name} usará ${setup} desde su próxima tarea.`;
   }
 
   private async fileIssue(x: { floor: number; title: string; body: string }) {
@@ -5482,8 +5360,8 @@ export class Swarm {
     if (!this.ceoAsked) throw new Error(NOT_ASKED);
     this.ceoIssues.check();
     const title = String(x.title ?? '').trim().slice(0, 120);
-    if (!title) throw new Error('An issue needs a title.');
-    const body = `${String(x.body ?? '').trim()}\n\n---\n_Filed by ${this.ceo().name}, the cubefarm CEO._`;
+    if (!title) throw new Error('Un issue necesita un título.');
+    const body = `${String(x.body ?? '').trim()}\n\n---\n_Abierto por ${this.ceo().name}, CEO de sareoffice._`;
     const n = await this.backend.createIssue(repo.fullName, title, body);
     this.ceoIssues.record(repo.id);
     return `Filed #${n} on floor ${repo.floor}: ${title}.`;
@@ -5517,13 +5395,13 @@ export class Swarm {
     const n = Number(x.number);
     const rt = this.repoRt.get(repo.id);
     const reason = String(x.reason ?? '').trim().slice(0, 1000);
-    if (!reason) throw new HttpError(400, 'Say why the issue is closing: the reason is posted on it as a comment.');
+    if (!reason) throw new HttpError(400, 'Di por qué se cierra el issue: el motivo se publica en él como comentario.');
     const state = rt?.issues.some((i) => i.number === n) ? 'OPEN' : await this.backend.issueState(repo.fullName, n).catch(() => null);
     checkCloseIssue({ floor: repo.floor, number: n, state, pulls: rt?.pulls ?? [] });
     await this.backend.closeIssue(repo.fullName, n, reason, 'not planned');
-    this.postMessage('office', `🗂️ ${this.ceo().name} closed #${n} on floor ${repo.floor}: ${reason.split('\n')[0].slice(0, 200)}`);
+    this.postMessage('office', `🗂️ ${this.ceo().name} ha cerrado #${n} de ${projectName(repo)}: ${reason.split('\n')[0].slice(0, 200)}`);
     const stopped = this.learnIssueClosed(repo, n); // off the Kanban, out of the scheduler's queue, and whoever was on it stops
     await this.syncRepo(repo.id);
-    return `Closed #${n} on floor ${repo.floor} as not planned.${stopped.length ? ` ${nameList(stopped)} stopped working on it.` : ''}`;
+    return `#${n} de la planta ${repo.floor} cerrado como no planificado.${stopped.length ? ` ${nameList(stopped)} ha${stopped.length === 1 ? '' : 'n'} dejado de trabajar en él.` : ''}`;
   }
 }

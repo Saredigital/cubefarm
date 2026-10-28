@@ -59,7 +59,7 @@ describe('a sync proxy in front of an app (loopback only)', () => {
     const page = await fetch(`http://127.0.0.1:${port}/about`);
     expect(page.headers.get('x-frame-options')).toBeNull();
     const html = await page.text();
-    expect(html).toContain('data-cubefarm-sync');
+    expect(html).toContain('data-sareoffice-sync');
     expect(html).toContain('<body>/about</body>');
 
     expect(await (await fetch(`http://127.0.0.1:${port}/data.json`)).json()).toEqual({ ok: true });

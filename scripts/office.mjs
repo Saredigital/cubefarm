@@ -1,13 +1,13 @@
 // The office's parent process, for a checkout of this repo (`npm run dev`, `npm run demo`, `npm start`).
 //
 //   --dev    the server from source (tsx) plus Vite, restarting the server when server/ or shared/ code changes
-//   (none)   the built office: bin/cubefarm.js (checks, then dist-server/ serving dist/), no Vite, no watching
+//   (none)   the built office: bin/sareoffice.js (checks, then dist-server/ serving dist/), no Vite, no watching
 //   --demo   passed to the server
 //
 // It also updates the office. When the server has drained and sends `office:update` (or you type `u` + Enter here),
 // it stops everything, fast-forwards this folder to origin's default branch, runs npm install if the dependencies
 // changed and, in start mode, npm run build, then starts the office again. A failed step rolls back to the old
-// commit. The result goes to <SWARM_HOME>/last-update.json for the server to report. `npx cubefarm` has no launcher:
+// commit. The result goes to <SWARM_HOME>/last-update.json for the server to report. `npm start` has no launcher:
 // installed from npm, the office only reports that an update is ready.
 import { execFile, spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -18,11 +18,11 @@ import { clientPort, isUpdateCommand, parseOfficeArgs, parseSymref, refusal, rol
 const HELP = `
   node scripts/office.mjs [--dev] [--demo] [--no-open]
 
-    --dev       run the server from source with Vite on SWARM_CLIENT_PORT (default 5317), restarting it on code changes
-    --demo      fake GitHub and fake agents
-    --no-open   start mode: don't open the browser
+    --dev       ejecuta el servidor desde el código fuente con Vite en SWARM_CLIENT_PORT (por defecto, 5317) y lo reinicia al cambiar el código
+    --demo      GitHub y agentes simulados
+    --no-open   en modo start: no abrir el navegador
 
-  Type u + Enter to update the office now (only on the default branch with no local changes).
+  Escribe u + Enter para actualizar la oficina ahora (solo en la rama por defecto y sin cambios locales).
 `;
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -101,17 +101,17 @@ function startServer() {
   const demo = opts.demo ? ['--demo'] : [];
   const args = opts.dev
     ? ['--import', 'tsx', path.join('server', 'index.ts'), ...demo]
-    : [path.join('bin', 'cubefarm.js'), ...demo, ...(opts.open && firstStart ? [] : ['--no-open'])];
+    : [path.join('bin', 'sareoffice.js'), ...demo, ...(opts.open && firstStart ? [] : ['--no-open'])];
   const child = spawnChild('server', args, { ipc: true, env: { ...process.env, SWARM_LAUNCHER: '1' } });
   child.proc.on('message', (msg) => {
-    if (msg?.type === 'office:update') void update(`the office asked, from ${short(String(msg.from ?? ''))}`);
+    if (msg?.type === 'office:update') void update(`lo ha pedido la oficina, desde ${short(String(msg.from ?? ''))}`);
   });
 }
 
 function startClient() {
   const vite = path.join(root, 'node_modules', 'vite', 'bin', 'vite.js');
   if (!fs.existsSync(vite)) {
-    warn('Vite is missing: run npm install');
+    warn('Falta Vite: ejecuta npm install');
     return void shutdown(1);
   }
   // vite.config.ts reads SWARM_CLIENT_PORT (strictPort) and proxies to SWARM_PORT.
@@ -122,9 +122,9 @@ function startChildren() {
   startServer();
   if (opts.dev) {
     startClient();
-    log(`Open http://localhost:${clientPort()}  ·  type u + Enter to update the office`);
+    log(`Abre http://localhost:${clientPort()}  ·  escribe u + Enter para actualizar la oficina`);
   } else {
-    log('Type u + Enter to update the office');
+    log('Escribe u + Enter para actualizar la oficina');
   }
   firstStart = false;
 }
@@ -133,11 +133,11 @@ function onExit(child, how) {
   if (children[child.name] === child) children[child.name] = null;
   if (child.stopped || shuttingDown) return;
   if (child.name === 'server' && opts.dev) {
-    warn(`Server exited (${how}); waiting for a file change to restart`);
+    warn(`El servidor ha terminado (${how}); esperando a que cambie un fichero para reiniciarlo`);
     return;
   }
   // The built office, or Vite: nothing to wait for.
-  warn(`${child.name === 'server' ? 'The office' : 'Vite'} exited (${how})`);
+  warn(`${child.name === 'server' ? 'La oficina' : 'Vite'} ha terminado (${how})`);
   void shutdown(how === 0 ? 0 : 1);
 }
 
@@ -159,7 +159,7 @@ function stopChild(child, how) {
       else if (!asked) killTree(proc);
     }
     const timer = setTimeout(() => {
-      warn(`${child.name} didn't stop within ${STOP_TIMEOUT_MS / 1000} s; killing it`);
+      warn(`${child.name} no se ha parado en ${STOP_TIMEOUT_MS / 1000} s; se mata el proceso`);
       killTree(proc);
     }, STOP_TIMEOUT_MS);
     await child.exited;
@@ -180,7 +180,7 @@ function git(args, timeoutMs = 120_000) {
       args,
       { cwd: root, timeout: timeoutMs, windowsHide: true, maxBuffer: 16 * 1024 * 1024, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } },
       (err, stdout, stderr) => {
-        if (err) reject(new Error(`git ${args[0]} failed: ${(String(stderr).trim() || err.message).split(/\r?\n/)[0]}`));
+        if (err) reject(new Error(`git ${args[0]} ha fallado: ${(String(stderr).trim() || err.message).split(/\r?\n/)[0]}`));
         else resolve(String(stdout).trim());
       },
     );
@@ -199,8 +199,8 @@ function npm(args) {
       const lines = String(chunk).split(/\r?\n/).filter((l) => l.trim());
       if (lines.length) last = lines[lines.length - 1].trim();
     });
-    proc.on('error', (err) => reject(new Error(`npm ${args[0]} failed: ${err.message}`)));
-    proc.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`npm ${args.join(' ')} failed (exit ${code})${last ? `: ${last}` : ''}`))));
+    proc.on('error', (err) => reject(new Error(`npm ${args[0]} ha fallado: ${err.message}`)));
+    proc.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`npm ${args.join(' ')} ha fallado (código ${code})${last ? `: ${last}` : ''}`))));
   });
 }
 
@@ -209,7 +209,7 @@ async function defaultBranch() {
   if (local.startsWith('origin/')) return local.slice('origin/'.length);
   const remote = parseSymref(await git(['ls-remote', '--symref', 'origin', 'HEAD'], 60_000).catch(() => ''));
   if (remote) return remote;
-  throw new Error("can't tell origin's default branch");
+  throw new Error('no se puede saber cuál es la rama por defecto de origin');
 }
 
 // ---------- updating ----------
@@ -219,7 +219,7 @@ let updating = null; // the running update
 function update(trigger) {
   if (shuttingDown) return Promise.resolve();
   if (updating) {
-    log('Already updating');
+    log('Ya se está actualizando');
     return updating;
   }
   updating = runUpdate(trigger).finally(() => {
@@ -229,7 +229,7 @@ function update(trigger) {
 }
 
 async function runUpdate(trigger) {
-  log(`Updating the office (${trigger}): stopping it first`);
+  log(`Actualizando la oficina (${trigger}): primero se para`);
   await stopChildren('update');
 
   const result = { from: '', to: '', ok: true, installed: false, built: false };
@@ -249,7 +249,7 @@ async function runUpdate(trigger) {
     await git(['merge', '--ff-only', target]);
     const changed = (await git(['diff', '--name-only', result.from, 'HEAD'])).split(/\r?\n/).filter(Boolean);
     const head = await git(['rev-parse', 'HEAD']);
-    log(head === result.from ? 'Already up to date' : `Fast-forwarded to ${short(head)} (${changed.length} file${changed.length === 1 ? '' : 's'} changed)`);
+    log(head === result.from ? 'Ya está al día' : `Fast-forward a ${short(head)} (${changed.length} fichero${changed.length === 1 ? '' : 's'} cambiado${changed.length === 1 ? '' : 's'})`);
     const steps = stepsFor(changed, { startMode });
     if (steps.install) {
       ran.installed = true;
@@ -264,14 +264,14 @@ async function runUpdate(trigger) {
   } catch (err) {
     result.ok = false;
     result.error = oneLine(err);
-    warn(`Update failed: ${result.error}`);
+    warn(`La actualización ha fallado: ${result.error}`);
     if (result.from) await rollBack(result, ran);
   }
   result.to = await git(['rev-parse', 'HEAD']).catch(() => result.from);
   writeLastUpdate({ ...result, at: Date.now() });
   if (opts.dev) rescan();
   if (shuttingDown) return;
-  log(result.ok && result.from !== result.to ? `Updated: ${short(result.from)} → ${short(result.to)}. Starting the office` : 'Starting the office again');
+  log(result.ok && result.from !== result.to ? `Actualizada: ${short(result.from)} → ${short(result.to)}. Arrancando la oficina` : 'Arrancando de nuevo la oficina');
   startChildren();
 }
 
@@ -281,7 +281,7 @@ async function rollBack(result, ran) {
   const plan = rollbackPlan({ moved: head !== result.from, ...ran });
   try {
     if (plan.reset) {
-      log(`Rolling back to ${short(result.from)}`);
+      log(`Volviendo a ${short(result.from)}`);
       await git(['reset', '--keep', result.from]);
     }
     if (plan.install) {
@@ -293,8 +293,8 @@ async function rollBack(result, ran) {
       result.built = true;
     }
   } catch (err) {
-    result.error += `; the rollback failed too: ${oneLine(err)}`;
-    warn(`Rollback failed: ${oneLine(err)}`);
+    result.error += `; la vuelta atrás también ha fallado: ${oneLine(err)}`;
+    warn(`La vuelta atrás ha fallado: ${oneLine(err)}`);
   }
 }
 
@@ -307,7 +307,7 @@ function writeLastUpdate(result) {
     fs.writeFileSync(`${file}.tmp`, JSON.stringify(result, null, 2));
     fs.renameSync(`${file}.tmp`, file);
   } catch (err) {
-    warn(`Couldn't write ${file}: ${oneLine(err)}`);
+    warn(`No se ha podido escribir ${file}: ${oneLine(err)}`);
   }
 }
 
@@ -355,7 +355,7 @@ function watch() {
 }
 
 async function restartServer(file) {
-  log(green(`Restarting: ${path.relative(root, file)} changed`));
+  log(green(`Reiniciando: ha cambiado ${path.relative(root, file)}`));
   await stopChild(children.server, 'restart');
   if (!children.server && !updating && !shuttingDown) startServer();
 }
@@ -367,10 +367,10 @@ let shuttingDown = false;
 async function shutdown(code) {
   if (shuttingDown) return;
   shuttingDown = true;
-  log('Stopping the office');
+  log('Parando la oficina');
   await stopChildren('stop');
   if (updating) {
-    log('Letting the update finish so this folder stays consistent (press Ctrl+C again to quit now)');
+    log('Dejando que termine la actualización para que esta carpeta quede coherente (pulsa Ctrl+C otra vez para salir ya)');
     await updating;
   }
   process.exit(code);
@@ -390,7 +390,7 @@ process.on('exit', () => {
 });
 
 readline.createInterface({ input: process.stdin }).on('line', (line) => {
-  if (isUpdateCommand(line)) void update('you typed u');
+  if (isUpdateCommand(line)) void update('has escrito u');
 });
 
 if (opts.dev) watch();

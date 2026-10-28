@@ -37,16 +37,16 @@ export function agentTicks(prev: AgentFacts | undefined, next: AgentFacts): Tick
   const say = (text: string, tone: Tick['tone'] = 'info', key?: string) => out.push({ repoId: next.repoId, text, tone, key });
   const was = prev && busy(prev.status) ? prev : null;
   if (busy(next.status) && next.task === 'issue' && next.issueNumber != null && (was?.task !== 'issue' || was.issueNumber !== next.issueNumber)) {
-    say(`${next.name} picked up #${next.issueNumber}`);
+    say(`${next.name} ha cogido el #${next.issueNumber}`);
   }
   if (busy(next.status) && next.task === 'fix' && next.prNumber != null && (was?.task !== 'fix' || was.prNumber !== next.prNumber)) {
-    say(`${next.name} is fixing PR #${next.prNumber}`);
+    say(`${next.name} está corrigiendo la PR #${next.prNumber}`);
   }
   if (prev && next.task === 'issue' && next.prNumber != null && prev.prNumber !== next.prNumber) {
-    say(`${next.name} opened PR #${next.prNumber}`, 'good', opened(next.repoId, next.prNumber));
+    say(`${next.name} ha abierto la PR #${next.prNumber}`, 'good', opened(next.repoId, next.prNumber));
   }
   if (prev && next.status === 'error' && prev.status !== 'error') {
-    say(`${next.name} hit a snag${next.task === 'issue' && next.issueNumber ? ` on #${next.issueNumber}` : next.prNumber ? ` on PR #${next.prNumber}` : ''}`, 'bad');
+    say(`${next.name} se ha atascado${next.task === 'issue' && next.issueNumber ? ` con el #${next.issueNumber}` : next.prNumber ? ` con la PR #${next.prNumber}` : ''}`, 'bad');
   }
   return out;
 }
@@ -59,16 +59,16 @@ export function qaTicks(prev: QaStatus | undefined, next: QaView, nameOf: (agent
   const tick = (text: string, tone: Tick['tone'] = 'info'): Tick[] => [{ repoId: next.repoId, text, tone }];
   switch (next.status) {
     case 'queued':
-      return tick(`${pr} is queued for QA${next.round > 1 ? ` (round ${next.round})` : ''}`);
+      return tick(`${pr} en cola para QA${next.round > 1 ? ` (ronda ${next.round})` : ''}`);
     case 'testing':
-      return tick(`${who} is testing ${pr}`);
+      return tick(`${who} está probando la ${pr}`);
     // The verdict of the agent testing it, or the office's own call after it (a conflict at merge sends a passed PR back).
     case 'passed':
-      return tick(prev === 'testing' ? `${who} passed ${pr} ✅` : `${pr} passed QA ✅`, 'good');
+      return tick(prev === 'testing' ? `${who} ha aprobado la ${pr} ✅` : `${pr} ha pasado QA ✅`, 'good');
     case 'failed':
-      return tick(prev === 'testing' ? `${who} failed ${pr} · round ${next.round}` : `${pr} was sent back`, 'bad');
+      return tick(prev === 'testing' ? `${who} ha suspendido la ${pr} · ronda ${next.round}` : `${pr} devuelta`, 'bad');
     case 'needs-human':
-      return tick(`${pr} needs you 🙋`, 'bad');
+      return tick(`${pr} te necesita 🙋`, 'bad');
     default:
       return []; // fixing: the fixing agent's own line says so
   }
@@ -86,30 +86,30 @@ export function repoTicks(prev: RepoFacts, next: RepoView, authorOf: (pr: number
     const before = prev.pulls.get(p.number);
     if (!before) {
       const author = authorOf(p.number);
-      if (p.state === 'OPEN') say(author ? `${author} opened PR #${p.number}` : `PR #${p.number} opened`, 'good', opened(next.id, p.number));
-      else if (p.state === 'MERGED' && p.mergedAt && now - Date.parse(p.mergedAt) < MERGED_NEWS_MS) say(`#${p.number} merged 🎉`, 'good');
+      if (p.state === 'OPEN') say(author ? `${author} ha abierto la PR #${p.number}` : `PR #${p.number} abierta`, 'good', opened(next.id, p.number));
+      else if (p.state === 'MERGED' && p.mergedAt && now - Date.parse(p.mergedAt) < MERGED_NEWS_MS) say(`#${p.number} fusionada 🎉`, 'good');
       continue;
     }
-    if (before.state === 'OPEN' && p.state === 'MERGED') say(`#${p.number} merged 🎉`, 'good');
-    else if (before.state === 'OPEN' && p.state === 'CLOSED') say(`PR #${p.number} closed`);
+    if (before.state === 'OPEN' && p.state === 'MERGED') say(`#${p.number} fusionada 🎉`, 'good');
+    else if (before.state === 'OPEN' && p.state === 'CLOSED') say(`PR #${p.number} cerrada`);
     if (p.state !== 'OPEN' || before.checks === p.checks) continue;
-    if (p.checks === 'failing') say(`CI red on #${p.number}`, 'bad');
-    else if (p.checks === 'passing' && (before.checks === 'pending' || before.checks === 'failing')) say(`CI green on #${p.number}`, 'good');
+    if (p.checks === 'failing') say(`CI en rojo en #${p.number}`, 'bad');
+    else if (p.checks === 'passing' && (before.checks === 'pending' || before.checks === 'failing')) say(`CI en verde en #${p.number}`, 'good');
   }
   // Closed PRs and issues drop off GitHub's lists (github.ts lists open ones, and the last few merged PRs). A full list
   // may have pushed something off it instead, so only a shorter one counts.
   const listed = new Set(next.pulls.map((p) => p.number));
   if (next.pulls.filter((p) => p.state === 'OPEN').length < OPEN_PULLS_LISTED) {
-    for (const [n, p] of prev.pulls) if (p.state === 'OPEN' && !listed.has(n)) say(`PR #${n} closed`);
+    for (const [n, p] of prev.pulls) if (p.state === 'OPEN' && !listed.has(n)) say(`PR #${n} cerrada`);
   }
   const open = new Set(next.issues.map((i) => i.number));
   const mergedFor = new Set(next.pulls.filter((p) => p.state === 'MERGED').flatMap((p) => p.closesIssues));
   if (next.issues.length < OPEN_ISSUES_LISTED) {
-    for (const n of prev.issues) if (!open.has(n) && !mergedFor.has(n)) say(`Issue #${n} closed`); // a merge already said so
+    for (const n of prev.issues) if (!open.has(n) && !mergedFor.has(n)) say(`Issue #${n} cerrado`); // a merge already said so
   }
   const filed = next.issues.filter((i) => !prev.issues.has(i.number));
-  for (const i of filed.slice(0, MAX_NEW_ISSUES)) say(`New issue #${i.number}: ${clipText(redact(i.title), 40)}`);
-  if (filed.length > MAX_NEW_ISSUES) say(`+${filed.length - MAX_NEW_ISSUES} more new issues`);
+  for (const i of filed.slice(0, MAX_NEW_ISSUES)) say(`Nuevo issue #${i.number}: ${clipText(redact(i.title), 40)}`);
+  if (filed.length > MAX_NEW_ISSUES) say(`+${filed.length - MAX_NEW_ISSUES} issues nuevos más`);
   return out;
 }
 

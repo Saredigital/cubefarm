@@ -6,7 +6,7 @@
 import type { DeskBase } from './workspace.ts';
 
 export const BOX_HOME = '/workspace/home';
-export const BOX_CF = `${BOX_HOME}/.cubefarm`;
+export const BOX_CF = `${BOX_HOME}/.sareoffice`;
 export const BOX_BIN = `${BOX_CF}/bin`;
 export const BOX_SESSIONS = `${BOX_CF}/sessions`;
 export const BOX_TMUX_CONF = `${BOX_CF}/tmux.conf`;
@@ -29,7 +29,7 @@ const OWNER_REPO = /^[\w.-]+\/[\w.-]+$/;
 const BRANCH = /^[\w./-]+$/;
 
 function checkRepo(fullName: string) {
-  if (!OWNER_REPO.test(fullName)) throw new Error(`Not a GitHub repository name: ${fullName}`);
+  if (!OWNER_REPO.test(fullName)) throw new Error(`No es un nombre de repositorio de GitHub: ${fullName}`);
 }
 
 /** The CLI versions a Box runs: the office's own pins, so the hooks it relies on are there. */
@@ -57,7 +57,7 @@ export const TMUX_CONF = [
   '',
 ].join('\n');
 
-/** The one-time setup of a Box: tools, the pinned CLIs, git, and the office's folders. Prints CUBEFARM_SETUP_OK. */
+/** The one-time setup of a Box: tools, the pinned CLIs, git, and the office's folders. Prints SAREOFFICE_SETUP_OK. */
 export function setupScript(o: { versions: BoxVersions; rev: number; gitName: string; gitEmail: string }): string {
   const marker = setupMarker(o.versions, o.rev);
   const pkgs = [`@anthropic-ai/claude-code@${o.versions.claude}`, `@playwright/mcp@${o.versions.playwrightMcp}`, `@openai/codex@${o.versions.codex}`];
@@ -67,26 +67,26 @@ export function setupScript(o: { versions: BoxVersions; rev: number; gitName: st
   return [
     'set -e',
     `mkdir -p ${sq(BOX_BIN)} ${sq(BOX_SESSIONS)}`,
-    `if [ -f ${sq(marker)} ]; then echo CUBEFARM_SETUP_OK; exit 0; fi`,
+    `if [ -f ${sq(marker)} ]; then echo SAREOFFICE_SETUP_OK; exit 0; fi`,
     'missing=""',
     'for t in tmux lsof gh; do command -v "$t" >/dev/null 2>&1 || missing="$missing $t"; done',
     'if [ -n "$missing" ]; then',
     '  sudo DEBIAN_FRONTEND=noninteractive apt-get update -qq >/dev/null 2>&1 || true',
     '  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq $missing >/dev/null 2>&1 || true',
     'fi',
-    'command -v tmux >/dev/null 2>&1 || { echo "tmux could not be installed in the Box" >&2; exit 3; }',
+    'command -v tmux >/dev/null 2>&1 || { echo "No se ha podido instalar tmux en la Box" >&2; exit 3; }',
     // Into the office's own folder, not the image's global one: the Box image ships its own CLIs first on the PATH.
-    `npm install -g --prefix ${sq(`${BOX_CF}/cli`)} --no-fund --no-audit --loglevel=error ${pkgs.map(sq).join(' ')} > /tmp/cubefarm-cli.log 2>&1 || { tail -n 5 /tmp/cubefarm-cli.log >&2; exit 4; }`,
-    `for c in claude codex playwright-mcp; do test -x ${sq(BOX_CLI_BIN)}/$c || { echo "$c was not installed" >&2; exit 4; }; done`,
+    `npm install -g --prefix ${sq(`${BOX_CF}/cli`)} --no-fund --no-audit --loglevel=error ${pkgs.map(sq).join(' ')} > /tmp/sareoffice-cli.log 2>&1 || { tail -n 5 /tmp/sareoffice-cli.log >&2; exit 4; }`,
+    `for c in claude codex playwright-mcp; do test -x ${sq(BOX_CLI_BIN)}/$c || { echo "$c no se ha instalado" >&2; exit 4; }; done`,
     'git config --global --unset-all credential.helper >/dev/null 2>&1 || true',
     `git config --global credential.https://github.com.helper ${sq(helper)}`,
-    `git config --global user.name ${sq(o.gitName || 'cubefarm')}`,
-    `git config --global user.email ${sq(o.gitEmail || 'cubefarm@users.noreply.github.com')}`,
+    `git config --global user.name ${sq(o.gitName || 'sareoffice')}`,
+    `git config --global user.email ${sq(o.gitEmail || 'sareoffice@users.noreply.github.com')}`,
     'git config --global init.defaultBranch main',
     'git config --global advice.detachedHead false',
     `rm -f ${sq(BOX_CF)}/setup-*`,
     `touch ${sq(marker)}`,
-    'echo CUBEFARM_SETUP_OK',
+    'echo SAREOFFICE_SETUP_OK',
   ].join('\n');
 }
 
@@ -97,7 +97,7 @@ export function setupScript(o: { versions: BoxVersions; rev: number; gitName: st
  */
 export function prepareDeskScript(fullName: string, base: DeskBase, branch: string): string {
   checkRepo(fullName);
-  if (!BRANCH.test(branch) || !BRANCH.test(base.defaultBranch)) throw new Error(`Not a branch name: ${branch}`);
+  if (!BRANCH.test(branch) || !BRANCH.test(base.defaultBranch)) throw new Error(`No es un nombre de rama: ${branch}`);
   const repo = boxRepoDir(fullName);
   const desk = boxDeskDir(fullName);
   const ref = base.pr ? `origin/pr/${base.pr}` : `origin/${base.defaultBranch}`;
@@ -110,23 +110,23 @@ export function prepareDeskScript(fullName: string, base: DeskBase, branch: stri
     'if [ ! -d "$R/.git" ]; then',
     '  rm -rf "$R"; mkdir -p "$(dirname "$R")"',
     `  git clone -q --no-checkout ${sq(`https://github.com/${fullName}.git`)} "$R"`,
-    `  printf '%s\\n' '# added by cubefarm' '.playwright-mcp/' '.preview-tmp/' >> "$R/.git/info/exclude"`,
+    `  printf '%s\\n' '# added by sareoffice' '.playwright-mcp/' '.preview-tmp/' >> "$R/.git/info/exclude"`,
     'fi',
     'cd "$R"',
     'git fetch -q origin --prune',
     ...(base.pr
-      ? [`git fetch -q origin ${sq(`+refs/pull/${base.pr}/head:refs/remotes/origin/pr/${base.pr}`)} || { echo ${sq(`Could not fetch pull request #${base.pr} of ${fullName}.`)} >&2; exit 2; }`]
+      ? [`git fetch -q origin ${sq(`+refs/pull/${base.pr}/head:refs/remotes/origin/pr/${base.pr}`)} || { echo ${sq(`No se ha podido traer la pull request #${base.pr} de ${fullName}.`)} >&2; exit 2; }`]
       : []),
     `git rev-parse --verify -q "$REF" >/dev/null || { echo ${sq(
-      base.pr ? `Could not fetch pull request #${base.pr} of ${fullName}.` : `${fullName} has no ${base.defaultBranch} branch yet. Push an initial commit (or create the repo with a README) before assigning work.`,
+      base.pr ? `No se ha podido traer la pull request #${base.pr} de ${fullName}.` : `${fullName} aún no tiene la rama ${base.defaultBranch}. Sube un commit inicial (o crea el repo con un README) antes de asignar trabajo.`,
     )} >&2; exit 2; }`,
     'git worktree prune',
     'if [ -e "$W/.git" ]; then',
     '  cd "$W"',
     '  L="$(git rev-parse --git-dir 2>/dev/null)/index.lock"',
-    '  if [ -f "$L" ] && [ -n "$(find "$L" -mmin +10 2>/dev/null)" ]; then rm -f "$L"; echo "Removed a stale git lock left in the desk." >&2; fi',
+    '  if [ -f "$L" ] && [ -n "$(find "$L" -mmin +10 2>/dev/null)" ]; then rm -f "$L"; echo "Eliminado un bloqueo de git abandonado en el puesto." >&2; fi',
     '  if git checkout -q --force -B "$B" "$REF" && git reset -q --hard "$REF"; then git clean -fdq || true; echo "$W"; exit 0; fi',
-    `  echo "Couldn't reuse the desk in place, so it's rebuilt." >&2`,
+    '  echo "No se ha podido reutilizar el puesto tal cual, así que se reconstruye." >&2',
     '  cd "$R"; git worktree remove --force "$W" >/dev/null 2>&1 || true; rm -rf "$W"; git worktree prune',
     'fi',
     'rm -rf "$W"; mkdir -p "$(dirname "$W")"',
@@ -143,7 +143,7 @@ export function linkedReposScript(fullNames: string[]): string {
     const d = sq(boxLinkedDir(fullName));
     const url = sq(`https://github.com/${fullName}.git`);
     lines.push(
-      `if [ -d ${d}/.git ]; then git -C ${d} fetch -q --depth 1 origin HEAD && git -C ${d} reset -q --hard FETCH_HEAD; else mkdir -p "$(dirname ${d})" && git clone -q --depth 1 ${url} ${d}; fi || echo ${sq(`⚠ Couldn't fetch ${fullName} for reference.`)}`,
+      `if [ -d ${d}/.git ]; then git -C ${d} fetch -q --depth 1 origin HEAD && git -C ${d} reset -q --hard FETCH_HEAD; else mkdir -p "$(dirname ${d})" && git clone -q --depth 1 ${url} ${d}; fi || echo ${sq(`⚠ No se ha podido traer ${fullName} como referencia.`)}`,
     );
   }
   return lines.join('\n');
@@ -161,10 +161,10 @@ export function depsScript(fullName: string, install = true): string {
     '[ -f package.json ] || { echo DEPS_NONE; exit 0; }',
     '[ -f package-lock.json ] || { echo DEPS_AGENT; exit 0; }',
     'H=$( (cat package.json; printf "\\0"; cat package-lock.json) | sha256sum | cut -c1-64)',
-    'M=node_modules/.cubefarm-preview-install',
+    'M=node_modules/.sareoffice-preview-install',
     'if [ -d node_modules ] && [ "$(cat "$M" 2>/dev/null)" = "$H" ]; then echo DEPS_SKIPPED; exit 0; fi',
     install
-      ? 'if NO_COLOR=1 npm ci --no-audit --no-fund > /tmp/cubefarm-npm.log 2>&1; then echo "$H" > "$M"; echo DEPS_INSTALLED; else tail -n 3 /tmp/cubefarm-npm.log; echo DEPS_FAILED; fi'
+      ? 'if NO_COLOR=1 npm ci --no-audit --no-fund > /tmp/sareoffice-npm.log 2>&1; then echo "$H" > "$M"; echo DEPS_INSTALLED; else tail -n 3 /tmp/sareoffice-npm.log; echo DEPS_FAILED; fi'
       : 'echo DEPS_STALE',
   ].join('\n');
 }
@@ -233,17 +233,17 @@ export const tmuxList = () => `for s in /tmp/tmux-$(id -u)/cf-*; do [ -S "$s" ] 
 
 /**
  * Is the Box's own copy of the CLI signed in? Only the exit code is looked at: the status itself (an email address,
- * an account) never leaves the Box. Prints CUBEFARM_SIGNED_IN or CUBEFARM_SIGNED_OUT.
+ * an account) never leaves the Box. Prints SAREOFFICE_SIGNED_IN or SAREOFFICE_SIGNED_OUT.
  */
 export function signInCheckScript(cli: 'claude' | 'codex'): string {
   const status = cli === 'claude' ? `${sq(`${BOX_CLI_BIN}/claude`)} auth status --json` : `${sq(`${BOX_CLI_BIN}/codex`)} login status`;
-  return `if ${status} >/dev/null 2>&1; then echo CUBEFARM_SIGNED_IN; else echo CUBEFARM_SIGNED_OUT; fi`;
+  return `if ${status} >/dev/null 2>&1; then echo SAREOFFICE_SIGNED_IN; else echo SAREOFFICE_SIGNED_OUT; fi`;
 }
 
 /** What signInCheckScript said: true, false, or null when it didn't run. */
 export function signInOutcome(output: string): boolean | null {
-  const last = output.split('\n').map((l) => l.trim()).filter((l) => /^CUBEFARM_SIGNED_(IN|OUT)$/.test(l)).pop();
-  return last ? last === 'CUBEFARM_SIGNED_IN' : null;
+  const last = output.split('\n').map((l) => l.trim()).filter((l) => /^SAREOFFICE_SIGNED_(IN|OUT)$/.test(l)).pop();
+  return last ? last === 'SAREOFFICE_SIGNED_IN' : null;
 }
 
 /** Forget a login the CLI's servers turned away, so the next check says signed out until the manager signs in again. */

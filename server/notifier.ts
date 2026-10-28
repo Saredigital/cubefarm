@@ -66,10 +66,10 @@ export interface NotifierDeps {
   now?(): number;
 }
 
-const LABEL: Record<NotifyChannel, string> = { desktop: 'Desktop', push: 'Push', ntfy: 'ntfy' };
+const LABEL: Record<NotifyChannel, string> = { desktop: 'Escritorio', push: 'Push', ntfy: 'ntfy' };
 const MAX_DEVICES = 20;
 /** VAPID's contact for push services: the project, as no email address is configured. */
-const SUBJECT = 'https://github.com/leonvanzyl/cubefarm';
+const SUBJECT = 'https://github.com/Saredigital/cubefarm';
 
 interface Device extends PushSub {
   addedAt: number;
@@ -83,11 +83,11 @@ interface PushStore {
 /** Why a send failed, in words the settings can show; never the URL or the token. */
 export function sendError(channel: NotifyChannel, status: number): string {
   const name = LABEL[channel];
-  if (status === 0) return `couldn't reach ${name}`;
-  if (status === 401 || status === 403) return `${name} refused it (HTTP ${status}): check the ${channel === 'ntfy' ? 'token' : 'webhook URL'}`;
-  if (status === 404 || status === 410) return `${name} doesn't know that ${channel === 'push' ? 'device any more' : 'webhook'} (HTTP ${status})`;
-  if (status === 429) return `${name} is rate-limiting the office (HTTP 429)`;
-  return `${name} answered HTTP ${status}`;
+  if (status === 0) return `no se pudo contactar con ${name}`;
+  if (status === 401 || status === 403) return `${name} lo rechazó (HTTP ${status}): revisa ${channel === 'ntfy' ? 'el token' : 'la URL del webhook'}`;
+  if (status === 404 || status === 410) return `${name} ya no reconoce ${channel === 'push' ? 'ese dispositivo' : 'ese webhook'} (HTTP ${status})`;
+  if (status === 429) return `${name} está limitando los envíos de la oficina (HTTP 429)`;
+  return `${name} respondió HTTP ${status}`;
 }
 
 export class Notifier {
@@ -153,19 +153,19 @@ export class Notifier {
 
   /** POST /api/notify/test: a test note on one channel, whatever the toggles say. Throws what went wrong. */
   async test(channel: string): Promise<{ ok: true; sent: number }> {
-    if (!isChannel(channel)) throw new HttpError(400, `There's no notification channel called "${channel}".`);
-    if (isWebhook(channel) && !this.webhooks[channel]) throw new HttpError(409, `Save the ${LABEL[channel]} settings first.`);
-    if (channel === 'push' && !this.push.devices.length) throw new HttpError(409, 'No device gets push yet: turn push on on a device first.');
-    const n = note('test', 'Test from cubefarm', channel === 'desktop' ? 'Desktop notifications work in this browser.' : `${LABEL[channel]} notifications from the office work.`);
+    if (!isChannel(channel)) throw new HttpError(400, `No hay ningún canal de notificaciones llamado "${channel}".`);
+    if (isWebhook(channel) && !this.webhooks[channel]) throw new HttpError(409, `Guarda primero los ajustes de ${LABEL[channel]}.`);
+    if (channel === 'push' && !this.push.devices.length) throw new HttpError(409, 'Aún no hay ningún dispositivo con push: actívalo primero en un dispositivo.');
+    const n = note('test', 'Prueba de sareoffice', channel === 'desktop' ? 'Las notificaciones de escritorio funcionan en este navegador.' : `Las notificaciones de la oficina por ${LABEL[channel]} funcionan.`);
     const results = await this.deliver(n, channel);
     const failed = results.filter((r) => r !== null);
-    if (results.length && failed.length === results.length) throw new HttpError(502, `The test didn't arrive: ${failed[0]}.`);
+    if (results.length && failed.length === results.length) throw new HttpError(502, `La prueba no llegó: ${failed[0]}.`);
     return { ok: true, sent: results.length - failed.length };
   }
 
   /** PUT /api/notify/webhooks/:channel: saves (or with an empty url / token removes) a chat app's settings. */
   async setWebhook(channel: string, body: unknown): Promise<NotifyChannelsView> {
-    if (!isWebhook(channel)) throw new HttpError(404, `There's no chat app called "${channel}".`);
+    if (!isWebhook(channel)) throw new HttpError(404, `No hay ninguna app de chat llamada "${channel}".`);
     const w = parseWebhook(channel, body);
     const next: WebhookSecrets = { ...this.webhooks };
     if (w) Object.assign(next, { [channel]: w });
@@ -187,8 +187,8 @@ export class Notifier {
   /** POST /api/notify/push/devices: this device's PushSubscription. The newest MAX_DEVICES are kept. */
   async subscribe(raw: unknown): Promise<NotifyChannelsView> {
     const sub = checkSubscription(raw);
-    if (!sub) throw new HttpError(400, "That isn't a push subscription from a browser.");
-    if (!this.push.vapid) throw new HttpError(409, 'Ask for the push key first.');
+    if (!sub) throw new HttpError(400, 'Eso no es una suscripción push de un navegador.');
+    if (!this.push.vapid) throw new HttpError(409, 'Pide primero la clave push.');
     const devices = this.push.devices.filter((d) => d.endpoint !== sub.endpoint);
     this.push.devices = [...devices, { ...sub, addedAt: this.now() }].slice(-MAX_DEVICES);
     await this.savePush();
@@ -228,7 +228,7 @@ export class Notifier {
     const sends: Promise<string | null>[] = [];
     for (const c of NOTIFY_WEBHOOKS) if (on(c) && this.webhooks[c]) sends.push(this.send(this.webhookRequest(c, n, s.officeUrl)));
     if (on('push') && this.push.vapid) {
-      const payload = JSON.stringify({ title: view.title, body: view.body, tag: `cubefarm-${view.id}`, url: view.url });
+      const payload = JSON.stringify({ title: view.title, body: view.body, tag: `sareoffice-${view.id}`, url: view.url });
       for (const d of [...this.push.devices]) sends.push(this.sendPush(d, payload, noteText(n)));
     }
     return Promise.all(sends);

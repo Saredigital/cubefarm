@@ -36,7 +36,7 @@ export function usageView(c: UsageClock, warning: UsageWarningView | null = null
 
 /** company.usage for the CEO: "normal", "pacing until 14:30" or "paused until 14:30". */
 export function usageLabel(u: Pick<UsageView, 'state' | 'until'>, now: number): string {
-  return u.state === 'normal' || u.until === null ? 'normal' : `${u.state} until ${clock(u.until, now)}`;
+  return u.state === 'normal' || u.until === null ? 'normal' : `${u.state === 'pacing' ? 'ritmo reducido' : 'en pausa'} hasta las ${clock(u.until, now)}`;
 }
 
 /** Clamp the pacing cap from the settings (1-32, default 3). */
@@ -56,7 +56,7 @@ export interface UsageWarning {
 export function pacingMessage(w: UsageWarning, until: number, sessions: number, now: number): string {
   const v = warningView(w, now);
   const what = [v.limit, v.pct === null ? null : `${v.pct}%`].filter(Boolean).join(', ');
-  return `🐢 Claude's usage is getting high${what ? ` (${what})` : ''}. Until ${clock(until, now)} the office finishes open work first and starts at most ${sessions} session${sessions === 1 ? '' : 's'} at a time.`;
+  return `🐢 El uso de Claude está subiendo${what ? ` (${what})` : ''}. Hasta las ${clock(until, now)}, la oficina termina primero el trabajo abierto y arranca como mucho ${sessions} ${sessions === 1 ? 'sesión' : 'sesiones'} a la vez.`;
 }
 
 /** A warning as the usage meter shows it: which limit, how full (0-100) and when it resets. */
@@ -68,8 +68,8 @@ export function warningView(w: UsageWarning, at: number): UsageWarningView {
 
 /** Why "Resume full speed" can't clear pacing right now, or null when it can. A hard pause is never lifted early. */
 export function resumeRefusal(c: UsageClock): string | null {
-  if (c.now < c.pausedUntil) return `Claude turned a session away at the usage limit, so nothing new starts until ${clock(c.pausedUntil, c.now)}. That pause can't be lifted early.`;
-  if (c.now >= c.pacingUntil) return 'The office is already running at full speed.';
+  if (c.now < c.pausedUntil) return `Claude ha rechazado una sesión por el límite de uso: no se empieza nada nuevo hasta las ${clock(c.pausedUntil, c.now)}. Esa pausa no se puede quitar antes de tiempo.`;
+  if (c.now >= c.pacingUntil) return 'La oficina ya está funcionando a toda velocidad.';
   return null;
 }
 

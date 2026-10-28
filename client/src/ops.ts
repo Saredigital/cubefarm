@@ -52,8 +52,8 @@ export const fmtUsd = (n: number) => (n >= 100 ? `$${Math.round(n)}` : `$${n.toF
 export function usageChip(u: UsageView, pacingSessions: number, now: number): string | null {
   if (u.state === 'normal' || u.until === null) return null;
   const until = clock(u.until, now);
-  if (u.state === 'paused') return `⏸ Paused until ${until}: at Claude's usage limit, nothing new starts`;
-  return `🐢 Paced until ${until}: new issues start when fewer than ${pacingSessions} session${pacingSessions === 1 ? '' : 's'} run`;
+  if (u.state === 'paused') return `⏸ En pausa hasta ${until}: se alcanzó el límite de uso de Claude y no empieza nada nuevo`;
+  return `🐢 Ritmo reducido hasta ${until}: los issues nuevos empiezan cuando hay menos de ${pacingSessions} ${pacingSessions === 1 ? 'sesión' : 'sesiones'} en marcha`;
 }
 
 /** The usage meter's headline and details: the state, and the last warning's limit, fill and reset time. */
@@ -61,9 +61,9 @@ export function usageMeter(u: UsageView, now: number): { state: string; tone: 'g
   const w = u.warning;
   const resetsAt = u.state === 'normal' ? (w?.resetsAt && w.resetsAt > now ? w.resetsAt : null) : u.until;
   return {
-    state: u.state === 'paused' ? 'Paused' : u.state === 'pacing' ? 'Pacing' : 'Normal',
+    state: u.state === 'paused' ? 'En pausa' : u.state === 'pacing' ? 'Ritmo reducido' : 'Normal',
     tone: u.state === 'paused' ? 'bad' : u.state === 'pacing' ? 'warn' : 'good',
-    limit: w ? `${w.limit ?? "Claude's usage"}${w.pct === null ? '' : ` · ${w.pct}%`}` : 'No usage warnings',
+    limit: w ? `${w.limit ?? 'Uso de Claude'}${w.pct === null ? '' : ` · ${w.pct}%`}` : 'Sin avisos de uso',
     pct: w?.pct ?? null,
     resets: resetsAt ? clock(resetsAt, now) : null,
   };
@@ -74,5 +74,5 @@ export const newAlarms = (prev: OpsAlarm[], next: OpsAlarm[]) => next.filter((a)
 
 /** One floor's numbers, compact, for its wall sign: "🚀 3 today · ⏱ 1h 42m lead · ✅ CI 92% · 💵 ~$4.20". */
 export function signLine(n: OpsNumbers): string {
-  return `🚀 ${n.mergedToday} today · ⏱ ${fmtDuration(n.leadMs)} lead · ✅ CI ${fmtPct(n.ciPass)} · 💵 ~${fmtUsd(n.costToday)}`;
+  return `🚀 ${n.mergedToday} hoy · ⏱ ${fmtDuration(n.leadMs)} de ciclo · ✅ CI ${fmtPct(n.ciPass)} · 💵 ~${fmtUsd(n.costToday)}`;
 }

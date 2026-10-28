@@ -22,7 +22,7 @@ function subscription(endpoint = 'https://push.example.net/push/pushSECRETendpoi
   return { endpoint, keys: { p256dh: ua.getPublicKey().toString('base64url'), auth: crypto.randomBytes(16).toString('base64url') } };
 }
 
-const tmpDir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'cubefarm-notify-'));
+const tmpDir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'sareoffice-notify-'));
 const settle = () => new Promise((r) => setTimeout(r, 30));
 
 afterEach(() => {
@@ -54,10 +54,10 @@ describe('notification secrets', () => {
     const pr = out.filter((l) => l.includes('⚠️ PR #4 needs you'));
     expect(pr.map((l) => l.match(/demo (\w+)/)?.[1]).sort()).toEqual(['ntfy', 'push']);
     expect(pr[0]).toContain('pixel-todo: Add login. ⏎ https://office.example.ts.net/');
-    expect(sent.filter((m) => JSON.parse(m).type === 'notify').map((m) => (JSON.parse(m).note as NoteView).title)).toEqual(['⚠️ PR #4 needs you', '🔔 Test from cubefarm']);
+    expect(sent.filter((m) => JSON.parse(m).type === 'notify').map((m) => (JSON.parse(m).note as NoteView).title)).toEqual(['⚠️ PR #4 needs you', '🔔 Prueba de sareoffice']);
 
     const snap = swarm.snapshot();
-    expect(snap.notifyChannels.webhooks.ntfy).toEqual({ set: true, hint: 'ntfy.sh/…4242 · with a token' });
+    expect(snap.notifyChannels.webhooks.ntfy).toEqual({ set: true, hint: 'ntfy.sh/…4242 · con token' });
     expect(snap.notifyChannels.pushDevices).toBe(1);
     const vapid = JSON.parse(fs.readFileSync(path.join(process.env.SWARM_HOME!, 'demo-push.json'), 'utf8')).vapid.privateKey as string;
     const everything = [JSON.stringify(snap), ...sent, ...out, JSON.stringify(answers)].join('\n');
@@ -69,7 +69,7 @@ describe('notification secrets', () => {
     for (const m of ['log', 'warn'] as const) vi.spyOn(console, m).mockImplementation((...a: unknown[]) => void out.push(a.map(String).join(' ')));
     const swarm = new Swarm(createDemoBackend());
     await swarm.notifier.setWebhook('ntfy', { url: 'https://bad.example/SECRETtopic77', token: 'tk_badSECRET77' });
-    await expect(swarm.notifier.test('ntfy')).rejects.toThrow("The test didn't arrive: ntfy doesn't know that webhook (HTTP 404).");
+    await expect(swarm.notifier.test('ntfy')).rejects.toThrow('La prueba no llegó: ntfy ya no reconoce ese webhook (HTTP 404).');
     expect(out.join('\n')).not.toMatch(/SECRETtopic77|tk_badSECRET77/);
   });
 
@@ -139,8 +139,8 @@ describe('the notifier', () => {
     expect(posts).toHaveLength(1);
     await vi.advanceTimersByTimeAsync(1_000);
     expect(posts).toHaveLength(2);
-    expect(posts[1].text).toMatch(/^🔀 9 more merges\n• #2 Change 2/);
-    expect(notes.map((x) => x.title)).toEqual(['🔀 Merged PR #1', '🔀 9 more merges']);
+    expect(posts[1].text).toMatch(/^🔀 9 merges más\n• #2 Change 2/);
+    expect(notes.map((x) => x.title)).toEqual(['🔀 Merged PR #1', '🔀 9 merges más']);
     expect(notes[0].url).toBe('/?tab=company');
   });
 
@@ -185,13 +185,13 @@ describe('the notifier', () => {
 
   it('refuses a test of a channel that is not set up', async () => {
     const { n } = notifier(tmpDir(), () => 200);
-    await expect(n.test('ntfy')).rejects.toThrow('Save the ntfy settings first.');
-    await expect(n.test('push')).rejects.toThrow(/No device gets push yet/);
-    await expect(n.test('carrier-pigeon')).rejects.toThrow(/no notification channel/);
-    await expect(n.setWebhook('carrier-pigeon', {})).rejects.toThrow(/no chat app/);
+    await expect(n.test('ntfy')).rejects.toThrow('Guarda primero los ajustes de ntfy.');
+    await expect(n.test('push')).rejects.toThrow(/Aún no hay ningún dispositivo con push/);
+    await expect(n.test('carrier-pigeon')).rejects.toThrow(/ningún canal de notificaciones/);
+    await expect(n.setWebhook('carrier-pigeon', {})).rejects.toThrow(/ninguna app de chat/);
     for (const gone of ['discord', 'slack', 'telegram']) {
-      await expect(n.setWebhook(gone, { url: 'https://old.example/1' })).rejects.toThrow(/no chat app/);
-      await expect(n.test(gone)).rejects.toThrow(/no notification channel/);
+      await expect(n.setWebhook(gone, { url: 'https://old.example/1' })).rejects.toThrow(/ninguna app de chat/);
+      await expect(n.test(gone)).rejects.toThrow(/ningún canal de notificaciones/);
     }
   });
 });

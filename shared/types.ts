@@ -2,8 +2,6 @@
 import type { CareerView } from './careers.ts';
 import type { ProgressView, RewardView } from './progress.ts';
 
-import type { WeatherSettings, WeatherView, WorldEventSettings } from './outside.ts';
-import type { ThemeSettings } from './themes.ts';
 import type { AgentStyle } from './looks.ts';
 
 export type AgentStatus =
@@ -361,9 +359,6 @@ export interface SwarmSettings {
   pacingSessions: number; // after Claude warns about usage, new issues start only while fewer sessions than this run
   trimIdleDesksMin: number; // a desk idle this many minutes loses its node_modules and build output; 0 = never
   voice: VoiceSettings;
-  themes: ThemeSettings; // holiday themes: Settings → Themes (shared/themes.ts)
-  weather: WeatherSettings; // Settings → Weather: the calm cycle, off, or the manager's real local weather
-  worldEvents: WorldEventSettings; // Settings → World events: how often something happens outside
   listen: ListenSettings;
   notify: NotifySettings;
   cloud: CloudSettings;
@@ -585,17 +580,6 @@ export interface CeoInfo {
   nextReviewAt: number | null; // null when the heartbeat is off
 }
 
-/** One player on a floor's ping-pong leaderboard: the manager or an agent, with their games on that floor. */
-export interface PongRow {
-  id: string; // 'player' for the manager (shared/pong.ts PONG_PLAYER), else an agent id
-  name: string; // as of their last game
-  wins: number;
-  losses: number;
-  pointsFor: number;
-  pointsAgainst: number;
-  lastAt: number; // epoch ms of their last game
-}
-
 export interface WorldSnapshot {
   user: string | null; // gh login
   ghReady: boolean;
@@ -611,7 +595,7 @@ export interface WorldSnapshot {
   ceo: CeoInfo;
   messages: PhoneMessage[];
   phoneReadAt: number; // CEO messages newer than this are unread
-  version?: string; // the cubefarm version the server runs (package.json)
+  version?: string; // the sareoffice version the server runs (package.json)
   officeCommit?: string | null; // short sha the server started on (absent on servers without self-update)
   officeUpdate?: OfficeUpdateView;
   usage: UsageView;
@@ -621,12 +605,10 @@ export interface WorldSnapshot {
   voiceKeySet: boolean; // an ElevenLabs key is saved (the key itself never leaves the server)
   voiceKeyHint: string; // its last 4 characters, '' when none
   voiceCache: VoiceCacheView;
-  weather: WeatherView; // the real local weather's place and latest reading (Settings → Weather)
   ticker?: TickerItem[]; // the floors' recent ticker lines, oldest first
   notifyChannels: NotifyChannelsView;
   cloud?: CloudView; // Settings → Cloud agents: the Upstash account and the credentials cloud agents use
   progress: ProgressView; // coins, decorations and achievements (#210)
-  pong: Record<string, PongRow[]>; // each floor's ping-pong leaderboard by repo id, best first
 }
 
 /** What changed about an agent since the office last sent it, with its id; every field for one it never sent. */
@@ -665,20 +647,13 @@ export type ServerEvent =
   | { type: 'clis'; clis: CliView[] }
   | { type: 'voiceKey'; voiceKeySet: boolean; voiceKeyHint: string }
   | { type: 'voiceCache'; voiceCache: VoiceCacheView }
-  | { type: 'weather'; weather: WeatherView }
   | { type: 'ticker'; item: TickerItem }
   | { type: 'notifyChannels'; notifyChannels: NotifyChannelsView }
   | { type: 'cloud'; cloud: CloudView }
   | { type: 'notify'; note: NoteView }
   | { type: 'progress'; progress: ProgressView }
   | { type: 'reward'; reward: RewardView }
-  | { type: 'pong'; repoId: string; board: PongRow[] }
-  | { type: 'toast'; level: 'info' | 'success' | 'error'; text: string }
-  // Presence (shared/presence.ts): relayed between the office's tabs, never persisted.
-  | { type: 'visitors'; you: string; visitors: VisitorView[] }
-  | ({ type: 'visitorPose'; id: string } & VisitorPose)
-  | { type: 'visitorEmote'; id: string; e: EmoteId }
-  | { type: 'visitorPing'; id: string; x: number; y: number; z: number; label: string };
+  | { type: 'toast'; level: 'info' | 'success' | 'error'; text: string };
 
 /** What a tab shows of the agents' terminals, so the office sends it only those lines (shared/watch.ts). */
 export interface Watch {
@@ -691,57 +666,12 @@ export interface Watch {
 }
 
 
-// ---------- presence: everyone viewing the office appears in it as a visitor ----------
-
-/** Someone else in the 3D office (a tab or device that entered it and appears to others). */
-export interface VisitorView {
-  id: string;
-  name: string; // cleaned by the server (shared/presence.ts cleanName)
-  color: string; // #rrggbb
-  floor: number; // 0 = lobby, -1 = the roof
-}
-
-/** What a visitor carries, as the others draw it. `s`: a mug's sips left (0–3). */
-export interface VisitorHeld {
-  k: 'ball' | 'mug' | 'blaster';
-  id: string;
-  s?: number;
-}
-
 /**
- * Where a visitor stands: floor, position (metres), heading (yaw, 0 facing -Z), look pitch and what they hold. `ts`:
- * when, on the sender's own clock (ms), so others space their poses as they were sent, not as they happened to arrive.
+ * Browser to server on /ws. resync: send a fresh snapshot; lines: which agents' terminal lines this tab shows
+ * (shared/watch.ts).
  */
-export interface VisitorPose {
-  ts: number;
-  f: number;
-  x: number;
-  z: number;
-  h: number;
-  p: number;
-  held: VisitorHeld | null;
-}
+export type ClientEvent = { type: 'resync' } | ({ type: 'lines' } & Watch);
 
-export type EmoteId = 'wave' | 'thumbs' | 'clap' | 'point' | 'laugh';
-
-/**
- * Browser to server on /ws. resync: send a fresh snapshot (a tab back from the time-lapse replay); lines: which
- * agents' terminal lines this tab shows (shared/watch.ts). The rest: presence.
- */
-export type ClientEvent = { type: 'resync' } | ({ type: 'lines' } & Watch) | PresenceEvent;
-
-/**
- * A tab's presence (shared/presence.ts). hello: your name and colour · pose: you're in the office and appear to others ·
- * watch: you're in the office on floor f but don't appear · away: not in the office · fakes: the demo's fake visitors.
- */
-export type PresenceEvent =
-  | { type: 'hello'; name: string; color: string }
-  | ({ type: 'pose' } & VisitorPose)
-  | { type: 'watch'; f: number }
-  | { type: 'away' }
-  | { type: 'emote'; e: EmoteId }
-  | { type: 'ping'; x: number; y: number; z: number; label: string }
-  | { type: 'fakes'; n: number };
 
 export interface GhRepoSummary {
   nameWithOwner: string;

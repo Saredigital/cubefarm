@@ -26,16 +26,16 @@ export async function confirmResume() {
   const ok = await confirmDialog({
     icon: '⏩',
     tone: 'warn',
-    title: 'Resume full speed?',
+    title: '¿Volver a toda velocidad?',
     body: (
       <>
         <p>
-          Claude warned that usage is getting high{usage.warning ? ` (${m.limit})` : ''}, so until {m.resets} new issues only start while fewer than {settings.pacingSessions} session{settings.pacingSessions === 1 ? '' : 's'} run.
+          Claude avisó de que el uso está alto{usage.warning ? ` (${m.limit})` : ''}, así que hasta {m.resets} los issues nuevos solo empiezan mientras haya menos de {settings.pacingSessions} sesi{settings.pacingSessions === 1 ? 'ón' : 'ones'} en marcha.
         </p>
-        <p>Resume if you've topped up or your usage was reset. If Claude still turns a session away at the limit, the office pauses until it resets.</p>
+        <p>Vuelve a toda velocidad si has recargado saldo o se ha reiniciado tu uso. Si Claude sigue rechazando una sesión por el límite, la oficina se pausa hasta que se reinicie.</p>
       </>
     ),
-    confirm: 'Resume full speed',
+    confirm: 'Volver a toda velocidad',
   });
   if (ok) await attempt(() => api.resumeFullSpeed());
 }
@@ -47,41 +47,41 @@ function UsageCard({ hot }: { hot: boolean }) {
   const m = usageMeter(usage, Date.now());
   const why =
     usage.state === 'pacing'
-      ? `Until ${m.resets}, new issues only start while fewer than ${sessions} session${sessions === 1 ? '' : 's'} run; QA, fixes and the CEO carry on. Topped up, or was your usage reset? Resume full speed.`
+      ? `Hasta ${m.resets}, los issues nuevos solo empiezan mientras haya menos de ${sessions} sesi${sessions === 1 ? 'ón' : 'ones'} en marcha; el QA, las correcciones y el CEO siguen. ¿Has recargado saldo o se ha reiniciado tu uso? Vuelve a toda velocidad.`
       : usage.state === 'paused'
-        ? `Claude turned a session away at the limit, so nothing new starts until ${m.resets}. That can't be cleared early; sessions already running carry on.`
-        : 'New work starts at full speed. When Claude warns that usage is getting high, the office paces itself (Settings → Sessions while pacing).';
+        ? `Claude rechazó una sesión por el límite, así que no empieza nada nuevo hasta ${m.resets}. No se puede quitar antes; las sesiones que ya están en marcha siguen.`
+        : 'El trabajo nuevo empieza a toda velocidad. Cuando Claude avisa de que el uso está alto, la oficina se modera (Ajustes → Sesiones en modo moderado).';
   return (
     <div id="ops-card-usage" className={`card usage-card usage-${m.tone} ${hot ? 'ops-card-hot' : ''}`}>
       <div className="row wrap">
-        <b>🤖 Claude usage</b>
+        <b>🤖 Uso de Claude</b>
         <span className={`pill usage-pill-${m.tone}`}>{m.state}</span>
         <span className="spacer" />
         <button
           className="btn btn-small btn-good"
           disabled={usage.state !== 'pacing'}
-          title={usage.state === 'paused' ? "A pause at the limit can't be cleared early" : usage.state === 'normal' ? 'Already at full speed' : 'Stop pacing new issues now'}
+          title={usage.state === 'paused' ? 'Una pausa por el límite no se puede quitar antes' : usage.state === 'normal' ? 'Ya va a toda velocidad' : 'Dejar de moderar los issues nuevos ahora'}
           onClick={() => void confirmResume()}
         >
-          ⏩ Resume full speed
+          ⏩ Volver a toda velocidad
         </button>
       </div>
-      <div className="usage-gauge" role="meter" aria-label="Claude usage at the last warning" aria-valuemin={0} aria-valuemax={100} aria-valuenow={m.pct ?? 0}>
+      <div className="usage-gauge" role="meter" aria-label="Uso de Claude en el último aviso" aria-valuemin={0} aria-valuemax={100} aria-valuenow={m.pct ?? 0}>
         <div style={{ width: `${Math.min(100, m.pct ?? 0)}%`, background: (m.pct ?? 0) >= 90 ? 'var(--bad)' : (m.pct ?? 0) >= 75 ? 'var(--warn)' : 'var(--good)' }} />
       </div>
       <div className="small">
         <b>{m.limit}</b>
-        {m.resets && ` · resets ${m.resets}`}
+        {m.resets && ` · se reinicia ${m.resets}`}
       </div>
       <div className="muted small">{why}</div>
       {demo && (
         <div className="row wrap">
           <span className="muted small">Demo:</span>
           <button className="btn btn-small btn-ghost" onClick={() => void attempt(() => api.simulateUsage('warning'))}>
-            Simulate a usage warning
+            Simular un aviso de uso
           </button>
           <button className="btn btn-small btn-ghost" onClick={() => void attempt(() => api.simulateUsage('limit'))}>
-            Simulate reaching the limit
+            Simular que se llega al límite
           </button>
         </div>
       )}
@@ -101,7 +101,7 @@ function AlarmCard({ alarm, repo, hot }: { alarm: OpsAlarm; repo: RepoView | und
           <b>🚨 {alarm.text}</b>
           <div className="muted small">
             {repo?.fullName ?? alarm.repoId}
-            {pr ? ` · ${pr.title}` : ''} · since {new Date(alarm.since).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {pr ? ` · ${pr.title}` : ''} · desde las {new Date(alarm.since).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
       </div>
@@ -109,17 +109,17 @@ function AlarmCard({ alarm, repo, hot }: { alarm: OpsAlarm; repo: RepoView | und
         {alarm.kind === 'pr' && alarm.prNumber !== null ? (
           <>
             <button className="btn btn-small" onClick={() => openOverlay({ kind: 'kanban', repoId: alarm.repoId })}>
-              📋 Open the Kanban
+              📋 Abrir el tablero Kanban
             </button>
             <button className="btn btn-small btn-good" onClick={() => void attempt(() => api.sendToQa(alarm.repoId, alarm.prNumber!))}>
-              Retry QA
+              Repetir QA
             </button>
-            <button className="btn btn-small" title="Hand it to its author, or any free agent, with QA's findings" onClick={() => void attempt(() => api.sendBack(alarm.repoId, alarm.prNumber!))}>
-              Send back for a fix
+            <button className="btn btn-small" title="Pasársela a su autor, o a cualquier agente libre, con lo que ha encontrado el QA" onClick={() => void attempt(() => api.sendBack(alarm.repoId, alarm.prNumber!))}>
+              Devolver para corregir
             </button>
             {pr && (
               <a className="small" href={pr.url} target="_blank" rel="noreferrer">
-                PR on GitHub ↗
+                PR en GitHub ↗
               </a>
             )}
           </>
@@ -129,15 +129,15 @@ function AlarmCard({ alarm, repo, hot }: { alarm: OpsAlarm; repo: RepoView | und
               <button className="btn btn-small" onClick={() => openOverlay({ kind: 'terminal', agentId: alarm.agentId! })}>
                 Terminal
               </button>
-              <button className="btn btn-small btn-good" title="Clear their desk so they take new work" onClick={() => void attempt(() => api.reset(alarm.agentId!))}>
-                Clear desk
+              <button className="btn btn-small btn-good" title="Despejar su puesto para que coja trabajo nuevo" onClick={() => void attempt(() => api.reset(alarm.agentId!))}>
+                Despejar puesto
               </button>
             </>
           )
         )}
         <span className="spacer" />
         <button className="btn btn-small btn-ghost" onClick={() => goToFloor(alarm.floor)}>
-          Visit floor {alarm.floor}
+          Visitar la planta {alarm.floor}
         </button>
       </div>
     </div>
@@ -145,12 +145,12 @@ function AlarmCard({ alarm, repo, hot }: { alarm: OpsAlarm; repo: RepoView | und
 }
 
 const FIXES: Record<DoctorFix, [string, string]> = {
-  clear: ['↺ Clear desk', 'Clear their desk so they take new work'],
-  stop: ['■ Stop', 'Stop their session'],
-  requeue: ['↩ Requeue', 'Stop them and put the work back in line, without a strike'],
-  'retry-qa': ['Retry QA', 'Queue the PR for a fresh QA run'],
-  'send-back': ['Send back for a fix', 'Hand the PR to its author, or any free agent'],
-  'close-issue': ['Close issue', 'Close the issue on GitHub as completed'],
+  clear: ['↺ Despejar puesto', 'Despejar su puesto para que coja trabajo nuevo'],
+  stop: ['■ Parar', 'Parar su sesión'],
+  requeue: ['↩ Volver a la cola', 'Pararlo y devolver el trabajo a la cola, sin penalización'],
+  'retry-qa': ['Repetir QA', 'Poner la PR en cola para una nueva revisión de QA'],
+  'send-back': ['Devolver para corregir', 'Pasar la PR a su autor, o a cualquier agente libre'],
+  'close-issue': ['Cerrar issue', 'Cerrar el issue en GitHub como completado'],
 };
 
 async function applyFix(f: DoctorFinding, fix: DoctorFix) {
@@ -159,9 +159,9 @@ async function applyFix(f: DoctorFinding, fix: DoctorFix) {
     const ok = await confirmDialog({
       icon: '🩺',
       tone: 'warn',
-      title: `Close issue #${f.issueNumber}?`,
-      body: <p>It's closed on GitHub as completed, with a comment saying PR #{f.prNumber} resolved it.</p>,
-      confirm: 'Close issue',
+      title: `¿Cerrar el issue #${f.issueNumber}?`,
+      body: <p>Se cierra en GitHub como completado, con un comentario que dice que lo resolvió la PR #{f.prNumber}.</p>,
+      confirm: 'Cerrar issue',
     });
     if (!ok) return;
   }
@@ -177,7 +177,7 @@ function DoctorCard({ finding: f, repo }: { finding: DoctorFinding; repo: RepoVi
         <div className="grow">
           <b>🩺 {f.text}</b>
           <div className="muted small">
-            {repo?.fullName ?? f.repoId} · since {new Date(f.since).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {repo?.fullName ?? f.repoId} · desde las {new Date(f.since).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
       </div>
@@ -193,8 +193,8 @@ function DoctorCard({ finding: f, repo }: { finding: DoctorFinding; repo: RepoVi
           </button>
         )}
         <span className="spacer" />
-        <button className="btn btn-small btn-ghost" title="Hide it until it goes away" onClick={() => void attempt(() => api.doctorIgnore(f.id))}>
-          Ignore
+        <button className="btn btn-small btn-ghost" title="Ocultarlo hasta que desaparezca" onClick={() => void attempt(() => api.doctorIgnore(f.id))}>
+          Ignorar
         </button>
       </div>
     </div>
@@ -212,9 +212,9 @@ function DoctorSection({ hot }: { hot: boolean }) {
   const demo = useStore((s) => s.demo);
   return (
     <div id="ops-card-doctor" className={hot ? 'ops-card-hot' : ''}>
-      <h3 className="section">🩺 Office doctor {doctor.length > 0 && <span className="badge">{doctor.length}</span>}</h3>
+      <h3 className="section">🩺 Médico de la oficina {doctor.length > 0 && <span className="badge">{doctor.length}</span>}</h3>
       {doctor.length === 0 && (
-        <p className="muted small">Nothing stuck. Every minute the watchdog nudges quiet sessions, frees stuck desks and puts orphaned work back in line by itself; what it can't safely fix shows up here.</p>
+        <p className="muted small">Nada atascado. Cada minuto, el vigilante da un toque a las sesiones calladas, libera los puestos atascados y devuelve a la cola el trabajo huérfano por su cuenta; lo que no puede arreglar con seguridad aparece aquí.</p>
       )}
       {doctor.map((f) => (
         <DoctorCard key={f.id} finding={f} repo={repos.find((r) => r.id === f.repoId)} />
@@ -222,17 +222,17 @@ function DoctorSection({ hot }: { hot: boolean }) {
       {demo && (
         <div className="row wrap">
           <span className="muted small">Demo:</span>
-          <button className="btn btn-small btn-ghost" title="Restart with desks gone and work finished on GitHub meanwhile" onClick={() => void demoDoctor('restart')}>
-            Simulate a restart
+          <button className="btn btn-small btn-ghost" title="Reiniciar con puestos desaparecidos y trabajo terminado en GitHub mientras tanto" onClick={() => void demoDoctor('restart')}>
+            Simular un reinicio
           </button>
-          <button className="btn btn-small btn-ghost" title="Someone's session goes quiet for 20 minutes" onClick={() => void demoDoctor('stuck')}>
-            Make a session stuck
+          <button className="btn btn-small btn-ghost" title="La sesión de alguien se queda callada 20 minutos" onClick={() => void demoDoctor('stuck')}>
+            Atascar una sesión
           </button>
-          <button className="btn btn-small btn-ghost" title="Ten more minutes pass for the stuck sessions" onClick={() => void demoDoctor('later')}>
-            10 minutes later
+          <button className="btn btn-small btn-ghost" title="Pasan diez minutos más para las sesiones atascadas" onClick={() => void demoDoctor('later')}>
+            10 minutos después
           </button>
-          <button className="btn btn-small btn-ghost" title="A merged PR whose issue was never closed" onClick={() => void demoDoctor('unclosed')}>
-            Leave an issue open
+          <button className="btn btn-small btn-ghost" title="Una PR fusionada cuyo issue nunca se cerró" onClick={() => void demoDoctor('unclosed')}>
+            Dejar un issue abierto
           </button>
         </div>
       )}
@@ -241,18 +241,18 @@ function DoctorSection({ hot }: { hot: boolean }) {
 }
 
 const COLUMNS: [string, (n: OpsNumbers) => string, string?][] = [
-  ['Ready', (n) => String(n.ready), 'Backlog issues that can start now'],
-  ['Building', (n) => String(n.building)],
-  ['In QA', (n) => String(n.inQa)],
-  ['Fixing', (n) => String(n.fixing), 'Back with an agent: QA findings, checks or a conflict'],
-  ['To merge', (n) => String(n.toMerge)],
-  ['Needs you', (n) => `${n.needsYou}${n.triage ? ` (+${n.triage} 🧭)` : ''}`, '🧭: the CEO is looking first'],
-  ['Merged today', (n) => `${n.mergedToday} (${n.mergedHour} last hour)`],
-  ['Lead time', (n) => fmtDuration(n.leadMs), 'Median issue → merge over the last 24 hours'],
-  ['QA wait', (n) => fmtDuration(n.qaWaitMs), 'Median wait for a free agent over the last 24 hours'],
-  ['CI', (n) => (n.ciRuns ? `${fmtPct(n.ciPass)} · ${fmtDuration(n.ciMs)}` : '—'), "GitHub's checks over 7 days: pass rate · median time"],
-  ['Team', (n) => `${n.busy} busy · ${n.idle} idle${n.errors ? ` · ${n.errors} error` : ''}`],
-  ['Cost today', (n) => `~${fmtUsd(n.costToday)}`, "An estimate from finished sessions' reported cost"],
+  ['Listos', (n) => String(n.ready), 'Issues del backlog que pueden empezar ya'],
+  ['En construcción', (n) => String(n.building)],
+  ['En QA', (n) => String(n.inQa)],
+  ['En corrección', (n) => String(n.fixing), 'De vuelta con un agente: hallazgos de QA, checks o un conflicto'],
+  ['Para fusionar', (n) => String(n.toMerge)],
+  ['Te necesitan', (n) => `${n.needsYou}${n.triage ? ` (+${n.triage} 🧭)` : ''}`, '🧭: el CEO lo está mirando primero'],
+  ['Fusionadas hoy', (n) => `${n.mergedToday} (${n.mergedHour} en la última hora)`],
+  ['Tiempo de entrega', (n) => fmtDuration(n.leadMs), 'Mediana de issue → merge en las últimas 24 horas'],
+  ['Espera de QA', (n) => fmtDuration(n.qaWaitMs), 'Mediana de espera hasta un agente libre en las últimas 24 horas'],
+  ['CI', (n) => (n.ciRuns ? `${fmtPct(n.ciPass)} · ${fmtDuration(n.ciMs)}` : '—'), 'Checks de GitHub en 7 días: tasa de éxito · tiempo mediano'],
+  ['Equipo', (n) => `${n.busy} ocupados · ${n.idle} libres${n.errors ? ` · ${n.errors} con error` : ''}`],
+  ['Coste de hoy', (n) => `~${fmtUsd(n.costToday)}`, 'Una estimación a partir del coste que informan las sesiones terminadas'],
 ];
 
 function OpsTable() {
@@ -263,7 +263,7 @@ function OpsTable() {
       const r = repos.find((x) => x.id === f.repoId);
       return [`${f.floor} · ${r?.fullName.split('/')[1] ?? f.repoId}`, r?.color ?? '#ccc', f];
     }),
-    ['All floors', '#1f1d2b', ops.total],
+    ['Todas las plantas', '#1f1d2b', ops.total],
   ];
   return (
     <div className="ops-table-wrap">
@@ -289,7 +289,7 @@ function OpsTable() {
           ))}
         </tbody>
       </table>
-      {ops.ceoCostToday > 0 && <div className="muted small">The CEO's sessions today: ~{fmtUsd(ops.ceoCostToday)} (in All floors' cost).</div>}
+      {ops.ceoCostToday > 0 && <div className="muted small">Sesiones del CEO hoy: ~{fmtUsd(ops.ceoCostToday)} (incluidas en el coste de Todas las plantas).</div>}
     </div>
   );
 }
@@ -304,15 +304,15 @@ export function OpsTab({ card }: { card?: string }) {
     <div className="tab-grid">
       <div>
         <UsageCard hot={card === 'usage'} />
-        <h3 className="section">🚨 Needs you {alarms.length > 0 && <span className="badge">{alarms.length}</span>}</h3>
-        {alarms.length === 0 && <p className="muted small">All clear. The beacon on the lobby's mission control wall spins when a PR needs you or an agent has been stuck on an error for 10 minutes.</p>}
+        <h3 className="section">🚨 Te necesita {alarms.length > 0 && <span className="badge">{alarms.length}</span>}</h3>
+        {alarms.length === 0 && <p className="muted small">Todo en orden. Aquí aparecen las PRs que te necesitan y los agentes que llevan 10 minutos atascados en un error.</p>}
         {alarms.map((a) => (
           <AlarmCard key={a.id} alarm={a} repo={repos.find((r) => r.id === a.repoId)} hot={a.id === card} />
         ))}
         <DoctorSection hot={card === 'doctor'} />
       </div>
       <div>
-        <h3 className="section">🛰️ The numbers</h3>
+        <h3 className="section">🛰️ Las cifras</h3>
         <OpsTable />
       </div>
     </div>

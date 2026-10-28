@@ -216,13 +216,13 @@ describe('toHold: closing a PR never puts its issue back in line by itself', () 
 
 describe('what the manager reads', () => {
   it('names who was stopped and why', () => {
-    expect(stoppedMessage(['Barbara'], issue192, 'acme/app')).toBe('🛑 Stopped Barbara: issue #192 on acme/app was closed.');
-    expect(stoppedMessage(['Guido', 'Marple'], closed198, 'acme/app')).toBe('🛑 Stopped Guido and Marple: PR #198 on acme/app was closed.');
-    expect(stoppedMessage(['A', 'B', 'C'], { kind: 'issue', number: 5, mergedBy: [{ number: 9, headRefName: 'x' }] }, 'o/r')).toBe('🛑 Stopped A, B and C: issue #5 on o/r was closed by PR #9.');
+    expect(stoppedMessage(['Barbara'], issue192, 'acme/app')).toBe('🛑 Se ha parado a Barbara: issue #192 en acme/app se ha cerrado.');
+    expect(stoppedMessage(['Guido', 'Marple'], closed198, 'acme/app')).toBe('🛑 Se ha parado a Guido y Marple: PR #198 en acme/app se ha cerrado.');
+    expect(stoppedMessage(['A', 'B', 'C'], { kind: 'issue', number: 5, mergedBy: [{ number: 9, headRefName: 'x' }] }, 'o/r')).toBe('🛑 Se ha parado a A, B y C: issue #5 en o/r se ha cerrado mediante la PR #9.');
   });
 
   it('says what happened in their log', () => {
-    expect(closedWhy(issue192)).toBe('issue #192 was closed');
-    expect(closedWhy(merged198)).toBe('PR #198 was merged');
+    expect(closedWhy(issue192)).toBe('issue #192 se ha cerrado');
+    expect(closedWhy(merged198)).toBe('PR #198 se ha fusionado');
   });
 });

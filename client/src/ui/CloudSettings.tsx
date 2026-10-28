@@ -8,7 +8,7 @@ import { BOX_SIZE_INFO, BOX_SIZES, MAX_BOX_LIMIT } from '../../../shared/cloud';
 import type { CloudCredentialView, CloudSettings as Cloud, CloudView } from '../../../shared/types';
 import { confirmDialog } from './Confirm';
 
-const DOCS = 'https://github.com/leonvanzyl/cubefarm/blob/main/docs/cloud.md';
+const DOCS = 'https://github.com/Saredigital/cubefarm/blob/main/docs/cloud.md';
 
 /** A command to copy, with a Copy button. */
 function Command({ text }: { text: string }) {
@@ -26,7 +26,7 @@ function Command({ text }: { text: string }) {
           })
         }
       >
-        {copied ? 'Copied' : 'Copy'}
+        {copied ? 'Copiado' : 'Copiar'}
       </button>
     </span>
   );
@@ -56,21 +56,21 @@ function SecretField({ label, saved, hint, placeholder, help, save }: { label: s
     return (
       <div className="row wrap">
         <span className="grow small">
-          🔑 {label} saved{hint && <code> …{hint}</code>}
+          🔑 Guardado: {label}{hint && <code> …{hint}</code>}
         </span>
         <button className="btn btn-small btn-ghost" onClick={() => setEditing(true)}>
-          Replace
+          Sustituir
         </button>
         <button
           className="btn btn-small btn-ghost"
           disabled={busy}
           onClick={() =>
-            void confirmDialog({ tone: 'danger', title: `Remove the ${label}?`, body: "It's deleted from the office. Cloud agents that need it can't sign in until you add it again.", confirm: 'Remove' }).then((ok) => {
+            void confirmDialog({ tone: 'danger', title: `¿Quitar ${label}?`, body: 'Se borra de la oficina. Los agentes en la nube que lo necesiten no podrán iniciar sesión hasta que vuelvas a añadirlo.', confirm: 'Quitar' }).then((ok) => {
               if (ok) void store('');
             })
           }
         >
-          Remove
+          Quitar
         </button>
       </div>
     );
@@ -104,7 +104,7 @@ function SecretField({ label, saved, hint, placeholder, help, save }: { label: s
       )}
       <div className="row">
         <button className="btn btn-small btn-good" disabled={busy || !value.trim()}>
-          {busy ? 'Checking…' : 'Save'}
+          {busy ? 'Comprobando…' : 'Guardar'}
         </button>
         {editing && (
           <button
@@ -116,7 +116,7 @@ function SecretField({ label, saved, hint, placeholder, help, save }: { label: s
               setError('');
             }}
           >
-            Cancel
+            Cancelar
           </button>
         )}
       </div>
@@ -126,7 +126,7 @@ function SecretField({ label, saved, hint, placeholder, help, save }: { label: s
 
 /** ✓ or ⚠, and where the credential comes from. */
 function Status({ view, what }: { view: CloudCredentialView; what: Partial<Record<NonNullable<CloudCredentialView['source']>, string>> }) {
-  return view.ready ? <span className="small notify-ok">✓ {view.source ? what[view.source] : 'Ready'}</span> : <span className="small term-error">⚠ Not set up yet</span>;
+  return view.ready ? <span className="small notify-ok">✓ {view.source ? what[view.source] : 'Listo'}</span> : <span className="small term-error">⚠ Todavía sin configurar</span>;
 }
 
 function Boxes({ cloud }: { cloud: CloudView }) {
@@ -138,7 +138,7 @@ function Boxes({ cloud }: { cloud: CloudView }) {
     setNote('');
     try {
       await api.testCloud();
-      setNote('✓ Connected');
+      setNote('✓ Conectado');
     } catch (err) {
       setNote(err instanceof Error ? err.message : String(err));
     } finally {
@@ -148,11 +148,11 @@ function Boxes({ cloud }: { cloud: CloudView }) {
   return (
     <div className="row wrap">
       <span className="grow small">
-        {b ? `${b.total} Box${b.total === 1 ? '' : 'es'} on your account · this office: ${b.running} running, ${b.paused} paused` : 'Boxes not counted yet.'}
+        {b ? `${b.total} Box${b.total === 1 ? '' : 'es'} en tu cuenta · esta oficina: ${b.running} en marcha, ${b.paused} en pausa` : 'Todavía no se han contado los Boxes.'}
         {cloud.keyError && <span className="term-error"> {cloud.keyError}</span>}
       </span>
       <button className="btn btn-small" disabled={busy} onClick={() => void test()}>
-        {busy ? 'Checking…' : 'Test'}
+        {busy ? 'Comprobando…' : 'Probar'}
       </button>
       {!!b?.orphans && (
         <button
@@ -160,13 +160,13 @@ function Boxes({ cloud }: { cloud: CloudView }) {
           onClick={() =>
             void confirmDialog({
               tone: 'danger',
-              title: `Delete ${b.orphans} orphaned Box${b.orphans === 1 ? '' : 'es'}?`,
-              body: "Boxes of this office whose agent is gone. They're deleted for good in your Upstash account.",
-              confirm: 'Delete',
+              title: `¿Borrar ${b.orphans} Box${b.orphans === 1 ? ' huérfano' : 'es huérfanos'}?`,
+              body: 'Boxes de esta oficina cuyo agente ya no está. Se borran definitivamente de tu cuenta de Upstash.',
+              confirm: 'Borrar',
             }).then((ok) => ok && void api.deleteCloudOrphans())
           }
         >
-          Delete {b.orphans} orphan{b.orphans === 1 ? '' : 's'}
+          Borrar {b.orphans} huérfano{b.orphans === 1 ? '' : 's'}
         </button>
       )}
       {note && (
@@ -189,49 +189,49 @@ export function CloudSettings() {
   };
   return (
     <div className="card notify-settings">
-      <h3>☁️ Cloud agents</h3>
+      <h3>☁️ Agentes en la nube</h3>
       <p className="muted small">
-        Run agents in <a href="https://upstash.com/docs/box/overall/quickstart">Upstash Boxes</a> instead of on this computer. A cloud agent keeps working on its task when you close the office or shut your laptop, and
-        the office catches up when it's back. Agents on this computer stay the default.
+        Ejecuta agentes en <a href="https://upstash.com/docs/box/overall/quickstart">Upstash Boxes</a> en lugar de en este ordenador. Un agente en la nube sigue con su tarea aunque cierres la oficina o apagues el portátil, y
+        la oficina se pone al día cuando vuelve. Los agentes en este ordenador siguen siendo la opción predeterminada.
       </p>
 
-      <h4 className="notify-h">Upstash account</h4>
+      <h4 className="notify-h">Cuenta de Upstash</h4>
       <div className="notify-hook">
         <SecretField
-          label="Upstash Box API key"
+          label="Clave API de Upstash Box"
           saved={cloud.keySet}
           hint={cloud.keyHint}
-          placeholder={demo ? 'Any text works in the demo' : 'Your Box API key'}
-          help="Create one in the Upstash console (console.upstash.com → Box → API Keys). It stays on the office's computer."
+          placeholder={demo ? 'En el modo demo vale cualquier texto' : 'Tu clave API de Box'}
+          help="Créala en la consola de Upstash (console.upstash.com → Box → API Keys). Se queda en el ordenador de la oficina."
           save={(key) => api.setCloudKey(key)}
         />
         {cloud.keySet && <Boxes cloud={cloud} />}
       </div>
 
-      <h4 className="notify-h">Where new agents work</h4>
-      <div className="notify-hook" role="radiogroup" aria-label="Where new agents work">
+      <h4 className="notify-h">Dónde trabajan los agentes nuevos</h4>
+      <div className="notify-hook" role="radiogroup" aria-label="Dónde trabajan los agentes nuevos">
         <label className="toggle block">
           <input type="radio" name="cloud-kind" checked={settings.machineKind === 'local'} onChange={() => save({ machineKind: 'local' })} />
-          <span>🖥️ This computer</span>
+          <span>🖥️ Este ordenador</span>
         </label>
         <label className="toggle block">
           <input type="radio" name="cloud-kind" checked={settings.machineKind === 'box'} disabled={!cloud.keySet} onChange={() => save({ machineKind: 'box' })} />
-          <span>☁️ An Upstash Box each{!cloud.keySet && ' (save your API key first)'}</span>
+          <span>☁️ Un Upstash Box para cada uno{!cloud.keySet && ' (guarda antes tu clave API)'}</span>
         </label>
-        <p className="muted small">New hires work here; the lobby lets you pick for each one. Move an agent from their settings when they have no task.</p>
+        <p className="muted small">Las nuevas incorporaciones trabajan aquí; en Aprobaciones puedes elegirlo para cada una. Mueve a un agente desde sus ajustes cuando no tenga tarea.</p>
         <div className="row wrap">
           <label className="field grow">
-            <span>Box size</span>
+            <span>Tamaño del Box</span>
             <select value={settings.boxSize} onChange={(e) => save({ boxSize: e.target.value as Cloud['boxSize'] })}>
               {BOX_SIZES.map((s) => (
                 <option key={s} value={s}>
-                  {s} · {BOX_SIZE_INFO[s].spec} · ${BOX_SIZE_INFO[s].usdPerCpuHour.toFixed(2)} per active CPU hour
+                  {s} · {BOX_SIZE_INFO[s].spec} · ${BOX_SIZE_INFO[s].usdPerCpuHour.toFixed(2)} por hora de CPU activa
                 </option>
               ))}
             </select>
           </label>
           <label className="field">
-            <span>Your plan's Box limit</span>
+            <span>Límite de Boxes de tu plan</span>
             <input
               type="number"
               min={1}
@@ -251,46 +251,46 @@ export function CloudSettings() {
         )}
       </div>
 
-      <h4 className="notify-h">How cloud agents sign in</h4>
+      <h4 className="notify-h">Cómo inician sesión los agentes en la nube</h4>
       <p className="muted small">
-        GitHub is set up once for every Box. Coding agents sign in with your own subscription in each cloud agent's terminal, once per cloud machine, unless you give them a key here.
+        GitHub se configura una sola vez para todos los Boxes. Los agentes de código inician sesión con tu propia suscripción en el terminal de cada agente en la nube, una vez por máquina, salvo que les des aquí una clave.
       </p>
       <div className="notify-hook">
         <div className="row wrap">
           <b className="grow">GitHub</b>
-          <Status view={cloud.github} what={{ gh: 'Your gh login', token: 'A token you saved' }} />
+          <Status view={cloud.github} what={{ gh: 'Tu sesión de gh', token: 'Un token que has guardado' }} />
         </div>
-        <p className="muted small">Your gh login is used unless you save a fine-grained token for your floors' repos (Contents, Pull requests and Issues: read and write), which is safer.</p>
-        <SecretField label="GitHub token" saved={cloud.github.source === 'token'} hint={cloud.github.hint} placeholder="github_pat_…" save={(v) => api.setCloudToken('github', v)} />
+        <p className="muted small">Se usa tu sesión de gh salvo que guardes un token fine-grained para los repos de tus plantas (Contents, Pull requests e Issues: lectura y escritura), que es más seguro.</p>
+        <SecretField label="Token de GitHub" saved={cloud.github.source === 'token'} hint={cloud.github.hint} placeholder="github_pat_…" save={(v) => api.setCloudToken('github', v)} />
       </div>
       <div className="notify-hook">
         <div className="row wrap">
           <b className="grow">Claude Code</b>
-          <Status view={cloud.claude} what={{ login: 'Your subscription, per agent', subscription: 'Your Claude subscription (CUBEFARM_CLAUDE_TOKEN)', apiKey: 'An Anthropic API key' }} />
+          <Status view={cloud.claude} what={{ login: 'Tu suscripción, por agente', subscription: 'Tu suscripción de Claude (SAREOFFICE_CLAUDE_TOKEN)', apiKey: 'Una clave API de Anthropic' }} />
         </div>
         {cloud.claude.source === 'login' && (
           <p className="muted small">
-            With your Claude subscription (Pro or Max), each cloud agent signs in once, in their own terminal. When one needs it, their desk shows a 🔑 note and their card a 🔑 Sign in: open the link in their
-            terminal, approve it and paste the code back there. Their cloud machine keeps the sign-in; if it ever expires, the same steps sign them in again.
+            Con tu suscripción de Claude (Pro o Max), cada agente en la nube inicia sesión una vez, en su propio terminal. Cuando alguno lo necesite, su puesto muestra una nota 🔑 y su ficha un 🔑 Inicia sesión: abre el enlace en su
+            terminal, apruébalo y pega allí el código. Su máquina en la nube conserva la sesión; si alguna vez caduca, los mismos pasos vuelven a iniciarla.
           </p>
         )}
         {cloud.claude.source !== 'subscription' && (
           <>
-            <p className="muted small">Or pay per token with an API key, which every cloud agent then uses instead:</p>
-            <SecretField label="Anthropic API key" saved={cloud.claude.source === 'apiKey'} hint={cloud.claude.hint} placeholder="sk-ant-…" save={(v) => api.setCloudToken('anthropic', v)} />
+            <p className="muted small">O paga por token con una clave API, que entonces usarán todos los agentes en la nube:</p>
+            <SecretField label="Clave API de Anthropic" saved={cloud.claude.source === 'apiKey'} hint={cloud.claude.hint} placeholder="sk-ant-…" save={(v) => api.setCloudToken('anthropic', v)} />
             <details className="small">
-              <summary>Or one subscription token for every cloud agent</summary>
+              <summary>O un único token de suscripción para todos los agentes en la nube</summary>
               <ol className="cloud-steps">
                 <li>
-                  In a terminal: <Command text="claude setup-token" /> and approve it in your browser. It prints a token that lasts a year.
+                  En un terminal: <Command text="claude setup-token" /> y apruébalo en el navegador. Muestra un token que dura un año.
                 </li>
                 <li>
-                  Keep it in your environment as <code>CUBEFARM_CLAUDE_TOKEN</code>. Windows: <Command text={'setx CUBEFARM_CLAUDE_TOKEN "<token>"'} /> macOS or Linux: add{' '}
-                  <Command text={'export CUBEFARM_CLAUDE_TOKEN="<token>"'} /> to your shell profile.
+                  Guárdalo en tu entorno como <code>SAREOFFICE_CLAUDE_TOKEN</code>. Windows: <Command text={'setx SAREOFFICE_CLAUDE_TOKEN "<token>"'} /> macOS o Linux: añade{' '}
+                  <Command text={'export SAREOFFICE_CLAUDE_TOKEN="<token>"'} /> al perfil de tu shell.
                 </li>
-                <li>Restart the office.</li>
+                <li>Reinicia la oficina.</li>
               </ol>
-              <p className="muted">The office never writes it down: Anthropic's terms keep apps like this one from storing Claude tokens.</p>
+              <p className="muted">La oficina nunca lo guarda: las condiciones de Anthropic impiden que apps como esta almacenen tokens de Claude.</p>
             </details>
           </>
         )}
@@ -298,23 +298,23 @@ export function CloudSettings() {
       <div className="notify-hook">
         <div className="row wrap">
           <b className="grow">Codex</b>
-          <Status view={cloud.codex} what={{ login: 'Your ChatGPT plan, per agent', apiKey: 'An OpenAI API key' }} />
+          <Status view={cloud.codex} what={{ login: 'Tu plan de ChatGPT, por agente', apiKey: 'Una clave API de OpenAI' }} />
         </div>
         <p className="muted small">
-          With your ChatGPT plan, each cloud agent signs in once in their own terminal: open the link it shows and enter its one-time code. Or an OpenAI API key works in every Box:
+          Con tu plan de ChatGPT, cada agente en la nube inicia sesión una vez en su propio terminal: abre el enlace que muestra e introduce su código de un solo uso. O bien una clave API de OpenAI sirve en todos los Boxes:
         </p>
-        <SecretField label="OpenAI API key" saved={cloud.codex.source === 'apiKey'} hint={cloud.codex.hint} placeholder="sk-…" save={(v) => api.setCloudToken('openai', v)} />
+        <SecretField label="Clave API de OpenAI" saved={cloud.codex.source === 'apiKey'} hint={cloud.codex.hint} placeholder="sk-…" save={(v) => api.setCloudToken('openai', v)} />
       </div>
       {demo && cloud.keySet && (
         <div className="row wrap">
-          <span className="grow muted small">Try what happens when a cloud agent's sign-in runs out: every Box is signed out, and its agent asks to be signed in again.</span>
+          <span className="grow muted small">Prueba qué pasa cuando caduca la sesión de un agente en la nube: se cierra la sesión en todos los Boxes y su agente pide volver a iniciarla.</span>
           <button className="btn btn-small btn-ghost" onClick={() => void api.expireSignIns()}>
-            🔑 Expire sign-ins (demo)
+            🔑 Hacer caducar las sesiones (demo)
           </button>
         </div>
       )}
       <p className="muted small">
-        Boxes cost what their CPU does while they work (paused Boxes cost nothing but their disk), and the free plan allows 10 Boxes. Setup, costs and what keeps going while the office is closed:{' '}
+        Los Boxes cuestan lo que consume su CPU mientras trabajan (los Boxes en pausa solo cuestan su disco) y el plan gratuito permite 10 Boxes. Configuración, costes y qué sigue funcionando con la oficina cerrada:{' '}
         <a href={DOCS}>docs/cloud.md</a>.
       </p>
     </div>

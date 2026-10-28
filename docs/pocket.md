@@ -1,108 +1,116 @@
-# The office in your pocket
+# La oficina en el bolsillo
 
-cubefarm works from a phone: **pocket mode** is the office as a 2D app, it installs on your home screen, and the
-office tells you when something needs you, on your devices or in the ntfy app.
+sareoffice funciona desde el móvil: el **modo bolsillo** es la oficina como app 2D, se instala en la pantalla de
+inicio, y la oficina te avisa cuando algo te necesita, en tus dispositivos o en la app ntfy.
 
-## Pocket mode
+## Modo bolsillo
 
-On a narrow or touch screen the office opens in pocket mode by itself. On a computer, pick **📱 Pocket mode** on the
-start screen. Each device remembers what you last chose; `?pocket=1` or `?pocket=0` in the address decides for one
-visit. Five tabs, at the bottom:
+En una pantalla estrecha o táctil la oficina se abre sola en modo bolsillo. En un ordenador, elige **📱 Modo
+bolsillo** en la pantalla de inicio. Cada dispositivo recuerda lo último que elegiste; `?pocket=1` o `?pocket=0` en la
+dirección decide para una visita. Cinco pestañas, abajo:
 
-| Tab | What's there |
+| Pestaña | Qué hay |
 | --- | --- |
-| **Company** | Each floor's pipeline: 🔨 building, 🔍 in QA, 🔧 being fixed, ✅ ready to merge, ⚠️ needs you. Banners when Claude's usage pauses or paces the office, or when it's updating. |
-| **Chat** | The CEO's phone thread, with ▶ to replay messages read aloud. |
-| **Kanban** | Each floor's board, one column under the other: assign, send to QA, merge, close, file issues. |
-| **Team** | Everyone's status and what they're on, with **Message**, **■ Stop**, **↺ Clear desk**, assigning an issue (or a PR to test) and their terminal. |
-| **Approvals** | Team changes waiting for you (new agents to set up and hire, agents leaving), stuck PRs (**Retry QA**, **Send back**, **Merge anyway**, **Close**) and passed PRs on floors without auto-merge. |
+| **Empresa** | El flujo de cada planta: 🔨 en construcción, 🔍 en QA, 🔧 en corrección, ✅ lista para fusionar, ⚠️ te necesita. Avisos cuando el uso de Claude pausa o frena la oficina, o cuando se está actualizando. |
+| **Nombre del CEO** | La conversación del móvil con el CEO, con ▶ para volver a escuchar los mensajes en voz alta. |
+| **Kanban** | El tablero de cada planta, una columna debajo de otra: asignar, mandar a QA, fusionar, cerrar, abrir issues. |
+| **Equipo** | El estado de cada uno y en qué está, con **Mensaje**, **■ Parar**, **↺ Despejar puesto**, asignar un issue (o una PR para probar) y su terminal. |
+| **Aprobaciones** | Cambios de equipo que esperan tu decisión (candidatos que configurar y contratar, agentes que se van), PRs atascadas (**Repetir QA**, **Devolver**, **Merge igualmente**, **Cerrar**) y PRs aprobadas en plantas sin auto-merge. |
 
-Pocket mode uses the same live connection and commands as the 3D office, and loads no 3D at all until you tap
-**🏢 Open the 3D office** (Company tab, or ⚙️).
+El modo bolsillo usa la misma conexión en directo y los mismos comandos que el panel de control, que se abre con
+**🗂️ Abrir el panel de control** (pestaña Empresa, o ⚙️).
 
-## Install it
+## Instalarla
 
-The office is an installable web app: Chrome and Edge offer **Install** in the address bar (on Android: ⋮ → **Add
-to Home screen**), and Safari on iPhone has **Share → Add to Home Screen**. Installing needs the office to be served
-over HTTPS, or opened as `localhost` on its own PC (see [phone access](#reach-the-office-from-your-phone)).
+La oficina es una app web instalable: Chrome y Edge ofrecen **Instalar** en la barra de direcciones (en Android: ⋮ →
+**Añadir a pantalla de inicio**), y Safari en iPhone tiene **Compartir → Añadir a pantalla de inicio**. Para
+instalarla, la oficina tiene que servirse por HTTPS, o abrirse como `localhost` en su propio PC (ver [acceso desde el
+móvil](#entrar-en-la-oficina-desde-el-móvil)).
 
-The app's service worker caches only the app shell (the page, its scripts and styles, the icons) so it opens quickly.
-It never caches the office's data: everything you see comes live from the office. Every office update gives the
-worker a new version, which replaces the old one and its cache, so the app never runs stale code.
+El service worker de la app solo guarda en caché el esqueleto de la app (la página, sus scripts y estilos, los iconos)
+para que abra rápido. Nunca guarda en caché los datos de la oficina: todo lo que ves llega en directo de la oficina.
+Cada actualización de la oficina da al worker una versión nueva, que sustituye a la anterior y a su caché, así que la
+app nunca ejecuta código viejo.
 
-## Notifications
+## Notificaciones
 
-Open **⚙️ Settings → 🔔 Notifications** in the manager's console (or **⚙️** in pocket mode) and pick what you hear
-about:
+Abre **⚙️ Ajustes → 🔔 Notificaciones** en la consola del responsable (o **⚙️** en el modo bolsillo) y elige de qué
+quieres enterarte:
 
-- a pull request needs you (stuck, and the CEO has handed it to you)
-- a message from the CEO
-- a team change waits for your decision
-- someone has been stuck in an error for over 10 minutes
-- Claude's usage limit pauses the office, or a usage warning paces it
-- every merge (off unless you turn it on)
+- una pull request te necesita (atascada, y el CEO te la ha pasado)
+- un mensaje del CEO
+- un cambio de equipo espera tu decisión
+- alguien lleva más de 10 minutos atascado en un error
+- el límite de uso de Claude pausa la oficina, o un aviso de uso la frena
+- cada merge (desactivado salvo que lo actives)
 
-You get at most one notification of each kind a minute. Whatever else of that kind happens in the minute arrives
-together as one summary ("🔀 9 more merges"), so a burst of merges is two notifications, not ten.
+Recibes como mucho una notificación de cada tipo por minuto. Lo demás de ese tipo que pase en ese minuto llega junto
+en un resumen ("🔀 9 merges más"), así que una racha de merges son dos notificaciones, no diez.
 
-**Office address for links:** set it to the address your phone opens the office at (for example your Tailscale
-Serve URL) and every chat message ends with it, so a tap takes you there.
+**Dirección de la oficina para los enlaces:** pon la dirección con la que tu móvil abre la oficina (por ejemplo tu
+URL de Tailscale Serve) y cada mensaje de chat terminará con ella, para llegar con un toque.
 
-Every channel has an **On** switch and a **Test** button. A demo office (`--demo`) sends nothing: it starts with
-every chat app set up with fake addresses and prints what each would get in the server's log.
+Cada canal tiene un interruptor **Activado** y un botón **Probar**. Una oficina demo (`--demo`) no envía nada: empieza
+con todas las apps de chat configuradas con direcciones falsas e imprime en el registro del servidor lo que recibiría cada una.
 
-### Desktop notifications
+### Notificaciones de escritorio
 
-Any browser with the office open in a background tab shows notifications, once you click **Allow in this
-browser**. A tab you're looking at doesn't: the office chimes and shows the toast there anyway.
+Cualquier navegador con la oficina abierta en una pestaña en segundo plano muestra notificaciones, en cuanto pulsas
+**Permitir en este navegador**. Una pestaña que estás mirando no: ahí la oficina suena y muestra el aviso igualmente.
 
-### Push to your phone (Web Push)
+### Push al móvil (Web Push)
 
-Push reaches a device even when the office isn't open on it. On each phone or PC, open the office over HTTPS (or as
-`localhost` on the office's own PC), go to **⚙️ → Notifications** and tap **Push to this device**, then **Send test**.
-On an iPhone (iOS 16.4 or later), add the office to the home screen first and turn push on from the installed app:
-Safari only allows Web Push there.
+Push llega a un dispositivo aunque la oficina no esté abierta en él. En cada móvil o PC, abre la oficina por HTTPS (o
+como `localhost` en el propio PC de la oficina), ve a **⚙️ → Notificaciones** y toca **Push a este dispositivo**, y
+luego **Enviar prueba**. En un iPhone (iOS 16.4 o posterior), añade primero la oficina a la pantalla de inicio y activa
+push desde la app instalada: Safari solo permite Web Push ahí.
 
-The office signs its pushes with its own VAPID key pair, made the first time a device signs up and kept in
-`<SWARM_HOME>/push.json` with the devices' subscriptions (owner-only file permissions). Messages are encrypted for
-each device (RFC 8291) and go through the browser maker's push service (Google, Mozilla, Apple), which can't read
-them. A device that unsubscribes, or whose browser data is cleared, is dropped the next time a push to it fails.
+La oficina firma sus push con su propio par de claves VAPID, creado la primera vez que se suscribe un dispositivo y
+guardado en `<SWARM_HOME>/push.json` con las suscripciones de los dispositivos (permisos de fichero solo para el
+propietario). Los mensajes se cifran para cada dispositivo (RFC 8291) y pasan por el servicio push del fabricante del
+navegador (Google, Mozilla, Apple), que no puede leerlos. Un dispositivo que se da de baja, o cuyo navegador borra sus
+datos, se elimina la siguiente vez que falla un push hacia él.
 
 ### ntfy
 
-[ntfy](https://ntfy.sh) pushes to its own phone app with no account. Anyone who knows a topic's name can read it, so
-pick a long random one.
+[ntfy](https://ntfy.sh) envía push a su propia app móvil sin cuenta. Cualquiera que sepa el nombre de un tema puede
+leerlo, así que elige uno largo y aleatorio.
 
-1. In the ntfy app, subscribe to a topic such as `cubefarm-7f3k9q2m`.
-2. Enter `https://ntfy.sh/cubefarm-7f3k9q2m` (or your own ntfy server's topic URL) under **ntfy**. For a topic with
-   access control, add its access token (`tk_…`). **Save** and **Test**.
+1. En la app ntfy, suscríbete a un tema como `sareoffice-7f3k9q2m`.
+2. Introduce `https://ntfy.sh/sareoffice-7f3k9q2m` (o la URL del tema en tu propio servidor ntfy) en **ntfy**. Para un
+   tema con control de acceso, añade su token de acceso (`tk_…`). **Guardar** y **Probar**.
 
-### Where the secrets live
+### Dónde se guardan los secretos
 
-The ntfy topic and token are kept in `<SWARM_HOME>/secrets.json`
-(`~/.cubefarm/secrets.json` by default) next to the ElevenLabs key: owner-only file permissions, never in
-`state.json`, never logged, never sent to a browser (the settings show the last 4 characters) and never given to
-agents. **Remove** deletes them. A demo office keeps its own `demo-secrets.json` and `demo-push.json`.
+El tema y el token de ntfy se guardan en `<SWARM_HOME>/secrets.json` (`~/.sareoffice/secrets.json` por defecto) junto
+a la clave de ElevenLabs: permisos de fichero solo para el propietario, nunca en `state.json`, nunca en los registros,
+nunca enviados a un navegador (los ajustes muestran los últimos 4 caracteres) y nunca dados a los agentes. **Quitar**
+los borra. Una oficina demo tiene sus propios `demo-secrets.json` y `demo-push.json`.
 
-## Reach the office from your phone
+## Entrar en la oficina desde el móvil
 
-The office listens on `127.0.0.1` only, on purpose: it can start agents that run commands on your PC, so it must
-never be open to your network or the internet as it is. It never changes that or opens ports itself. To use it from
-your phone, put something that authenticates you in front of it:
+La oficina escucha solo en `127.0.0.1`, a propósito: puede arrancar agentes que ejecutan comandos en tu PC, así que
+nunca debe quedar abierta a tu red ni a internet tal cual. Nunca cambia eso ni abre puertos por su cuenta. Para usarla
+desde el móvil, pon delante algo que te autentique:
 
-- **Tailscale Serve (recommended).** Install [Tailscale](https://tailscale.com) on the office's PC and your phone,
-  signed in to the same tailnet. On the PC run:
+- **Tailscale Serve (recomendado).** Instala [Tailscale](https://tailscale.com) en el PC de la oficina y en tu móvil,
+  con la sesión iniciada en la misma tailnet. En el PC ejecuta:
 
   ```
   tailscale serve --bg 4317
   ```
 
-  It prints an address such as `https://office-pc.your-tailnet.ts.net`, with a real HTTPS certificate, reachable
-  only from your own devices. Open it on your phone: pocket mode, installing and push all work. Put the same address
-  in **Office address for links**. `tailscale serve reset` stops it. Don't use `tailscale funnel`, which publishes the
-  office to the whole internet.
-- **Cloudflare Tunnel with Cloudflare Access**, or another tunnel that makes you sign in before anything reaches the
-  office, also works. A tunnel without its own sign-in is not safe.
+  Imprime una dirección como `https://office-pc.your-tailnet.ts.net`, con un certificado HTTPS real, accesible solo
+  desde tus propios dispositivos. Ábrela en el móvil: el modo bolsillo, la instalación y push funcionan. Pon esa misma
+  dirección en **Dirección de la oficina para los enlaces**. `tailscale serve reset` lo para. No uses
+  `tailscale funnel`, que publica la oficina para todo internet.
+- **Cloudflare Tunnel con Cloudflare Access**, u otro túnel que te obligue a iniciar sesión antes de que nada llegue a
+  la oficina, también sirve. Un túnel sin su propio inicio de sesión no es seguro.
 
-Over plain `http://` on your LAN (say `http://192.168.1.20:4317`, which needs the office to listen there, which it
-doesn't) browsers refuse service workers and push, so there's no install and no push: another reason to use HTTPS.
+Por `http://` normal en tu red local (por ejemplo `http://192.168.1.20:4317`, que necesitaría que la oficina escuchara
+ahí, y no lo hace) los navegadores rechazan los service workers y push, así que no hay instalación ni push: otro motivo
+para usar HTTPS.
+
+Recuerda también el [problema de seguridad conocido](../README.md#seguridad-problema-conocido-sin-corregir): los
+WebSockets de la oficina aún no comprueban el `Origin`, así que no navegues por webs desconocidas en el mismo navegador
+con la oficina abierta.

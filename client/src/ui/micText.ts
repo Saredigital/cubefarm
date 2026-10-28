@@ -44,18 +44,18 @@ export function micErrorLine(code: string): string | null {
     case 'service-not-allowed':
     case 'NotAllowedError':
     case 'SecurityError':
-      return '🎙️ The microphone is blocked for the office. Allow it from the icon at the left of the address bar to talk instead of type.';
+      return '🎙️ El micrófono está bloqueado para la oficina. Permítelo desde el icono a la izquierda de la barra de direcciones para hablar en lugar de escribir.';
     case 'audio-capture':
     case 'NotFoundError':
     case 'NotReadableError':
     case 'OverconstrainedError':
-      return "🎙️ No microphone is working here. Plug one in (or close what's using it), or keep typing.";
+      return '🎙️ Aquí no funciona ningún micrófono. Conecta uno (o cierra lo que lo esté usando) o sigue escribiendo.';
     case 'network':
-      return "🎙️ The browser's speech service couldn't be reached. Try again, or pick ElevenLabs in Settings → Voice.";
+      return '🎙️ No se ha podido conectar con el servicio de voz del navegador. Vuelve a intentarlo o elige ElevenLabs en Ajustes → Voz.';
     case 'language-not-supported':
-      return "🎙️ The browser can't recognise your language. Pick ElevenLabs in Settings → Voice.";
+      return '🎙️ El navegador no reconoce tu idioma. Elige ElevenLabs en Ajustes → Voz.';
     default:
-      return `🎙️ Listening stopped (${code}).`;
+      return `🎙️ Se ha dejado de escuchar (${code}).`;
   }
 }
 
@@ -67,8 +67,8 @@ export interface MicCaps {
 
 /** Why the 🎙 can't listen here, in one line, or '' when it can. */
 export function cantListen(provider: ListenProvider, caps: MicCaps, keySet: boolean): string {
-  if (provider === 'browser' && !caps.recognition) return "🎙️ This browser can't turn speech into text. Use Chrome, Edge or Safari, or pick ElevenLabs in Settings → Voice.";
-  if (provider === 'elevenlabs' && !caps.recorder) return "🎙️ This browser can't record from a microphone, so ElevenLabs can't hear you. Use a current Chrome, Edge, Firefox or Safari.";
-  if (provider === 'elevenlabs' && !keySet) return '🎙️ Add your ElevenLabs API key in Settings → Voice to talk instead of type.';
+  if (provider === 'browser' && !caps.recognition) return '🎙️ Este navegador no puede convertir la voz en texto. Usa Chrome, Edge o Safari, o elige ElevenLabs en Ajustes → Voz.';
+  if (provider === 'elevenlabs' && !caps.recorder) return '🎙️ Este navegador no puede grabar desde un micrófono, así que ElevenLabs no te puede oír. Usa una versión actual de Chrome, Edge, Firefox o Safari.';
+  if (provider === 'elevenlabs' && !keySet) return '🎙️ Añade tu clave de API de ElevenLabs en Ajustes → Voz para hablar en lugar de escribir.';
   return '';
 }

@@ -69,9 +69,9 @@ export function unwrapCmdShim(shimPath: string, text: string): { file: string; a
 }
 
 /**
- * The Claude Code the Agent SDK ships as a per-platform package (the one `cubefarm login` signs in with), so the
+ * The Claude Code the Agent SDK ships as a per-platform package (the one `sareoffice login` signs in with), so the
  * terminal runtime works without Claude Code installed, on the version the office was tested with. Same lookup as
- * the SDK's own and bin/cubefarm.js.
+ * the SDK's own and bin/sareoffice.js.
  */
 let bundled: string | null | undefined;
 
@@ -197,7 +197,7 @@ const EFFORT_CODEX: Record<EffortLevel, string> = { low: 'low', medium: 'medium'
 export const CODEX_HOOK_EVENTS = ['SessionStart', 'UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'Interrupt'];
 
 /**
- * The command Codex runs for each hook. It never changes (the office's address travels in CUBEFARM_HOOK_URL), so the
+ * The command Codex runs for each hook. It never changes (the office's address travels in SAREOFFICE_HOOK_URL), so the
  * manager trusts the hooks once in Codex's /hooks and that holds for every session. On Windows, Codex runs it through
  * PowerShell or cmd depending on its version, and a command starting with a quote fails in both: plain `node` (on the
  * PATH the office gave it) and the script in double quotes work in either. Elsewhere it goes through the shell.
@@ -255,7 +255,7 @@ export function launchArgs(id: AgentCli, ctx: LaunchContext): Launch {
         // the credential store, so git and gh fail in it).
         '--dangerously-bypass-approvals-and-sandbox',
       ];
-      return { args: ctx.resumeId ? ['resume', ...args, ctx.resumeId, ctx.prompt] : [...args, '--', ctx.prompt], env: { CUBEFARM_HOOK_URL: ctx.notify.url } };
+      return { args: ctx.resumeId ? ['resume', ...args, ctx.resumeId, ctx.prompt] : [...args, '--', ctx.prompt], env: { SAREOFFICE_HOOK_URL: ctx.notify.url } };
     }
     case 'opencode': {
       const config = {
@@ -274,7 +274,7 @@ export function launchArgs(id: AgentCli, ctx: LaunchContext): Launch {
         '--prompt',
         ctx.prompt,
       ];
-      return { args, env: { OPENCODE_CONFIG_CONTENT: JSON.stringify(config), CUBEFARM_NOTIFY_URL: ctx.notify.url } };
+      return { args, env: { OPENCODE_CONFIG_CONTENT: JSON.stringify(config), SAREOFFICE_NOTIFY_URL: ctx.notify.url } };
     }
   }
 }
@@ -360,7 +360,7 @@ export function signedOutScreen(screen: string): boolean {
 // ---------- helper scripts the CLIs run ----------
 
 /** Claude Code's status line: posts its data (cost, usage limits) to the office and shows the office's line. */
-export const STATUSLINE_SOURCE = String.raw`// cubefarm: Claude Code's status line. Forwards the session's status to the office and prints the office's line.
+export const STATUSLINE_SOURCE = String.raw`// sareoffice: Claude Code's status line. Forwards the session's status to the office and prints the office's line.
 const url = process.argv[2];
 let body = '';
 process.stdin.on('data', (c) => (body += c));
@@ -376,13 +376,13 @@ process.stdin.on('end', async () => {
     const out = await res.json();
     process.stdout.write(String(out.statusLine ?? ''));
   } catch {
-    process.stdout.write('cubefarm');
+    process.stdout.write('sareoffice');
   }
 });
 `;
 
 /** Codex's notify program: Codex runs it with a JSON argument when a turn completes. */
-export const NOTIFY_SOURCE = String.raw`// cubefarm: Codex's notify program. Tells the office a turn is complete.
+export const NOTIFY_SOURCE = String.raw`// sareoffice: Codex's notify program. Tells the office a turn is complete.
 const [url, payload] = process.argv.slice(2);
 let event = {};
 try {
@@ -400,8 +400,8 @@ if (event.type === 'agent-turn-complete') {
 `;
 
 /** Codex's hook program: passes what Codex tells a hook on to the office and answers nothing, so Codex carries on as usual. */
-export const CODEX_HOOK_SOURCE = String.raw`// cubefarm: Codex's hooks. Tells the office what Codex is doing; never changes what it does.
-const url = process.env.CUBEFARM_HOOK_URL;
+export const CODEX_HOOK_SOURCE = String.raw`// sareoffice: Codex's hooks. Tells the office what Codex is doing; never changes what it does.
+const url = process.env.SAREOFFICE_HOOK_URL;
 const chunks = [];
 process.stdin.on('data', (c) => chunks.push(c));
 process.stdin.on('end', async () => {
@@ -413,9 +413,9 @@ process.stdin.on('end', async () => {
 `;
 
 /** OpenCode plugin: reports its session and when it goes idle (a turn is complete). No imports: loaded from a file. */
-export const OPENCODE_PLUGIN_SOURCE = String.raw`// cubefarm: tells the office when OpenCode's session goes idle.
-export default async function CubefarmPlugin({ client } = {}) {
-  const url = process.env.CUBEFARM_NOTIFY_URL;
+export const OPENCODE_PLUGIN_SOURCE = String.raw`// sareoffice: tells the office when OpenCode's session goes idle.
+export default async function SareofficePlugin({ client } = {}) {
+  const url = process.env.SAREOFFICE_NOTIFY_URL;
   if (!url) return {};
   let root;
   const post = (body) =>

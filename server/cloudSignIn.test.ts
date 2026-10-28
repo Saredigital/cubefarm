@@ -97,7 +97,7 @@ describe('signing cloud agents in', () => {
   it('only starts a sign-in for a cloud agent who needs one', async () => {
     const { swarm, repo } = await office();
     const lin = swarm.hireAgent(repo.id, { name: 'Lin', host: 'local', strict: true });
-    expect(() => swarm.signIn(lin.id)).toThrow(/this computer/);
+    expect(() => swarm.signIn(lin.id)).toThrow(/este ordenador/);
     expect(() => swarm.expireSignIns()).not.toThrow();
   });
 });

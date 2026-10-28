@@ -1,91 +1,123 @@
-# Contributing
+# Contribuir
 
-How to run cubefarm from source, test it and publish it. Agent sessions working on this repo also follow [CLAUDE.md](CLAUDE.md).
+Cómo ejecutar sareoffice desde el código fuente, probarlo, desplegarlo internamente y traer cambios del proyecto original. Las sesiones de agentes que trabajan en este repositorio siguen también [CLAUDE.md](CLAUDE.md).
 
-## Run it from source
+sareoffice es un fork interno de [cubefarm](https://github.com/leonvanzyl/cubefarm) (Leon van Zyl, licencia MIT). No se publica en npm (`package.json` tiene `"private": true`).
+
+## Ejecutarlo desde el código fuente
+
+La oficina de empresa incorpora `server/company/`, `server/mail/` y `server/company-social/`, protegidos por
+`server/company-security/`. Los permisos históricos de las CLIs no se aplican a ese servicio. Las integraciones
+reales requieren el [broker independiente](docs/security-company.md), con identidad y equipo dedicados, HTTPS
+y aprobación humana de cada acción externa. La oficina local conserva el recorrido simulado.
+
+Para empezar una empresa vacía sin demo ni conexiones, construye la interfaz y ejecuta
+`npm run company:setup-local -- --state-dir <directorio-nuevo> --port 4454`.
+Este comando no utiliza el lanzador ni inicia las CLIs. Permite editar la estructura y preparar trabajo;
+la ejecución, correo y redes permanecen bloqueados. Su contraseña temporal aparece en la terminal.
+Consulta [configuración local](docs/local-company-setup.md) antes de elegir el directorio persistente.
 
 ```bash
-git clone https://github.com/leonvanzyl/cubefarm.git
+git clone https://github.com/Saredigital/cubefarm.git
 cd cubefarm
 npm install
-npm run dev    # or: npm run demo
+npm run dev    # o: npm run demo
 ```
 
-Open http://localhost:5317 (`SWARM_CLIENT_PORT` moves Vite, `SWARM_PORT` the server). The server restarts when code in `server/` or `shared/` changes, and the client reloads itself.
+Abre http://localhost:5317 (`SWARM_CLIENT_PORT` mueve Vite y `SWARM_PORT` el servidor). El servidor se reinicia cuando cambia código en `server/` o `shared/`, y el cliente se recarga solo.
 
-For the build that gets published: `npm run build && npm start`.
+Para la versión construida, la que usa el equipo: `npm run build && npm start`.
 
-All three run `scripts/office.mjs`, the launcher: `--dev` runs the server from source plus Vite, and without it (`npm start`) it runs `bin/cubefarm.js` on the build. It also keeps the checkout up to date: when the office has finished its work and a new commit is on `origin`, or when you type `u` + Enter in its terminal, it stops the office, fast-forwards, installs and builds as needed, and starts it again. See [Updating the office](docs/how-it-works.md#updating-the-office).
+Los tres ejecutan `scripts/office.mjs`, el lanzador: `--dev` ejecuta el servidor desde el código fuente más Vite y, sin él (`npm start`), ejecuta `bin/sareoffice.js` sobre la versión construida. También mantiene el clon al día: cuando la oficina ha terminado su trabajo y hay un commit nuevo en `origin`, o cuando escribes `u` + Enter en su terminal, para la oficina, hace fast-forward, instala y construye lo necesario y la vuelve a arrancar. Ver [Actualizar la oficina](docs/how-it-works.md#actualizar-la-oficina).
 
-## Testing
+## Tests
+
+Para comprobar empresa y proveedores sin cuentas reales:
+`npx vitest run server/company-security server/mail server/company server/company-social --maxWorkers=1`.
+Los tests nunca crean usuarios del sistema, conectan buzones ni publican. `npm run company:provision` y
+`npm run company:broker` son comandos de despliegue en el host independiente; el instalador Windows registra
+la tarea sin arrancarla. Consulta el procedimiento y sus límites en la guía de seguridad.
 
 ```bash
-npm test             # run every test once (Vitest)
-npm run test:watch   # re-run tests as you edit
+npm test             # ejecuta todos los tests una vez (Vitest)
+npm run test:watch   # vuelve a ejecutarlos mientras editas
 npm run typecheck
 npm run build
-npm run test:e2e     # optional browser smoke tests (Playwright): builds, boots a demo office and drives it
+npm run test:e2e     # tests de humo opcionales en navegador (Playwright): construye, arranca una oficina demo y la maneja
 ```
 
-- Tests sit next to the code they cover as `*.test.ts`, anywhere under `client/`, `server/`, `shared/` or `scripts/` (e.g. `shared/issues.test.ts`). Vitest finds them through `vitest.config.ts`; `tsc` type-checks them and the Vite build leaves them out, since nothing in the app imports them.
-- Keep them fast and offline: no network, no GitHub (`gh`), no Claude sessions and no real `~/.cubefarm`. Test pure logic directly, fake anything that would spend usage, and use a temp `SWARM_HOME` and random free ports for anything that needs a server. `npm test` already points `SWARM_HOME` at a temp folder.
-- e2e is not part of CI. Before a pull request, `typecheck`, `test` and `build` must pass. Don't run `test:e2e` unless an issue asks for it. If your change shows up in the office, boot your own demo office, check it in a real browser with the Playwright tools, and put screenshots in the pull request. QA then tests every pull request in a real browser in a demo office.
-- `npm run test:e2e` is an optional local tool. It runs `e2e/*.spec.ts` headless with software WebGL against a demo office on port 4399 (`E2E_PORT` changes it) with a temp `SWARM_HOME`. It uses your installed Google Chrome when there is one, otherwise (or with `E2E_BROWSER=chromium`) Playwright's Chromium. If that browser is missing it stops at once and says so: run `npx playwright install chromium` once, into the shared cache (leave `PLAYWRIGHT_BROWSERS_PATH` unset). Just built? `E2E_SKIP_BUILD=1` reuses `dist/` instead of building again. Wait on what the page shows rather than sleeping, and don't rely on pointer lock, which a headless browser may not grant.
-- One e2e spec file per feature (`e2e/coffee.spec.ts`, `toys.spec.ts`, …), sharing `e2e/helpers.ts` (the `test` that fails on console errors and failed requests, `enterOffice`, `startAt`). New e2e tests go in their feature's spec file or a new one, never appended to `smoke.spec.ts`, which keeps only the core boot and runs first (`playwright.config.ts`).
-- GitHub Actions (`.github/workflows/ci.yml`) runs `npm ci`, `npm run typecheck`, `npm test` and `npm run build` for every pull request and every push to `main`, then packs the npm package, installs it into an empty folder and boots it in demo mode (`scripts/smoke-package.mjs`). That `check` job always runs on Ubuntu, and on Windows and macOS for every push to `main`, every manual run and every pull request that touches something OS-sensitive (`server/`, `shared/`, `scripts/`, `bin/`, `.github/`, `package.json`, the lockfile or the root configs); a pull request that only changes `client/`, `e2e/` or docs shows `check (windows-latest)` and `check (macos-latest)` as skipped, which counts as passing. CI runs no browser tests. It needs no secrets.
+- Los tests están junto al código que cubren como `*.test.ts`, en cualquier parte de `client/`, `server/`, `shared/` o `scripts/` (p. ej. `shared/issues.test.ts`). Vitest los encuentra con `vitest.config.ts`; `tsc` comprueba sus tipos y la build de Vite los deja fuera, porque nada de la app los importa.
+- Que sean rápidos y sin conexión: sin red, sin GitHub (`gh`), sin sesiones de Claude y sin el `~/.sareoffice` real. Prueba la lógica pura directamente, simula todo lo que gastaría uso y usa un `SWARM_HOME` temporal y puertos libres aleatorios para lo que necesite un servidor. `npm test` ya apunta `SWARM_HOME` a una carpeta temporal.
+- e2e no forma parte de CI. Antes de una pull request tienen que pasar `typecheck`, `test` y `build`. No ejecutes `test:e2e` salvo que un issue lo pida. Si tu cambio se ve en la oficina, arranca tu propia oficina demo, compruébalo en un navegador real con las herramientas de Playwright y pon capturas en la pull request. Después, QA prueba cada pull request en un navegador real en una oficina demo.
+- `npm run test:e2e` es una herramienta local opcional. Ejecuta `e2e/*.spec.ts` sin interfaz con WebGL por software contra una oficina demo en el puerto 4399 (`E2E_PORT` lo cambia) con un `SWARM_HOME` temporal. Usa tu Google Chrome instalado si lo hay y, si no (o con `E2E_BROWSER=chromium`), el Chromium de Playwright. Si falta ese navegador se para al momento y lo dice: ejecuta `npx playwright install chromium` una vez, en la caché compartida (deja `PLAYWRIGHT_BROWSERS_PATH` sin definir). ¿Acabas de construir? `E2E_SKIP_BUILD=1` reutiliza `dist/` en lugar de volver a construir. Espera a lo que muestra la página en lugar de dormir, y no dependas del bloqueo del puntero, que un navegador sin interfaz puede no conceder.
+- Un fichero de spec e2e por funcionalidad, compartiendo `e2e/helpers.ts` (el `test` que falla con errores de consola y peticiones fallidas, `enterOffice`, `startAt`). Los tests e2e nuevos van en el spec de su funcionalidad o en uno nuevo, nunca añadidos a `smoke.spec.ts`, que solo mantiene el arranque básico y se ejecuta primero (`playwright.config.ts`). No añadas pruebas de las funciones eliminadas (café, juguetes, perro y ping-pong).
+- GitHub Actions (`.github/workflows/ci.yml`) ejecuta `npm ci`, `npm run typecheck`, `npm test` y `npm run build` en cada pull request y cada push a `main`, y después empaqueta el paquete npm, lo instala en una carpeta vacía y lo arranca en modo demo (`scripts/smoke-package.mjs`), solo como comprobación: no se publica. Ese job `check` siempre se ejecuta en Ubuntu, y en Windows y macOS en cada push a `main`, cada ejecución manual y cada pull request que toque algo sensible al sistema operativo (`server/`, `shared/`, `scripts/`, `bin/`, `.github/`, `package.json`, el lockfile o las configuraciones de la raíz); una pull request que solo cambia `client/`, `e2e/` o documentación muestra `check (windows-latest)` y `check (macos-latest)` como omitidos, lo que cuenta como aprobado. CI no ejecuta tests de navegador. No necesita secretos.
 
-### The agents' browser tool
+### La herramienta de navegador de los agentes
 
-Agents test in a browser through the Playwright MCP server, a pinned dependency (`@playwright/mcp` at an exact version in `package.json`) started as `node <its cli.js>` from the installed package (`server/browser.ts`), so a session never runs npx or touches the npm registry. It drives the installed Google Chrome. To bump it:
+Los agentes prueban en un navegador con el servidor MCP de Playwright, una dependencia fijada (`@playwright/mcp` a una versión exacta en `package.json`) que se arranca como `node <su cli.js>` desde el paquete instalado (`server/browser.ts`), así que una sesión nunca ejecuta npx ni toca el registro de npm. Maneja el Google Chrome instalado. Para actualizarla:
 
 ```bash
-npm install --save-exact @playwright/mcp@<version>
-node node_modules/@playwright/mcp/cli.js --help   # the flags in server/browser.ts still exist
+npm install --save-exact @playwright/mcp@<versión>
+node node_modules/@playwright/mcp/cli.js --help   # que las opciones de server/browser.ts sigan existiendo
 npm test && npm run build && node scripts/smoke-package.mjs
 ```
 
-Read its release notes first: a release that moves to a new Playwright may change which Chrome versions it supports.
+Lee antes sus notas de versión: una versión que pase a un Playwright nuevo puede cambiar qué versiones de Chrome admite.
 
-## Architecture
+## Arquitectura
 
 ```
-client/  Vite + React + react-three-fiber (toon materials, canvas textures)
-  src/world/   the 3D building: floors, desks, characters, laptops, whiteboard, elevator, player
-  src/ui/      HUD and panels: terminal, Kanban, elevator, manager's console
-  src/photo/   photo mode: a free camera over a frozen office, filters, shots, clips and instant replay
-bin/cubefarm.js  the `npx cubefarm` command: checks the machine, starts the server, opens the browser
-scripts/office.mjs  the launcher for a checkout (npm run dev / demo / start): runs the office and updates it
+client/  Vite + React + zustand
+  src/panel/   el panel de control: resumen, proyectos, agentes, lanzar tarea, aprobaciones, CEO, ajustes
+  src/pocket/  el modo bolsillo para móviles
+  src/ui/      piezas compartidas: terminal, Kanban, chat con el CEO, visor de la app, ajustes, diálogos
+bin/sareoffice.js  lo que ejecuta `npm start`: comprueba la máquina, arranca el servidor y abre el navegador
+scripts/office.mjs  el lanzador de un clon (npm run dev / demo / start): ejecuta la oficina y la actualiza
 server/  Node + Express + ws
-  swarm.ts        orchestrator: floors, agents, scheduling, persistence, websocket fan-out
-  agentRunner.ts  the older Agent SDK runtime (Settings → How agents run): Claude Code through the SDK, as a log
-  cliRunner.ts    the default: one agent as the real CLI (Claude Code, Codex, OpenCode) in a pseudo-terminal: hooks, turn endings, the CEO's tools over MCP
-  ptyHost.ts      the terminal keeper: its own process holding the CLIs' terminals and hooks through office restarts
-  ptyClient.ts    the office's side of the keeper (ptyProtocol.ts: their messages)
-  clis.ts         the CLIs agents can run (Claude Code, Codex, OpenCode): finding them, their command lines
-  terminal.ts     each agent's terminal: a headless xterm mirror, its viewers, keystrokes to the running CLI
-  github.ts       everything GitHub, via the gh CLI
-  workspace.ts    clones + per-agent git worktrees
-  previews.ts     one preview per floor, and the PR theatre's PR previews: ports, statuses, start / stop
-  previewRunner.ts  checkout, install and run a floor's app in its preview worktree
-  demo.ts         fake GitHub and fake agents for `npm run demo`
-shared/types.ts   the websocket / REST contract
+  swarm.ts        orquestador: plantas, agentes, planificación, persistencia, difusión por websocket
+  agentRunner.ts  el runtime antiguo con el Agent SDK (Ajustes → Cómo se ejecutan los agentes): Claude Code por el SDK, como registro
+  cliRunner.ts    el de por defecto: un agente como la CLI real (Claude Code, Codex, OpenCode) en un pseudoterminal: hooks, fin de turno, las herramientas del CEO por MCP
+  ptyHost.ts      el guardián de terminales: un proceso propio que mantiene los terminales y hooks de las CLIs durante los reinicios de la oficina
+  ptyClient.ts    el lado de la oficina del guardián (ptyProtocol.ts: sus mensajes)
+  clis.ts         las CLIs que pueden usar los agentes (Claude Code, Codex, OpenCode): encontrarlas, sus líneas de comando
+  terminal.ts     el terminal de cada agente: un espejo xterm sin interfaz, sus espectadores, las teclas hacia la CLI
+  github.ts       todo lo de GitHub, con la CLI gh
+  workspace.ts    clones + worktrees de git por agente
+  previews.ts     una vista previa por planta, y las de la sala de PRs: puertos, estados, arrancar / parar
+  previewRunner.ts  checkout, instalación y ejecución de la app de una planta en su worktree de vista previa
+  demo.ts         GitHub y agentes simulados para `npm run demo`
+shared/types.ts   el contrato websocket / REST
 ```
 
-The server streams everything to the browser over one websocket (`/ws`); an open terminal panel has its own (`/ws/term?agent=<id>`). Laptop screens and the whiteboard are canvases drawn from that data and used as textures. They only repaint when something changed, and less often when you're far away.
+El servidor lo envía todo al navegador por un único websocket (`/ws`); un panel de terminal abierto tiene el suyo (`/ws/term?agent=<id>`). Las pantallas de los portátiles y la pizarra son canvas dibujados con esos datos y usados como texturas. Solo se repintan cuando algo cambia, y menos a menudo cuando estás lejos.
 
-## Publishing
+## Despliegue interno
 
-The npm package holds `bin/cubefarm.js` (the command), `dist/` (the built client) and `dist-server/` (the server, bundled into plain JavaScript by `scripts/build-server.mjs`, because Node won't run TypeScript from inside `node_modules`). The client's libraries are bundled into `dist/`, so users only install the server's dependencies.
+No hay releases ni publicación en npm (se eliminaron `.github/workflows/release.yml` y la comprobación de versiones nuevas en npm). Desplegar es fusionar en `main`:
 
-Releases are published by GitHub Actions (`.github/workflows/release.yml`), not from a laptop. Once `main` has what you want to ship and its CI is green: on GitHub, open **Actions → Release → Run workflow**, pick `patch`, `minor` or `major` and run it. The workflow bumps `package.json`, runs the tests, the build and the package smoke test, pushes a `Release x.y.z` commit and its `vx.y.z` tag to `main`, publishes to npm and creates a GitHub release whose notes list the PRs merged since the last one.
+1. Abre una pull request contra `main` en [Saredigital/cubefarm](https://github.com/Saredigital/cubefarm) y espera a que CI esté en verde.
+2. Fusiónala.
+3. Cada oficina que se ejecuta con `npm start` desde un clon ve el commit nuevo en `origin` y se actualiza sola en cuanto sus agentes terminan (o al escribir `u` + Enter en el terminal del lanzador): fast-forward, `npm install` si cambiaron las dependencias, `npm run build` y reinicio. Si algo falla, vuelve al commit anterior. Ver [Actualizar la oficina](docs/how-it-works.md#actualizar-la-oficina).
 
-It publishes with [trusted publishing](https://docs.npmjs.com/trusted-publishers): npm trusts that workflow file in this repo, so there is no npm token to store or renew, and every version gets a provenance statement. If anything fails before the push, nothing was released: fix it and run the workflow again (the same goes for a PR merged while it ran). If the publish itself fails after the push, that version number is used up on GitHub only, and the next run releases the one after it.
+`npm pack --dry-run` y `node scripts/smoke-package.mjs` (después de `npm run build`) siguen sirviendo para comprobar que el paquete arranca en modo demo en una carpeta limpia, como hace CI.
 
-Pushing a tag from a laptop still works and runs the same workflow:
+## Traer cambios del proyecto original
+
+Para incorporar mejoras de cubefarm:
 
 ```bash
-npm version patch -m "Release %s"   # or minor / major: bumps package.json, commits and tags v<version>
-git push --follow-tags              # the v* tag starts the release workflow
+git remote add upstream https://github.com/leonvanzyl/cubefarm   # solo la primera vez
+git fetch upstream
+git checkout -b sareoffice/upstream-sync main
+git merge upstream/main
 ```
 
-`npm pack --dry-run` lists exactly what would be published, and `node scripts/smoke-package.mjs` (after `npm run build`) installs the package into an empty folder and boots it in demo mode, like CI does.
+Resuelve los conflictos teniendo en cuenta lo que este fork cambia a propósito:
+
+- el nombre (`sareoffice`, `bin/sareoffice.js`, `~/.sareoffice`) y `"private": true` en `package.json`;
+- la marca de Saredigital (paleta navy `#0D0D1A` y ámbar `#FFC107`, IBM Plex Sans) y los textos en español, incluidos los prompts de los agentes;
+- las funcionalidades eliminadas (juegos del móvil, juguetes, el perro, eventos del cielo, charla de los agentes, rituales, festivos/temas): si upstream las toca, descarta esos cambios;
+- sin `.github/workflows/release.yml` ni comprobación de versiones en npm.
+
+Después ejecuta `npm install`, `npm run typecheck`, `npm test` y `npm run build`, prueba en una oficina demo y abre una pull request contra `main`.

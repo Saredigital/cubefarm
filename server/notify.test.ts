@@ -49,8 +49,8 @@ describe('the rate limit', () => {
     expect(sent[0][0]).toBe(0);
     expect(sent[0][1].title).toBe('🔀 Merged PR #1');
     expect(sent[1][0]).toBe(NOTE_WINDOW_MS);
-    expect(sent[1][1].title).toBe('🔀 9 more merges');
-    expect(sent[1][1].body.split('\n')).toEqual(['• pixel-todo #2 Change 2', '• pixel-todo #3 Change 3', '• pixel-todo #4 Change 4', '• pixel-todo #5 Change 5', '• pixel-todo #6 Change 6', '…and 4 more']);
+    expect(sent[1][1].title).toBe('🔀 9 merges más');
+    expect(sent[1][1].body.split('\n')).toEqual(['• pixel-todo #2 Change 2', '• pixel-todo #3 Change 3', '• pixel-todo #4 Change 4', '• pixel-todo #5 Change 5', '• pixel-todo #6 Change 6', '…y 4 más']);
   });
 
   it('never sends more than one per event type in any minute', () => {
@@ -59,7 +59,7 @@ describe('the rate limit', () => {
     const { sent } = run(steady, 12 * 60_000);
     const times = sent.map(([t]) => t);
     for (let i = 1; i < times.length; i++) expect(times[i] - times[i - 1]).toBeGreaterThanOrEqual(NOTE_WINDOW_MS);
-    const covered = sent.reduce((n, [, s]) => n + (s.title.match(/(\d+) more/) ? Number(s.title.match(/(\d+) more/)![1]) : 1), 0);
+    const covered = sent.reduce((n, [, s]) => n + (s.title.match(/(\d+) merges más/) ? Number(s.title.match(/(\d+) merges más/)![1]) : 1), 0);
     expect(covered).toBe(86); // nothing lost: every merge is in a notification or a summary
   });
 
@@ -105,8 +105,8 @@ describe('the rate limit', () => {
     let gates: Gates = offer({}, merge(0), 0).gates;
     for (let i = 1; i <= 80; i++) gates = offer(gates, merge(i), i).gates;
     const [s] = due(gates, NOTE_WINDOW_MS).send;
-    expect(s.title).toBe('🔀 80 more merges');
-    expect(s.body).toMatch(/…and 75 more$/);
+    expect(s.title).toBe('🔀 80 merges más');
+    expect(s.body).toMatch(/…y 75 más$/);
   });
 });
 
@@ -134,9 +134,9 @@ describe('what a note says', () => {
     expect(summarize([one])).toBe(one);
     expect(summarize([note('ceoMessage', 'Morgan', 'a', 'Morgan: a'), note('ceoMessage', 'Morgan', 'b', 'Morgan: b')])).toEqual({
       event: 'ceoMessage',
-      title: '💬 2 more messages from the CEO',
+      title: '💬 2 mensajes del CEO más',
       body: '• Morgan: a\n• Morgan: b',
-      line: '2 more messages from the CEO',
+      line: '2 mensajes del CEO más',
     });
   });
 });
@@ -145,10 +145,10 @@ describe('chat app settings', () => {
   it('takes real-looking topic URLs and refuses the rest', () => {
     expect(parseWebhook('ntfy', { url: ' https://ntfy.sh/my-office-a8f3/ ' })).toEqual({ url: 'https://ntfy.sh/my-office-a8f3' });
     expect(parseWebhook('ntfy', { url: 'http://ntfy.lan/office', token: 'tk_abcdefgh123' })).toEqual({ url: 'http://ntfy.lan/office', token: 'tk_abcdefgh123' });
-    expect(() => parseWebhook('ntfy', { url: 'https://ntfy.sh/' })).toThrow(/topic URL/);
-    expect(() => parseWebhook('ntfy', { url: 'ftp://ntfy.sh/office' })).toThrow(/ntfy topic URL/);
-    expect(() => parseWebhook('ntfy', { url: 'not a url' })).toThrow(/ntfy topic URL/);
-    expect(() => parseWebhook('ntfy', { url: 'https://ntfy.sh/office', token: 'no spaces allowed' })).toThrow(/access token/);
+    expect(() => parseWebhook('ntfy', { url: 'https://ntfy.sh/' })).toThrow(/URL del tema/);
+    expect(() => parseWebhook('ntfy', { url: 'ftp://ntfy.sh/office' })).toThrow(/URL de tema de ntfy/);
+    expect(() => parseWebhook('ntfy', { url: 'not a url' })).toThrow(/URL de tema de ntfy/);
+    expect(() => parseWebhook('ntfy', { url: 'https://ntfy.sh/office', token: 'no spaces allowed' })).toThrow(/token de acceso/);
   });
 
   it('removes a chat app with an empty url or token', () => {
@@ -163,7 +163,7 @@ describe('chat app settings', () => {
 
   it('hints at a saved webhook without giving it away', () => {
     const secrets = { ntfy: { url: 'https://ntfy.sh/secret-topic-q7r8', token: 'tk_secret_token_1' } };
-    expect(webhookHint('ntfy', secrets.ntfy)).toBe('ntfy.sh/…q7r8 · with a token');
+    expect(webhookHint('ntfy', secrets.ntfy)).toBe('ntfy.sh/…q7r8 · con token');
     expect(webhookHint('ntfy', { url: 'https://ntfy.sh/secret-topic-q7r8' })).toBe('ntfy.sh/…q7r8');
     expect(webhookHint('ntfy', undefined)).toBe('');
     for (const v of secretValues(secrets)) expect(webhookHint('ntfy', secrets.ntfy)).not.toContain(v);

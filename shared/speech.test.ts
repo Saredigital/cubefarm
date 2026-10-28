@@ -21,9 +21,9 @@ describe('speechText', () => {
   });
 
   it('says issue numbers and links the way a person would', () => {
-    expect(speechText('PR #42 closes #7.')).toBe('PR number 42 closes number 7.');
-    expect(speechText('See https://github.com/acme/shop/pull/42, then www.example.com.')).toBe('See a link, then a link.');
-    expect(speechText('Docs: <https://example.com/x?y=1>')).toBe('Docs: a link.');
+    expect(speechText('PR #42 closes #7.')).toBe('PR número 42 closes número 7.');
+    expect(speechText('See https://github.com/acme/shop/pull/42, then www.example.com.')).toBe('See un enlace, then un enlace.');
+    expect(speechText('Docs: <https://example.com/x?y=1>')).toBe('Docs: un enlace.');
   });
 
   it('cuts at a sentence end after about 1500 characters', () => {
@@ -49,10 +49,10 @@ describe('speechText', () => {
 
 describe('standupLine', () => {
   it('greets the team for the part of the day and counts the new issues', () => {
-    expect(standupLine(3, 'morning')).toBe('Morning team, three new features today!');
-    expect(standupLine(1, 'afternoon')).toBe('Afternoon team, one new feature today!');
-    expect(standupLine(12, 'evening')).toBe('Evening team, a pile of new features today!');
-    expect(standupLine(0, 'morning')).toBe('Morning team, one new feature today!');
+    expect(standupLine(3, 'morning')).toBe('¡Buenos días, equipo! Hoy tenemos tres funcionalidades nuevas.');
+    expect(standupLine(1, 'afternoon')).toBe('¡Buenas tardes, equipo! Hoy tenemos una funcionalidad nueva.');
+    expect(standupLine(12, 'evening')).toBe('¡Buenas noches, equipo! Hoy tenemos un montón de funcionalidades nuevas.');
+    expect(standupLine(0, 'morning')).toBe('¡Buenos días, equipo! Hoy tenemos una funcionalidad nueva.');
   });
 
   it('splits the day into morning, afternoon and evening', () => {

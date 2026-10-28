@@ -3,7 +3,7 @@
 // same session (its context and screenshots intact) usually gets the report. A second miss goes back in the queue.
 
 /** What the tester is told when their session is resumed for the missing report. */
-export const QA_RESUME_PROMPT = 'Your turn ended without your QA report. Finish what you were checking in the foreground, then end with the JSON report.';
+export const QA_RESUME_PROMPT = 'Tu turno ha terminado sin tu informe de QA. Termina en primer plano lo que estabas comprobando y acaba con el informe JSON.';
 
 export interface QaEnding {
   /** Stopped by the manager, or interrupted in the terminal. */

@@ -24,18 +24,18 @@ export function showDesktopNote(note: NoteView, enabled: boolean) {
 
 /** Settings' Test: a notification right now, tab visible or not. */
 export function showTestNote() {
-  show({ id: `test-${Date.now()}`, event: 'test', title: '🔔 Test from cubefarm', body: 'Desktop notifications work in this browser.', at: Date.now(), url: '/' });
+  show({ id: `test-${Date.now()}`, event: 'test', title: '🔔 Prueba de sareoffice', body: 'Las notificaciones de escritorio funcionan en este navegador.', at: Date.now(), url: '/' });
 }
 
 function show(note: NoteView) {
   shown.push(note);
-  const options: NotificationOptions = { body: note.body, tag: `cubefarm-${note.id}`, icon: '/icons/icon-192.png', data: { url: note.url } };
+  const options: NotificationOptions = { body: note.body, tag: `sareoffice-${note.id}`, icon: '/icons/icon-192.png', data: { url: note.url } };
   const direct = () => {
     try {
       const n = new Notification(note.title, options);
       n.onclick = () => {
         window.focus();
-        window.dispatchEvent(new CustomEvent('cubefarm:open', { detail: note.url }));
+        window.dispatchEvent(new CustomEvent('sareoffice:open', { detail: note.url }));
         n.close();
       };
     } catch {

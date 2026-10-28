@@ -4,7 +4,7 @@ import { blockers, holdUps, setDependsOn } from '../shared/issues.ts';
 import { PREVIEW_ENV_MAX_CHARS } from '../shared/previewEnv.ts';
 import { FLOOR_SEATS, type AgentCli, type CeoJobKind, type QaStatus } from '../shared/types.ts';
 import { HttpError } from './httpError.ts';
-import { ONE_TURN } from './prompts.ts';
+import { LANGUAGE, ONE_TURN } from './prompts.ts';
 import { MAX_TRIAGES, type TriagePr } from './triage.ts';
 
 // The CEO: a Claude Code session in the lobby that runs the company instead of writing code.
@@ -13,7 +13,7 @@ import { MAX_TRIAGES, type TriagePr } from './triage.ts';
 // it changes goes through the office tools below, so the swarm stays the single source of truth.
 
 /** Refused file_issue: the CEO never decides on new work itself (askedFor). */
-export const NOT_ASKED = "Only the manager decides on new work, and they haven't asked for any in this job. Suggest it in your final message instead; they can ask you to file it.";
+export const NOT_ASKED = 'Solo el responsable decide el trabajo nuevo, y no ha pedido ninguno en este trabajo. Sugiérelo en tu mensaje final; puede pedirte que lo abras.';
 
 export interface CeoJob {
   kind: CeoJobKind;
@@ -59,35 +59,35 @@ export function createOfficeTools(h: OfficeHandlers): OfficeTools {
     try {
       return { content: [{ type: 'text' as const, text: await fn() }] };
     } catch (err) {
-      return { content: [{ type: 'text' as const, text: `Refused: ${(err as Error).message}` }], isError: true };
+      return { content: [{ type: 'text' as const, text: `Rechazado: ${(err as Error).message}` }], isError: true };
     }
   };
   const defs = [
     tool(
       'company_status',
-      'Everything about the company right now: settings, every floor (repo, clone path, brief, profile, QA brief), its team and throughput, backlog, pull requests and QA, team changes waiting for the manager and their recent decisions. Call this first.',
+      'Todo sobre la empresa ahora mismo: ajustes, cada planta (repo, ruta del clon, encargo, perfil, guía de QA), su equipo y su rendimiento, backlog, pull requests y QA, cambios de equipo pendientes del responsable y sus decisiones recientes. Llámala primero.',
       {},
       () => run(() => h.companyStatus()),
     ),
     tool(
       'agent_detail',
-      'One agent in full: status, current task, and the coding agent, model and effort they run.',
-      { agent_id: z.string().describe('An id (or name) from company_status') },
+      'Un agente al completo: estado, tarea actual, y el agente de código, el modelo y el esfuerzo con que trabaja.',
+      { agent_id: z.string().describe('Un id (o nombre) de company_status') },
       (a) => run(() => h.agentDetail(a)),
     ),
     tool(
       'set_floor_profile',
-      "Record your read of a floor's project: a one-line summary (kind of project and stack), the QA brief that tells agents what to check when they test a pull request for this kind of project, and how to run the app for the floor's preview monitor.",
+      'Registra tu lectura del proyecto de una planta: un resumen de una línea (tipo de proyecto y stack), la guía de QA que dice a los agentes qué comprobar al probar una pull request de este tipo de proyecto, y cómo arrancar la app para el monitor de vista previa de la planta. Escribe el resumen y la guía en español.',
       {
-        floor: z.number().int().describe('Floor number'),
-        summary: z.string().max(140).optional().describe('e.g. "3D browser game · Three.js + Vite + TypeScript"'),
-        qa_brief: z.string().max(2500).optional().describe('What QA must check on every PR for this project, as short bullet points'),
+        floor: z.number().int().describe('Número de planta'),
+        summary: z.string().max(140).optional().describe('p. ej. "Juego 3D para navegador · Three.js + Vite + TypeScript"'),
+        qa_brief: z.string().max(2500).optional().describe('Qué debe comprobar QA en cada PR de este proyecto, en viñetas breves'),
         preview_command: z
           .string()
           .max(2000)
           .optional()
           .describe(
-            'Shell command that serves the app on port {port} from a fresh checkout after npm install, e.g. "npm run dev -- --port {port} --strictPort". PORT={port} is always set. {tmp} is a scratch folder. Empty string: back to the default (npm run dev, else start, else preview). Only set it when the default would not serve the app on PORT.',
+            'Comando de shell que sirve la app en el puerto {port} desde un checkout limpio tras npm install, p. ej. "npm run dev -- --port {port} --strictPort". PORT={port} siempre está definido. {tmp} es una carpeta temporal. Cadena vacía: vuelve al valor por defecto (npm run dev, si no start, si no preview). Defínelo solo cuando el valor por defecto no serviría la app en PORT.',
           ),
         // Not z.record(): the SDK can't turn it into JSON Schema, and one bad tool empties the whole tools/list.
         preview_env: z
@@ -95,93 +95,93 @@ export function createOfficeTools(h: OfficeHandlers): OfficeTools {
           .catchall(z.string())
           .optional()
           .describe(
-            `Extra environment variables for the preview; {port} and {tmp} are replaced in the values. Replaces the whole set. At most ${PREVIEW_ENV_MAX_CHARS} characters in all, each variable counted as KEY=value plus 2: only what the app needs to run.`,
+            `Variables de entorno adicionales para la vista previa; {port} y {tmp} se sustituyen en los valores. Reemplaza el conjunto entero. Como mucho ${PREVIEW_ENV_MAX_CHARS} caracteres en total, contando cada variable como CLAVE=valor más 2: solo lo que la app necesita para arrancar.`,
           ),
       },
       (a) => run(() => h.setFloorProfile(a)),
     ),
     tool(
       'scale_team',
-      "Set how many agents a floor has. Every agent builds issues, tests pull requests and fixes them, whichever is next. Growing: new agents wait in the lobby until the manager sets them up and hires them (or join at once when team changes apply straight away). Shrinking: idle agents leave first; a busy one leaves once the manager agrees, or when it finishes.",
+      'Fija cuántos agentes tiene una planta. Cada agente construye issues, prueba pull requests y las corrige, lo que toque. Al crecer: los agentes nuevos esperan en Aprobaciones hasta que el responsable los configura y los acepta (o entran al momento cuando los cambios de equipo se aplican directamente). Al reducir: primero se van los agentes libres; uno ocupado se va cuando el responsable lo acepta o cuando termina.',
       {
         floor: z.number().int(),
-        size: z.number().int().min(1).max(FLOOR_SEATS).describe("The team size you want, counting everyone already there; at most the floor's max in company_status"),
-        reason: z.string().min(1).max(600).describe("Why, from the floor's throughput. The manager reads this."),
-        cli: CLI.optional().describe("New agents' coding agent; leave out for the office default"),
-        model: z.string().optional().describe("New agents' model; leave out for the default"),
-        effort: EFFORT.optional().describe("New agents' reasoning effort; leave out for the default"),
+        size: z.number().int().min(1).max(FLOOR_SEATS).describe('El tamaño de equipo que quieres, contando a todos los que ya están; como mucho el máximo de la planta en company_status'),
+        reason: z.string().min(1).max(600).describe('Por qué, según el rendimiento de la planta. El responsable lo lee: escríbelo en español.'),
+        cli: CLI.optional().describe('Agente de código de los nuevos agentes; omítelo para usar el de la oficina por defecto'),
+        model: z.string().optional().describe('Modelo de los nuevos agentes; omítelo para usar el de por defecto'),
+        effort: EFFORT.optional().describe('Esfuerzo de razonamiento de los nuevos agentes; omítelo para usar el de por defecto'),
       },
       (a) => run(() => h.scaleTeam(a)),
     ),
     tool(
       'configure_agent',
-      "Change an agent's coding agent, model or reasoning effort. Takes effect from their next task.",
+      'Cambia el agente de código, el modelo o el esfuerzo de razonamiento de un agente. Se aplica desde su siguiente tarea.',
       {
         agent_id: z.string(),
-        cli: z.union([CLI, z.literal('')]).optional().describe('"" for the office default'),
-        model: z.string().optional().describe('"" for the default'),
-        effort: z.union([EFFORT, z.literal('')]).optional().describe('"" for the office default'),
+        cli: z.union([CLI, z.literal('')]).optional().describe('"" para el valor por defecto de la oficina'),
+        model: z.string().optional().describe('"" para el valor por defecto'),
+        effort: z.union([EFFORT, z.literal('')]).optional().describe('"" para el valor por defecto de la oficina'),
       },
       (a) => run(() => h.configureAgent(a)),
     ),
     tool(
       'file_issue',
-      'File a GitHub issue on a floor, only for work the manager asked for in this job (a plan, or their message); anything else is refused. The next free agent takes the next issue that can start. Write "Depends on #N" in the body only when it cannot start until #N is merged: the office will not start it until #N is closed.',
+      'Abre un issue de GitHub en una planta, solo para trabajo que el responsable haya pedido en este trabajo (un plan o su mensaje); cualquier otro se rechaza. El siguiente agente libre coge el siguiente issue que pueda empezar. Escribe el título y el cuerpo en español. Escribe "Depends on #N" en el cuerpo (exactamente así, en inglés, porque la oficina lo lee) solo cuando no pueda empezar hasta que se fusione #N: la oficina no lo empezará hasta que #N esté cerrado.',
       {
         floor: z.number().int(),
         title: z.string().max(120),
-        body: z.string().max(6000).describe('Context, what to build, acceptance criteria'),
+        body: z.string().max(6000).describe('Contexto, qué construir, criterios de aceptación'),
       },
       (a) => run(() => h.fileIssue(a)),
     ),
     tool(
       'set_dependencies',
-      'Rewrite the "Depends on #N" line of an open issue instead of filing a duplicate. The rest of the body stays as it is. Not for an issue in progress.',
+      'Reescribe la línea "Depends on #N" de un issue abierto en lugar de abrir uno duplicado. El resto del cuerpo se queda como está. No sirve para un issue en curso.',
       {
         floor: z.number().int(),
-        number: z.number().int().positive().describe('The issue number'),
-        depends_on: z.array(z.number().int().positive()).max(10).describe('Issues it waits for; [] for none'),
+        number: z.number().int().positive().describe('El número del issue'),
+        depends_on: z.array(z.number().int().positive()).max(10).describe('Issues a los que espera; [] para ninguno'),
       },
       (a) => run(() => h.setDependencies(a)),
     ),
     tool(
       'close_issue',
-      'Close an open issue that is superseded or no longer wanted, as "not planned", with your reason as a comment. Not while an open pull request closes it. Nothing is deleted.',
+      'Cierra un issue abierto que ha quedado sustituido o ya no se quiere, como "not planned", con tu motivo como comentario. No mientras una pull request abierta lo cierre. No se borra nada.',
       {
         floor: z.number().int(),
-        number: z.number().int().positive().describe('The issue number'),
-        reason: z.string().min(1).max(1000).describe('Posted as a comment, e.g. "Superseded by #152."'),
+        number: z.number().int().positive().describe('El número del issue'),
+        reason: z.string().min(1).max(1000).describe('Se publica como comentario, p. ej. "Sustituido por #152."'),
       },
       (a) => run(() => h.closeIssue(a)),
     ),
     tool(
       'retry_qa',
-      'Triage only: give a stuck pull request another QA round (a flaky session, or the problem has since been fixed).',
-      { floor: z.number().int(), pr: z.number().int().positive().describe('The pull request number') },
+      'Solo en triaje: da a una pull request atascada otra ronda de QA (una sesión inestable, o el problema ya se ha arreglado).',
+      { floor: z.number().int(), pr: z.number().int().positive().describe('El número de la pull request') },
       (a) => run(() => h.retryQa(a)),
     ),
     tool(
       'send_back',
-      "Triage only: send a stuck pull request back to a developer with QA's findings plus your note, without another QA round first.",
-      { floor: z.number().int(), pr: z.number().int().positive(), note: z.string().min(1).max(1000).describe('What the developer should do, e.g. "Merge main and keep both toolbar changes."') },
+      'Solo en triaje: devuelve una pull request atascada a un desarrollador con los hallazgos de QA más tu nota, sin otra ronda de QA antes.',
+      { floor: z.number().int(), pr: z.number().int().positive(), note: z.string().min(1).max(1000).describe('Qué debe hacer el desarrollador, p. ej. "Haz merge de main y conserva los dos cambios de la barra de herramientas."') },
       (a) => run(() => h.sendBack(a)),
     ),
     tool(
       'rerun_checks',
-      "Triage only: re-run the failed GitHub Actions runs on a stuck pull request's head commit (a flaky check or an outage), then hand it back to the office.",
+      'Solo en triaje: relanza las ejecuciones fallidas de GitHub Actions sobre el commit head de una pull request atascada (un check inestable o una caída) y luego la devuelve a la oficina.',
       { floor: z.number().int(), pr: z.number().int().positive() },
       (a) => run(() => h.rerunChecks(a)),
     ),
     tool(
       'close_pull',
-      'Triage only: close a stuck pull request that is the wrong approach, with your comment on it. Its issue stays open so it is built again. No branch is deleted.',
-      { floor: z.number().int(), pr: z.number().int().positive(), comment: z.string().min(1).max(1000).describe('Posted on the PR: why it is closed') },
+      'Solo en triaje: cierra una pull request atascada cuyo enfoque es incorrecto, con tu comentario. Su issue sigue abierto para que se construya de nuevo. No se borra ninguna rama.',
+      { floor: z.number().int(), pr: z.number().int().positive(), comment: z.string().min(1).max(1000).describe('Se publica en la PR: por qué se cierra') },
       (a) => run(() => h.closePull(a)),
     ),
     tool(
       'escalate',
-      'Triage only: hand a stuck pull request to the manager with your one-line diagnosis, when it needs a decision only they can make.',
-      { floor: z.number().int(), pr: z.number().int().positive(), reason: z.string().min(1).max(300).describe('One line: what is wrong and what the manager has to decide') },
+      'Solo en triaje: pasa una pull request atascada al responsable con tu diagnóstico en una línea, cuando necesita una decisión que solo él puede tomar.',
+      { floor: z.number().int(), pr: z.number().int().positive(), reason: z.string().min(1).max(300).describe('Una línea: qué falla y qué tiene que decidir el responsable') },
       (a) => run(() => h.escalate(a)),
     ),
   ];
@@ -191,7 +191,7 @@ export function createOfficeTools(h: OfficeHandlers): OfficeTools {
     serve: () => createSdkMcpServer({ name: 'office', version: '1.0.0', tools: defs }).instance,
     async call(name, args) {
       const def = defs.find((d) => d.name === name);
-      if (!def) throw new Error(`No office tool ${name}`);
+      if (!def) throw new Error(`No existe la herramienta de oficina ${name}`);
       const res = (await def.handler(args as never, undefined)) as { content: { text?: string }[] };
       return res.content.map((c) => c.text ?? '').join('\n');
     },
@@ -256,111 +256,112 @@ export function ceoSystemPrompt(o: {
   maxAgents: number;
   scaling: 'approve' | 'auto';
 }) {
-  const manager = o.manager ? `the manager, ${o.manager}` : 'the human manager';
+  const manager = o.manager ? `el responsable, ${o.manager},` : 'el responsable humano';
   return [
-    `You are ${o.name}, the CEO of ${o.company || 'an autonomous software company'}, run from an office building called cubefarm. You work from the corner office in the lobby.`,
-    `Every floor of the building is one GitHub repository with its own team of AI coding agents. The agents are interchangeable: each is a coding-agent session that takes whatever is next on its floor's board. A free agent builds the next issue in its own git worktree and opens a pull request; another free agent, in a fresh session, reviews and verifies every pull request (code review, tests, build, and a real browser via Playwright); failed ones go back for fixes. On floors with auto-merge on, the office merges a PR by itself once QA passes and GitHub's checks are green; on the others, ${manager} merges. The manager is your board: they decide on team changes.`,
+    `Eres ${o.name}, CEO de ${o.company || 'una empresa de software autónoma'}, que funciona con sareoffice, su panel de control.`,
+    `Cada proyecto (una planta, en tus herramientas) es un repositorio de GitHub con su propio equipo de agentes de código de IA. Los agentes son intercambiables: cada uno es una sesión de agente de código que coge lo siguiente que haya en el tablero de su planta. Un agente libre construye el siguiente issue en su propio worktree de git y abre una pull request; otro agente libre, en una sesión nueva, revisa y verifica cada pull request (revisión de código, tests, build y un navegador real con Playwright); las que fallan vuelven para corregirse. En las plantas con auto-merge activado, la oficina fusiona sola una PR cuando QA la aprueba y los checks de GitHub están en verde; en las demás, la fusiona ${manager}. El responsable es tu consejo de administración: decide los cambios de equipo.`,
     '',
-    'Your job is to run the company, not to write code:',
-    '- Understand each project: what it is, its stack and how far along it is. Projects differ a lot: a static marketing site, a 3D browser game and a REST API need different QA.',
-    `- Size each floor's team from its throughput (team, throughput and capacity in company_status): grow it when issues ready to start or PRs waiting for QA keep waiting for free agents, shrink it when agents sit idle with nothing ready. More agents is not always faster: agents on the same coding agent share one subscription's usage limits${o.sessionLimit ? `, at most ${o.sessionLimit} sessions run at once,` : ''} and many agents on one repository mostly add merge conflicts, so a floor rarely needs more than 4 to 6. A floor holds at most ${o.maxAgents}. When the manager asks for a different size, follow that.`,
-    "- Plan the work the manager asks for (a plan job from their brief, or their message): turn it into well-specified GitHub issues with acceptance criteria. An issue is a whole feature the manager would recognise (voice messages, a jukebox, the outside world), sized for one agent working for up to a few hours. Agents have large context windows and handle long jobs. Every extra issue costs a fresh exploration, a PR, a CI run, a QA round and often a conflict with its sibling PRs.",
-    '- Split a feature only when its parts are truly independent AND touch different files, or when one risky foundation part should land and be tested first. Never split a feature just to give idle agents something to do: parallel work comes from different features side by side. Unrelated small fixes are still their own issues.',
-    "- Write each floor's QA brief: what every QA pass must check for this kind of project (for a 3D game: the canvas renders, controls respond, frame rate is smooth; for a website: links, phone layout, accessibility; for an API: status codes, validation, error cases).",
+    'Tu trabajo es dirigir la empresa, no escribir código:',
+    '- Entiende cada proyecto: qué es, su stack y lo avanzado que está. Los proyectos son muy distintos: una web estática de marketing, un juego 3D para navegador y una API REST necesitan QA diferente.',
+    `- Dimensiona el equipo de cada planta según su rendimiento (equipo, rendimiento y capacidad en company_status): hazlo crecer cuando haya issues listos para empezar o PRs pendientes de QA que siguen esperando a agentes libres, y redúcelo cuando haya agentes parados sin nada listo. Más agentes no siempre es más rápido: los agentes con el mismo agente de código comparten los límites de uso de una suscripción${o.sessionLimit ? `, como mucho se ejecutan ${o.sessionLimit} sesiones a la vez,` : ''} y muchos agentes en un mismo repositorio sobre todo añaden conflictos de merge, así que una planta rara vez necesita más de 4 a 6. Una planta admite como mucho ${o.maxAgents}. Cuando el responsable pida otro tamaño, hazle caso.`,
+    '- Planifica el trabajo que pide el responsable (un trabajo de planificación a partir de su encargo, o su mensaje): conviértelo en issues de GitHub bien especificados, con criterios de aceptación. Un issue es una funcionalidad completa que el responsable reconocería (mensajes de voz, una jukebox, el mundo exterior), dimensionada para que un agente trabaje en ella hasta unas pocas horas. Los agentes tienen ventanas de contexto grandes y aguantan trabajos largos. Cada issue de más cuesta una exploración nueva, una PR, una ejecución de CI, una ronda de QA y, a menudo, un conflicto con sus PRs hermanas.',
+    '- Divide una funcionalidad solo cuando sus partes sean de verdad independientes Y toquen ficheros distintos, o cuando una parte base arriesgada deba llegar y probarse primero. Nunca dividas una funcionalidad solo para dar algo que hacer a agentes parados: el trabajo en paralelo sale de funcionalidades distintas una al lado de otra. Los arreglos pequeños sin relación siguen siendo issues aparte.',
+    '- Escribe la guía de QA de cada planta: qué debe comprobar cada pasada de QA en este tipo de proyecto (en un juego 3D: que el canvas se pinta, que los controles responden, que la tasa de fotogramas es fluida; en una web: enlaces, diseño en móvil, accesibilidad; en una API: códigos de estado, validación, casos de error).',
     '',
-    'How you work:',
-    '- Call mcp__office__company_status first. It lists every floor, its clone path, team, backlog, pull requests and the team changes waiting for the manager.',
-    '- Read the repositories through their clone paths with Read, Glob and Grep. They are read-only to you. You cannot run shell commands.',
-    `- Keep durable notes about the company in ${o.notesFile}: read it at the start, and update it at the end with decisions and anything worth remembering next time.`,
-    '- Change things only through the mcp__office__ tools.',
+    'Cómo trabajas:',
+    '- Llama primero a mcp__office__company_status. Lista cada planta, la ruta de su clon, el equipo, el backlog, las pull requests y los cambios de equipo pendientes del responsable.',
+    '- Lee los repositorios desde las rutas de sus clones con Read, Glob y Grep. Para ti son de solo lectura. No puedes ejecutar comandos de shell.',
+    `- Guarda notas duraderas sobre la empresa en ${o.notesFile}: léelas al empezar y actualízalas al final con las decisiones y todo lo que merezca la pena recordar la próxima vez.`,
+    '- Cambia las cosas solo con las herramientas mcp__office__.',
+    `- ${LANGUAGE}`,
     `- ${ONE_TURN}`,
     '',
-    'Rules:',
-    '- Never decide on new work yourself. Only the manager asks for changes to their projects: file issues only when they asked in this job. In reviews, onboarding and triage, suggest work in your final message instead, and they decide.',
-    '- Every floor keeps at least one agent.',
-    `- Change a floor's size with one scale_team call, with a reason the manager can decide on in a sentence or two. ${o.scaling === 'auto' ? "Team changes apply straight away, within the floor's max, so be deliberate." : 'The manager approves every change, and sets up each new agent before hiring them.'} If the manager declined a similar change (recentDecisions), do not ask again unless something has changed, and say what.`,
-    "- Agents run the office's default coding agent, model and effort. Change an agent's (configure_agent), or pick them for new agents (scale_team), only when the manager asks or for a clear reason.",
-    '- Issues: the same agents build and test, so PRs queued for QA (capacity.prsAwaitingQa) mean fewer, bigger issues, not more. Most briefs need 1 to 4 issues. Write "Depends on #N" only when an issue truly cannot start until #N\'s code is merged, because it waits until #N is closed. Keep dependency chains to two steps at most. The office starts the issues that hold up others first. Do not duplicate open issues: fix an existing issue\'s dependencies with set_dependencies. File at most 12 issues per job, or per message from the manager.',
-    '- Close an issue that is superseded or no longer wanted with close_issue, not by making it wait for another issue.',
-    '- Triage jobs: a pull request got stuck (needs-human). Look before the manager does, and bring them only real decisions. Read the facts in the job and the code, then call exactly one of retry_qa (a flaky QA session, or it has been fixed since), send_back (a developer can fix it; your note says how), rerun_checks (a red check that looks flaky or like an outage), close_pull (the approach is wrong: its issue stays open to be built again) or escalate (only the manager can decide: a product call, credentials, a broken setup).',
-    "- When company.usage in company_status says pacing or paused, Claude's usage is running low and the office is finishing open work first: file only what is needed next, not a whole milestone.",
-    '- Your final message goes straight to the manager\'s phone. Keep it short and plain: what you found, what you changed or asked for, what you filed, and any question you need answered. No headings, no tables.',
+    'Reglas:',
+    '- Nunca decidas tú el trabajo nuevo. Solo el responsable pide cambios en sus proyectos: abre issues solo cuando los haya pedido en este trabajo. En revisiones, incorporaciones y triajes, sugiere el trabajo en tu mensaje final y que decida él.',
+    '- Cada planta conserva al menos un agente.',
+    `- Cambia el tamaño de una planta con una sola llamada a scale_team, con un motivo sobre el que el responsable pueda decidir en una o dos frases. ${o.scaling === 'auto' ? 'Los cambios de equipo se aplican directamente, dentro del máximo de la planta, así que piénsalo bien.' : 'El responsable aprueba cada cambio y configura a cada agente nuevo antes de contratarlo.'} Si el responsable rechazó un cambio parecido (recentDecisions), no vuelvas a pedirlo salvo que algo haya cambiado, y di qué.`,
+    '- Los agentes usan el agente de código, el modelo y el esfuerzo por defecto de la oficina. Cambia los de un agente (configure_agent), o elígelos para agentes nuevos (scale_team), solo cuando el responsable lo pida o por un motivo claro.',
+    '- Issues: los mismos agentes construyen y prueban, así que PRs en cola para QA (capacity.prsAwaitingQa) significan menos issues y más grandes, no más. La mayoría de los encargos necesitan de 1 a 4 issues. Escribe "Depends on #N" (exactamente así, en inglés: la oficina lo lee) solo cuando un issue de verdad no pueda empezar hasta que se fusione el código de #N, porque espera hasta que #N esté cerrado. Limita las cadenas de dependencias a dos pasos como mucho. La oficina empieza primero los issues que bloquean a otros. No dupliques issues abiertos: corrige las dependencias de un issue existente con set_dependencies. Abre como mucho 12 issues por trabajo, o por mensaje del responsable.',
+    '- Cierra un issue sustituido o que ya no se quiere con close_issue, no haciéndolo esperar a otro issue.',
+    '- Trabajos de triaje: una pull request se ha atascado (needs-human). Mírala antes que el responsable y llévale solo decisiones reales. Lee los datos del trabajo y el código, y llama exactamente a una de estas: retry_qa (una sesión de QA inestable, o ya se ha arreglado), send_back (un desarrollador puede arreglarla; tu nota dice cómo), rerun_checks (un check en rojo que parece inestable o una caída), close_pull (el enfoque es incorrecto: su issue sigue abierto para construirse de nuevo) o escalate (solo el responsable puede decidir: una decisión de producto, credenciales, una configuración rota).',
+    '- Cuando company.usage en company_status diga pacing o paused, el uso de Claude se está agotando y la oficina está terminando primero el trabajo abierto: abre solo lo que haga falta a continuación, no un hito entero.',
+    '- Tu mensaje final llega directamente al móvil del responsable. Que sea breve y sencillo, en español: qué has encontrado, qué has cambiado o pedido, qué has abierto y cualquier pregunta que necesites que te responda. Sin encabezados ni tablas.',
   ].join('\n');
 }
 
 export function ceoJobPrompt(job: CeoJob, floor: { floor: number; fullName: string; clone: string; mission: string; backlog: number } | null, pr?: TriagePr | null): string {
   switch (job.kind) {
     case 'triage':
-      if (!floor || !pr) return `Pull request #${job.prNumber ?? '?'} no longer needs triage. Reply "Nothing to do."`;
+      if (!floor || !pr) return `La pull request #${job.prNumber ?? '?'} ya no necesita triaje. Responde "Nada que hacer."`;
       return [
-        `Triage: pull request #${pr.number} on floor ${floor.floor} (${floor.fullName}) is stuck and needs a decision before it reaches the manager.`,
-        `"${pr.title}" · ${pr.url} · read-only clone of the default branch at ${floor.clone}`,
-        `Why it stopped: ${pr.why ?? 'unknown'}`,
-        `QA round ${pr.round}. QA summary: ${pr.summary ?? 'none yet'}`,
-        pr.fixInstructions ? `QA's fix instructions:\n${pr.fixInstructions}` : '',
-        pr.mergeNote ? `Merge note: ${pr.mergeNote}` : '',
-        `GitHub checks: ${pr.checks}${pr.failedChecks.length ? ` (failed: ${pr.failedChecks.join(', ')})` : ''}${pr.pendingChecks.length ? ` (running: ${pr.pendingChecks.join(', ')})` : ''} · mergeable: ${pr.mergeable} (${pr.mergeState})`,
-        `This is triage ${pr.triage} of ${MAX_TRIAGES} for this PR; after that it goes straight to the manager.`,
+        `Triaje: la pull request #${pr.number} de la planta ${floor.floor} (${floor.fullName}) está atascada y necesita una decisión antes de llegar al responsable.`,
+        `"${pr.title}" · ${pr.url} · clon de solo lectura de la rama por defecto en ${floor.clone}`,
+        `Por qué se ha parado: ${pr.why ?? 'desconocido'}`,
+        `Ronda de QA ${pr.round}. Resumen de QA: ${pr.summary ?? 'todavía ninguno'}`,
+        pr.fixInstructions ? `Instrucciones de corrección de QA:\n${pr.fixInstructions}` : '',
+        pr.mergeNote ? `Nota de merge: ${pr.mergeNote}` : '',
+        `Checks de GitHub: ${pr.checks}${pr.failedChecks.length ? ` (fallidos: ${pr.failedChecks.join(', ')})` : ''}${pr.pendingChecks.length ? ` (en curso: ${pr.pendingChecks.join(', ')})` : ''} · mergeable: ${pr.mergeable} (${pr.mergeState})`,
+        `Este es el triaje ${pr.triage} de ${MAX_TRIAGES} para esta PR; después irá directamente al responsable.`,
         '',
-        `Work out why it is stuck, then call exactly one of retry_qa, send_back, rerun_checks, close_pull or escalate with floor ${floor.floor} and pr ${pr.number}. If you end without one, the manager is alerted. Your final message: one or two sentences on what you found and did.`,
+        `Averigua por qué está atascada y llama exactamente a una de retry_qa, send_back, rerun_checks, close_pull o escalate con floor ${floor.floor} y pr ${pr.number}. Si terminas sin llamar a ninguna, se avisa al responsable. Tu mensaje final: una o dos frases, en español, sobre lo que has encontrado y hecho.`,
       ]
         .filter((l) => l !== '')
         .join('\n');
     case 'onboard':
-      if (!floor) return 'A floor was added but has since been removed. Reply "Nothing to do."';
+      if (!floor) return 'Se añadió una planta, pero ya se ha eliminado. Responde "Nada que hacer."';
       return [
-        `Floor ${floor.floor} (${floor.fullName}) just joined the company. Its read-only clone is at ${floor.clone}.`,
-        'Study it: README, package manifest, source layout, tests, and how far along it is. Then:',
-        "1. set_floor_profile with a one-line summary and a QA brief for this project. If npm run dev / start / preview wouldn't serve the app on PORT, also set preview_command (and preview_env) so the floor's preview monitor can run it.",
-        '2. scale_team to the size the work in sight needs. The floor starts with one agent; two to four is usually plenty to begin with.',
-        '3. Check the open issues against that size: the team grows later when work keeps waiting for free agents.',
+        `La planta ${floor.floor} (${floor.fullName}) acaba de incorporarse a la empresa. Su clon de solo lectura está en ${floor.clone}.`,
+        'Estúdiala: README, manifiesto de paquetes, estructura del código, tests y lo avanzado que está. Después:',
+        '1. set_floor_profile con un resumen de una línea y una guía de QA para este proyecto, en español. Si npm run dev / start / preview no sirvieran la app en PORT, define también preview_command (y preview_env) para que el monitor de vista previa de la planta pueda arrancarla.',
+        '2. scale_team al tamaño que necesita el trabajo previsto. La planta empieza con un agente; de dos a cuatro suele bastar para empezar.',
+        '3. Contrasta los issues abiertos con ese tamaño: el equipo crece más adelante si el trabajo sigue esperando a agentes libres.',
         floor.mission
-          ? `4. The manager's brief for this floor, for your notes: """${floor.mission}"""\nFile no issues: planning it is a job of its own, when the manager asks for it.`
+          ? `4. El encargo del responsable para esta planta, para tus notas: """${floor.mission}"""\nNo abras issues: planificarlo es un trabajo aparte, cuando el responsable lo pida.`
           : floor.backlog === 0
-            ? '4. There is no brief and the backlog is empty. File no issues; suggest in your final message what the manager might want next.'
-            : `4. There are ${floor.backlog} open issues. Leave them as they are and file no new ones; just make sure the team size fits them.`,
+            ? '4. No hay encargo y el backlog está vacío. No abras issues; sugiere en tu mensaje final lo que el responsable podría querer a continuación.'
+            : `4. Hay ${floor.backlog} issues abiertos. Déjalos como están y no abras ninguno nuevo; solo asegúrate de que el tamaño del equipo encaja con ellos.`,
       ].join('\n');
     case 'plan':
-      if (!floor) return 'A floor you were asked to plan has been removed. Reply "Nothing to do."';
+      if (!floor) return 'Se ha eliminado una planta que te pidieron planificar. Responde "Nada que hacer."';
       return [
-        `The manager has a brief for floor ${floor.floor} (${floor.fullName}, clone at ${floor.clone}):`,
+        `El responsable tiene un encargo para la planta ${floor.floor} (${floor.fullName}, clon en ${floor.clone}):`,
         `"""${floor.mission}"""`,
         '',
-        'Plan the next milestone toward it:',
-        `- Read the current code and the ${floor.backlog} open issues first, so you build on what exists and do not duplicate anything.`,
-        '- One issue per whole feature. Split a feature only when its parts are independent and touch different files, or a risky foundation part should land first. Only for an empty or nearly empty repository does a skeleton issue come first, with the others depending on it.',
-        '- File the issues.',
-        '- Make sure the team size fits the work: scale_team when ready issues would keep waiting for free agents.',
-        '- Update the floor profile and QA brief if the brief changes what the project is.',
+        'Planifica el siguiente hito hacia él:',
+        `- Lee primero el código actual y los ${floor.backlog} issues abiertos, para construir sobre lo que existe y no duplicar nada.`,
+        '- Un issue por funcionalidad completa. Divide una funcionalidad solo cuando sus partes sean independientes y toquen ficheros distintos, o cuando una parte base arriesgada deba llegar primero. Solo en un repositorio vacío o casi vacío va primero un issue de esqueleto, con los demás dependiendo de él.',
+        '- Abre los issues, en español.',
+        '- Asegúrate de que el tamaño del equipo encaja con el trabajo: scale_team cuando los issues listos fueran a seguir esperando a agentes libres.',
+        '- Actualiza el perfil de la planta y la guía de QA si el encargo cambia lo que es el proyecto.',
       ].join('\n');
     case 'review':
       return [
-        'Periodic review of the company. For every floor, look at:',
-        '- floors without a profile or QA brief: study them and write one',
-        '- team size against throughput: work that keeps waiting for free agents (grow), or agents idle with nothing ready to start or test (shrink). Idle agents are not a reason to slice features.',
-        '- backlog against the team (capacity): long dependency chains (fix them with set_dependencies), or PRs piling up in QA (then plan fewer, bigger issues)',
-        '- pull requests stuck in QA or marked as needing a human',
-        '- floors with a brief and an empty backlog: say so, and suggest what the manager might ask for next (file no issues: only they decide on new work)',
-        'Change team sizes only when clearly justified. If nothing needs doing, reply with one short sentence saying so.',
+        'Revisión periódica de la empresa. En cada planta, mira:',
+        '- plantas sin perfil o sin guía de QA: estúdialas y escribe uno',
+        '- tamaño del equipo frente al rendimiento: trabajo que sigue esperando a agentes libres (crecer), o agentes parados sin nada listo para empezar o probar (reducir). Que haya agentes parados no es motivo para trocear funcionalidades.',
+        '- backlog frente al equipo (capacity): cadenas de dependencias largas (corrígelas con set_dependencies), o PRs que se acumulan en QA (entonces planifica menos issues y más grandes)',
+        '- pull requests atascadas en QA o marcadas como pendientes de una persona',
+        '- plantas con encargo y backlog vacío: dilo y sugiere lo que el responsable podría pedir a continuación (no abras issues: solo él decide el trabajo nuevo)',
+        'Cambia el tamaño de los equipos solo cuando esté claramente justificado. Si no hay nada que hacer, responde con una frase breve que lo diga.',
       ].join('\n');
     case 'chat':
-      return `Message from the manager (they're reading your reply on their phone):\n${job.text ?? ''}`;
+      return `Mensaje del responsable (lee tu respuesta en el móvil):\n${job.text ?? ''}`;
   }
 }
 
 export function jobLabel(job: CeoJob, floor: { floor: number; fullName: string } | null) {
-  const where = floor ? `floor ${floor.floor} · ${floor.fullName.split('/')[1] ?? floor.fullName}` : 'a removed floor';
+  const where = floor ? `planta ${floor.floor} · ${floor.fullName.split('/')[1] ?? floor.fullName}` : 'una planta eliminada';
   switch (job.kind) {
     case 'onboard':
-      return `Onboarding ${where}`;
+      return `Incorporando ${where}`;
     case 'plan':
-      return `Planning ${where}`;
+      return `Planificando ${where}`;
     case 'review':
-      return 'Reviewing the company';
+      return 'Revisando la empresa';
     case 'chat':
-      return 'Replying to you';
+      return 'Respondiéndote';
     case 'triage':
-      return `Triaging PR #${job.prNumber ?? '?'} · ${where}`;
+      return `Triaje de la PR #${job.prNumber ?? '?'} · ${where}`;
   }
 }
 
@@ -377,7 +378,7 @@ export class IssueCap {
   constructor(readonly max: number) {}
 
   check() {
-    if (this.filed >= this.max) throw new Error(`You already filed ${this.max} issues in this job. That's plenty for one milestone. The manager's next message allows more.`);
+    if (this.filed >= this.max) throw new Error(`Ya has abierto ${this.max} issues en este trabajo. Es suficiente para un hito. El próximo mensaje del responsable permite más.`);
   }
 
   record(repoId: string) {
@@ -420,24 +421,24 @@ function waitsDepth(n: number, deps: Map<number, number[]>, seen = new Set<numbe
  */
 export function planDependencies(r: DependsRequest): DependsPlan {
   const issue = r.issues.find((i) => i.number === r.number);
-  if (!issue) throw new Error(r.closed(r.number) ? `#${r.number} is closed.` : `There is no open issue #${r.number} on floor ${r.floor}.`);
-  if (r.inProgress) throw new Error(`#${r.number} is already in progress, so its dependencies can't change.`);
+  if (!issue) throw new Error(r.closed(r.number) ? `#${r.number} está cerrado.` : `No hay ningún issue abierto #${r.number} en la planta ${r.floor}.`);
+  if (r.inProgress) throw new Error(`#${r.number} ya está en curso, así que sus dependencias no pueden cambiar.`);
   const deps = [...new Set(r.dependsOn.map(Number))];
   const open = new Set(r.issues.map((i) => i.number));
   for (const d of deps) {
-    if (d === r.number) throw new Error(`#${r.number} can't depend on itself.`);
-    if (!open.has(d)) throw new Error(r.closed(d) ? `#${d} is closed, so there's nothing to wait for.` : `There is no open issue #${d} on floor ${r.floor}.`);
+    if (d === r.number) throw new Error(`#${r.number} no puede depender de sí mismo.`);
+    if (!open.has(d)) throw new Error(r.closed(d) ? `#${d} está cerrado, así que no hay nada que esperar.` : `No hay ningún issue abierto #${d} en la planta ${r.floor}.`);
   }
   const body = setDependsOn(issue.body, deps);
   const after = r.issues.map((i) => (i.number === r.number ? { ...i, body } : i));
   const waits = new Map(after.map((i) => [i.number, blockers(i.body, open)]));
   const loop = deps.find((d) => reaches(d, r.number, waits));
-  if (loop !== undefined) throw new Error(`#${loop} already waits for #${r.number}, directly or through other issues, so that would be a cycle.`);
+  if (loop !== undefined) throw new Error(`#${loop} ya espera a #${r.number}, directamente o a través de otros issues, así que eso sería un ciclo.`);
   const depth = waitsDepth(r.number, waits) + (holdUps(after).get(r.number)?.chain ?? 0);
-  if (depth > 2) throw new Error(`That makes a dependency chain ${depth} steps deep through #${r.number}. Keep chains to 2 steps at most: fold the dependent pieces into one issue instead of splitting further.`);
+  if (depth > 2) throw new Error(`Eso crea una cadena de dependencias de ${depth} pasos a través de #${r.number}. Limita las cadenas a 2 pasos como mucho: junta las partes dependientes en un solo issue en lugar de dividir más.`);
   return {
     body: body !== issue.body ? body : null,
-    summary: `#${r.number} on floor ${r.floor}: ${deps.length ? `depends on ${deps.map((d) => `#${d}`).join(', ')}` : 'no dependencies'}.`,
+    summary: `#${r.number} en la planta ${r.floor}: ${deps.length ? `depende de ${deps.map((d) => `#${d}`).join(', ')}` : 'sin dependencias'}.`,
   };
 }
 
@@ -472,10 +473,10 @@ export function floorCapacity(f: {
  * null when unknown), and never one an open pull request closes.
  */
 export function checkCloseIssue(r: { floor: number; number: number; state: 'OPEN' | 'CLOSED' | null; pulls: { number: number; state: string; closesIssues: number[] }[] }) {
-  if (r.state === 'CLOSED') throw new HttpError(404, `#${r.number} on floor ${r.floor} is already closed.`);
-  if (r.state !== 'OPEN') throw new HttpError(404, `There is no open issue #${r.number} on floor ${r.floor}.`);
+  if (r.state === 'CLOSED') throw new HttpError(404, `#${r.number} de la planta ${r.floor} ya está cerrado.`);
+  if (r.state !== 'OPEN') throw new HttpError(404, `No hay ningún issue abierto #${r.number} en la planta ${r.floor}.`);
   const pr = r.pulls.find((p) => p.state === 'OPEN' && p.closesIssues.includes(r.number));
-  if (pr) throw new HttpError(409, `PR #${pr.number} closes #${r.number}. Close or finish that pull request first.`);
+  if (pr) throw new HttpError(409, `La PR #${pr.number} cierra #${r.number}. Cierra o termina antes esa pull request.`);
 }
 
 /** Does `from` wait for `to`, directly or through other issues? */

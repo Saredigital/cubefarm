@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api';
 import { useStore } from '../store';
-import { requestLook } from '../world/Player';
 import { CEO_ID, type RepoView } from '../../../shared/types';
-import { Key } from './Key';
 import { ProjectPicker } from './ProjectPicker';
 
 // First run: who you are, the company, your CEO and your first project. Every field has a default, so
@@ -12,14 +10,14 @@ import { ProjectPicker } from './ProjectPicker';
 const COMPANIES = ['Pixel & Pine', 'Byte Bakery', 'Night Owl Software', 'Tiny Rocket Co.', 'Moonbeam Works', 'Happy Path Inc.', 'Merge Conflict Ltd.', 'Quokka Labs', 'Blue Kettle Studio', 'Paper Plane Software'];
 const CEO_NAMES = ['Morgan', 'Avery', 'Jordan', 'Riley', 'Quinn', 'Harper', 'Rowan', 'Sasha', 'Casey', 'Jamie', 'Alex', 'Robin'];
 const TIES = ['#e63946', '#3a86ff', '#06d6a0', '#ffbe0b', '#9b5de5', '#fb5607'];
-const STEPS = ['Welcome', 'You', 'Your CEO', 'First project', 'Ready'];
+const STEPS = ['Bienvenida', 'Tú', 'Tu CEO', 'Primer proyecto', 'Listo'];
 
 const pickOther = <T,>(list: T[], current: T) => {
   const rest = list.filter((x) => x !== current);
   return rest[Math.floor(Math.random() * rest.length)];
 };
 
-/** A little portrait of the CEO in their suit, drawn to match the 3D office. */
+/** A little portrait of the CEO in their suit. */
 function CeoPortrait({ color, look }: { color: string; look: 'feminine' | 'masculine' }) {
   return (
     <svg viewBox="0 0 120 120" className="ceo-portrait" aria-hidden="true">
@@ -44,7 +42,6 @@ export function SetupWizard() {
   const ghError = useStore((s) => s.ghError);
   const ceoAgent = useStore((s) => s.agents[CEO_ID]);
   const maxAgents = useStore((s) => s.settings.maxAgents);
-  const start = useStore((s) => s.start);
 
   const [step, setStep] = useState(0);
   const [managerName, setManagerName] = useState('');
@@ -56,7 +53,7 @@ export function SetupWizard() {
   const [project, setProject] = useState<RepoView | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const me = managerName.trim() || user || 'Boss';
+  const me = managerName.trim() || user || 'Jefe';
   const ceo = ceoName.trim() || 'Morgan';
   const company = companyName.trim() || COMPANIES[0];
 
@@ -65,9 +62,7 @@ export function SetupWizard() {
     setBusy(true);
     try {
       await save();
-      await api.updateSettings({ setupDone: true, tutorialStep: 0 });
-      start();
-      requestLook();
+      await api.updateSettings({ setupDone: true, tutorialStep: -1 });
     } catch {
       setBusy(false); // api() already toasted
     }
@@ -97,23 +92,23 @@ export function SetupWizard() {
 
         {step === 0 && (
           <>
-            <div className="start-logo">✻</div>
-            <h1>cubefarm</h1>
-            <p className="start-tag">Your own cartoon software company, staffed by AI coding agents.</p>
+            <img className="start-logo" src="/icons/icon.svg" alt="" />
+            <h1>sareoffice</h1>
+            <p className="start-tag">El panel de control de tu empresa de software: proyectos, agentes de código de IA y tareas en un solo sitio.</p>
             <ul className="start-list">
-              <li>🏢 Every project gets its own floor, with a team of coding agents building and testing its GitHub issues.</li>
-              <li>🧠 A CEO studies each project, plans the work you ask for and sizes each team. You approve every new agent.</li>
-              <li>📱 Your phone keeps you in the loop from anywhere in the building.</li>
+              <li>🗂️ Cada proyecto tiene su equipo de agentes de código, que construye y prueba sus issues de GitHub.</li>
+              <li>🧠 Un CEO estudia cada proyecto, planifica el trabajo que pides y decide el tamaño de cada equipo. Tú apruebas cada contratación.</li>
+              <li>✋ Lanzas tareas, ves cada terminal en directo y apruebas lo que importa desde el panel.</li>
             </ul>
             {!ghReady && ghError && <div className="term-error small">⚠️ {ghError}</div>}
             <button className="btn btn-big" onClick={() => setStep(1)}>
-              Let's set up your company
+              Vamos a montar tu empresa
             </button>
             <div className="start-meta">
               <button className="linkish" onClick={finish} disabled={busy}>
-                Skip setup and use the defaults
+                Saltar la configuración y usar los valores por defecto
               </button>
-              {demo && <span className="pill pill-demo">DEMO MODE</span>}
+              {demo && <span className="pill pill-demo">MODO DEMO</span>}
             </div>
           </>
         )}
@@ -121,68 +116,68 @@ export function SetupWizard() {
         {step === 1 && (
           <>
             <div className="wizard-icon">🧑‍💼</div>
-            <h2>Who's the boss?</h2>
-            <p className="start-tag">That's you. You run the company; the agents do the typing.</p>
+            <h2>¿Quién manda aquí?</h2>
+            <p className="start-tag">Tú. Tú diriges la empresa; los agentes teclean.</p>
             <label className="field">
-              <span>Your name</span>
-              <input value={managerName} onChange={(e) => setManagerName(e.target.value)} placeholder={user ?? 'Boss'} autoFocus />
+              <span>Tu nombre</span>
+              <input value={managerName} onChange={(e) => setManagerName(e.target.value)} placeholder={user ?? 'Jefe'} autoFocus />
             </label>
             <label className="field">
-              <span>Company name</span>
+              <span>Nombre de la empresa</span>
               <div className="row" style={{ margin: 0 }}>
                 <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder={COMPANIES[0]} />
-                <button type="button" className="btn btn-small" title="Suggest another name" onClick={() => setCompanyName(pickOther(COMPANIES, companyName))}>
+                <button type="button" className="btn btn-small" title="Sugerir otro nombre" onClick={() => setCompanyName(pickOther(COMPANIES, companyName))}>
                   🎲
                 </button>
               </div>
             </label>
-            <p className="muted small">It goes on the sign in the lobby. Change either any time in the manager's console.</p>
+            <p className="muted small">Puedes cambiar ambos cuando quieras en Ajustes.</p>
           </>
         )}
 
         {step === 2 && (
           <>
-            <h2>Meet your CEO</h2>
+            <h2>Conoce a tu CEO</h2>
             <div className="ceo-setup">
               <CeoPortrait color={ceoColor} look={ceoLook} />
               <div className="grow">
                 <label className="field">
-                  <span>Name</span>
+                  <span>Nombre</span>
                   <div className="row" style={{ margin: 0 }}>
                     <input value={ceoName} onChange={(e) => setCeoName(e.target.value)} placeholder="Morgan" autoFocus />
-                    <button type="button" className="btn btn-small" title="Suggest another name" onClick={() => setCeoName(pickOther(CEO_NAMES, ceoName))}>
+                    <button type="button" className="btn btn-small" title="Sugerir otro nombre" onClick={() => setCeoName(pickOther(CEO_NAMES, ceoName))}>
                       🎲
                     </button>
                   </div>
                 </label>
                 <div className="row">
                   <label className="toggle">
-                    <input type="radio" checked={ceoLook === 'feminine'} onChange={() => setCeoLook('feminine')} /> 👩 She
+                    <input type="radio" checked={ceoLook === 'feminine'} onChange={() => setCeoLook('feminine')} /> 👩 Ella
                   </label>
                   <label className="toggle">
-                    <input type="radio" checked={ceoLook === 'masculine'} onChange={() => setCeoLook('masculine')} /> 👨 He
+                    <input type="radio" checked={ceoLook === 'masculine'} onChange={() => setCeoLook('masculine')} /> 👨 Él
                   </label>
                   <span className="spacer" />
                   {TIES.map((c) => (
-                    <button key={c} type="button" className={`swatch ${c === ceoColor ? 'swatch-on' : ''}`} style={{ background: c }} onClick={() => setCeoColor(c)} title="Tie colour" />
+                    <button key={c} type="button" className={`swatch ${c === ceoColor ? 'swatch-on' : ''}`} style={{ background: c }} onClick={() => setCeoColor(c)} title="Color de la corbata" />
                   ))}
                 </div>
-                <div className="muted small">Claude Opus 5.5 at xhigh effort: the thinking-hardest person in the building.</div>
+                <div className="muted small">Claude Opus 5.5 con esfuerzo xhigh: quien más piensa de toda la empresa.</div>
               </div>
             </div>
             <p className="start-tag" style={{ margin: '12px 0 6px' }}>
-              {ceo} studies every project, writes its QA checklist, turns the work you ask for into GitHub issues and decides how big each team should be.
+              {ceo} estudia cada proyecto, escribe su lista de comprobación de QA, convierte el trabajo que pides en issues de GitHub y decide el tamaño de cada equipo.
             </p>
             <label className="toggle block">
               <input type="radio" checked={scaling === 'approve'} onChange={() => setScaling('approve')} />
               <span>
-                <b>Ask me before every team change</b> (recommended). New agents wait in the lobby and on your phone.
+                <b>Pregúntame antes de cada cambio de equipo</b> (recomendado). Los candidatos esperan en Aprobaciones.
               </span>
             </label>
             <label className="toggle block">
               <input type="radio" checked={scaling === 'auto'} onChange={() => setScaling('auto')} />
               <span>
-                <b>Let {ceo} change teams</b> on their own, up to {maxAgents} agents per floor.
+                <b>Deja que {ceo} cambie los equipos</b> por su cuenta, hasta {maxAgents} agentes por proyecto.
               </span>
             </label>
           </>
@@ -190,20 +185,20 @@ export function SetupWizard() {
 
         {step === 3 && (
           <>
-            <h2>Your first project</h2>
+            <h2>Tu primer proyecto</h2>
             {project ? (
               <div className="wizard-done">
                 <div className="wizard-icon">🎉</div>
                 <p>
-                  <b>{project.fullName}</b> moved into floor {project.floor}.
+                  <b>{project.fullName}</b> ya está conectado.
                 </p>
                 <p className="muted">
-                  {ceo} is studying it right now and will text you when they know how big the team should be. One agent is already at a desk.
+                  {ceo} lo está estudiando ahora mismo y te escribirá cuando sepa qué tamaño debe tener el equipo. Ya hay un agente en el equipo.
                 </p>
               </div>
             ) : (
               <>
-                <p className="start-tag">Pick one of your project folders, a GitHub repo, or start something new. Every project needs to be on GitHub: issues and pull requests are how the team works.</p>
+                <p className="start-tag">Elige una de tus carpetas de proyecto, un repositorio de GitHub o empieza algo nuevo. Todos los proyectos tienen que estar en GitHub: el equipo trabaja con issues y pull requests.</p>
                 <ProjectPicker onConnected={setProject} />
               </>
             )}
@@ -213,21 +208,17 @@ export function SetupWizard() {
         {step === 4 && (
           <>
             <div className="wizard-icon">🏢</div>
-            <h2>{company} is open for business</h2>
+            <h2>{company} abre sus puertas</h2>
             <ul className="start-list">
               <li>
-                🧠 {ceo}{project ? ` is studying ${project.fullName.split('/')[1]}` : ' is waiting for your first project'}.{' '}
-                {scaling === 'approve' ? 'Team changes wait for your OK.' : `Team changes up to ${maxAgents} agents per floor go through on their own.`}
+                🧠 {ceo}{project ? ` está estudiando ${project.fullName.split('/')[1]}` : ' está esperando tu primer proyecto'}.{' '}
+                {scaling === 'approve' ? 'Los cambios de equipo esperan tu visto bueno.' : `Los cambios de equipo de hasta ${maxAgents} agentes por proyecto se aplican solos.`}
               </li>
-              <li>
-                📱 Press <Key action="phone" /> anywhere for your phone: chat with {ceo}, approve team changes, and see every project at a glance.
-              </li>
-              <li>
-                🧭 A short tour starts when you walk in. Press <Key action="help" /> any time for help.
-              </li>
+              <li>➕ Pulsa Lanzar tarea (o Ctrl K) para darle trabajo a un agente libre o pedirle a {ceo} que lo planifique.</li>
+              <li>💬 Chatea con {ceo} y revisa lo que espera tu aprobación desde la barra lateral.</li>
             </ul>
             <button className="btn btn-big" onClick={finish} disabled={busy}>
-              {busy ? 'Opening the doors…' : 'Enter the office'}
+              {busy ? 'Preparando el panel…' : 'Entrar en el panel'}
             </button>
           </>
         )}
@@ -235,17 +226,17 @@ export function SetupWizard() {
         {step > 0 && step < 4 && (
           <div className="wizard-nav">
             <button className="btn btn-ghost" onClick={() => setStep(step - 1)} disabled={busy}>
-              ← Back
+              ← Atrás
             </button>
             <span className="spacer" />
             {step === 3 && !project && (
               <button className="linkish" onClick={() => setStep(4)}>
-                I'll add one later
+                Lo añadiré más tarde
               </button>
             )}
             {(step !== 3 || project) && (
               <button className="btn btn-good" onClick={() => void next()} disabled={busy}>
-                Next →
+                Siguiente →
               </button>
             )}
           </div>

@@ -12,7 +12,7 @@ export interface McpCommand {
   args: string[];
 }
 
-/** The pinned Playwright MCP's CLI script, resolved from cubefarm's own dependencies; null when it isn't installed. */
+/** The pinned Playwright MCP's CLI script, resolved from sareoffice's own dependencies; null when it isn't installed. */
 export function playwrightMcpCli(): string | null {
   try {
     const pkgFile = createRequire(import.meta.url).resolve('@playwright/mcp/package.json');
@@ -38,7 +38,7 @@ export function playwrightMcp(outputDir?: string): McpCommand | null {
   return cli ? playwrightMcpCommand(cli, path.join(import.meta.dirname, 'browser-init.js'), outputDir) : null;
 }
 
-/** Where Playwright's "chrome" channel looks for Google Chrome (bin/cubefarm.js doctor checks the same places). */
+/** Where Playwright's "chrome" channel looks for Google Chrome (bin/sareoffice.js doctor checks the same places). */
 export function chromePaths(platform: NodeJS.Platform = process.platform, env: NodeJS.ProcessEnv = process.env, home = os.homedir()): string[] {
   if (platform === 'win32') {
     return [env.LOCALAPPDATA, env.PROGRAMFILES, env['PROGRAMFILES(X86)']].filter((d): d is string => !!d).map((d) => path.win32.join(d, 'Google', 'Chrome', 'Application', 'chrome.exe'));
@@ -51,7 +51,7 @@ export const hasChrome = () => chromePaths().some((p) => fs.existsSync(p));
 
 /** The one line a session's log shows when browser testing can't work on this machine, or null when it can. */
 export function browserProblem(mcp: McpCommand | null, chrome = hasChrome()): string | null {
-  if (!mcp) return '⚠ The browser tool (@playwright/mcp) is not installed with cubefarm: reinstall it, or run npx cubefarm doctor';
-  if (!chrome) return '⚠ Google Chrome not found, so this session cannot test in a browser: install it, or run npx cubefarm doctor';
+  if (!mcp) return '⚠ La herramienta de navegador (@playwright/mcp) no está instalada con sareoffice: reinstálala o ejecuta npm run doctor';
+  if (!chrome) return '⚠ No se encuentra Google Chrome: esta sesión no puede probar en un navegador. Instálalo o ejecuta npm run doctor';
   return null;
 }

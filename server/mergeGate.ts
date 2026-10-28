@@ -41,21 +41,21 @@ export type MergeStep = { set: MergeBookkeeping } & (
  * and the office. `detailed` means the PR's mergeability has already been asked for, so UNKNOWN is waited out.
  */
 export function mergeStep(pr: MergePull, rec: MergeRecord, now: number, opts: { base: string; detailed?: boolean }): MergeStep {
-  if (pr.isDraft) return { do: 'wait', note: 'a draft: waiting', set: {} };
+  if (pr.isDraft) return { do: 'wait', note: 'borrador: en espera', set: {} };
   if (!opts.detailed && (pr.mergeable === 'UNKNOWN' || pr.mergeState === 'UNKNOWN')) return { do: 'details', set: {} };
   const set: MergeBookkeeping = {};
   if (rec.passedSha == null) set.passedSha = pr.headSha; // signed off before the office tracked commits
   if (pr.headSha !== (set.passedSha ?? rec.passedSha)) return { do: 'requeue', set };
   const needsHuman = rec.mergeFixes >= MAX_MERGE_FIXES;
   if (pr.mergeable === 'CONFLICTING' || pr.mergeState === 'DIRTY') {
-    return { do: 'send-back', reason: 'conflict', instructions: `It conflicts with ${opts.base}.`, needsHuman, set };
+    return { do: 'send-back', reason: 'conflict', instructions: `Tiene conflictos con ${opts.base}.`, needsHuman, set };
   }
   const rerun = rec.rerunSha === pr.headSha;
   if (pr.checks === 'failing') {
     const instructions = pr.failedChecks.map((c) => `- ${c.name}${c.url ? `: ${c.url}` : ''}`).join('\n');
     const runIds = failedRunIds(pr.failedChecks);
     if (!rerun && runIds.length) return { do: 'rerun', runIds, reason: 'checks', instructions, needsHuman, set };
-    if (rerun && rec.rerunAt != null && now - rec.rerunAt < RERUN_GRACE_MS) return { do: 'wait', note: 're-running a failed check', set };
+    if (rerun && rec.rerunAt != null && now - rec.rerunAt < RERUN_GRACE_MS) return { do: 'wait', note: 'relanzando un check fallido', set };
     return { do: 'send-back', reason: 'checks', instructions, needsHuman, set };
   }
   if (pr.checks === 'pending') {
@@ -63,11 +63,11 @@ export function mergeStep(pr: MergePull, rec: MergeRecord, now: number, opts: { 
     if (rec.pendingSince == null) set.pendingSince = since;
     const alert = now - since > CHECKS_ALERT_MS && !rec.alerted;
     if (alert) set.alerted = true;
-    const running = pr.pendingChecks.join(', ') || 'running';
-    return { do: 'wait', note: rerun ? `re-running a failed check: ${running}` : `waiting for checks: ${running}`, alert, set };
+    const running = pr.pendingChecks.join(', ') || 'en curso';
+    return { do: 'wait', note: rerun ? `relanzando un check fallido: ${running}` : `esperando los checks: ${running}`, alert, set };
   }
   set.pendingSince = null;
-  if (pr.mergeable === 'UNKNOWN') return { do: 'wait', note: 'GitHub is checking it can merge', set };
+  if (pr.mergeable === 'UNKNOWN') return { do: 'wait', note: 'GitHub está comprobando si se puede fusionar', set };
   if (pr.mergeState === 'BEHIND') return { do: 'update-branch', set };
   if (rec.mergeRetryAt && now < rec.mergeRetryAt) return { do: 'wait', set };
   return { do: 'merge', set };

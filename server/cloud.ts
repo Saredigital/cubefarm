@@ -1,6 +1,6 @@
 // The cloud account (docs/cloud.md): the Upstash Box API key, and what cloud agents sign in with. Keys and tokens the
 // manager pastes live in secrets.json (never in the state, the snapshot, events, logs or a Box's files). The Claude
-// subscription token is read from the office's environment (CUBEFARM_CLAUDE_TOKEN) and never written down: Anthropic's
+// subscription token is read from the office's environment (SAREOFFICE_CLAUDE_TOKEN) and never written down: Anthropic's
 // terms bar apps like this one from storing Claude.ai tokens. A Box gets each credential only as the environment of
 // the one command that needs it. Without one for its CLI, a cloud agent's CLI uses its own login in their Box, which
 // the manager signs in once in the agent's terminal (Swarm's sign-in): the office never sees that login.
@@ -11,9 +11,9 @@ import { CloudError, type BoxApi, type BoxInfo } from './box.ts';
 import type { AgentCli, CloudCredentialView, CloudView } from '../shared/types.ts';
 
 /** The environment variable the manager keeps their `claude setup-token` token in. */
-export const CLAUDE_TOKEN_ENV = 'CUBEFARM_CLAUDE_TOKEN';
+export const CLAUDE_TOKEN_ENV = 'SAREOFFICE_CLAUDE_TOKEN';
 /** Where a Box session keeps the Anthropic API key for Claude Code's apiKeyHelper (not ANTHROPIC_API_KEY, which asks first). */
-export const ANTHROPIC_KEY_ENV = 'CUBEFARM_ANTHROPIC_KEY';
+export const ANTHROPIC_KEY_ENV = 'SAREOFFICE_ANTHROPIC_KEY';
 
 export interface CloudSecrets {
   upstashBoxKey?: string;
@@ -31,11 +31,11 @@ const TOKEN_FIELD: Record<CloudTokenKind, keyof CloudSecrets> = { github: 'cloud
 export const officeId = () => Math.random().toString(36).slice(2, 8).padEnd(6, '0');
 
 /**
- * A cloud agent's Box: `cubefarm-<office>-<machine>`, so it stands out among Boxes the account has for other apps,
+ * A cloud agent's Box: `sareoffice-<office>-<machine>`, so it stands out among Boxes the account has for other apps,
  * and labels Upstash accepts (≤ 20 characters each, ≤ 5).
  */
-export const boxName = (office: string, machine: string) => `cubefarm-${office}-${machine}`;
-export const boxLabels = (office: string, machine: string) => ['cubefarm', `cf:${office}`, `m:${machine}`];
+export const boxName = (office: string, machine: string) => `sareoffice-${office}-${machine}`;
+export const boxLabels = (office: string, machine: string) => ['sareoffice', `cf:${office}`, `m:${machine}`];
 
 /** The machine a Box is for when it's this office's, else null. */
 export function machineOfBox(box: Pick<BoxInfo, 'labels'>, office: string): string | null {
@@ -74,7 +74,7 @@ export function resolveCredentials(cli: AgentCli, i: CredentialInput): Credentia
   let ownLogin = false;
   const gh = github(i);
   if (gh) env.GH_TOKEN = gh;
-  else missing.push('GitHub (sign in with gh auth login, or paste a token in Settings → Cloud agents)');
+  else missing.push('GitHub (inicia sesión con gh auth login o pega un token en Ajustes → Agentes en la nube)');
   if (cli === 'claude') {
     for (const k of CLAUDE_VARS) env[k] = '';
     if (i.claudeToken) env.CLAUDE_CODE_OAUTH_TOKEN = i.claudeToken;
@@ -204,7 +204,7 @@ export class Cloud {
   async setKey(raw: string): Promise<CloudView> {
     const key = raw.trim();
     if (key) {
-      if (key.length > 400 || /\s/.test(key)) throw new HttpError(400, "That doesn't look like an Upstash Box API key.");
+      if (key.length > 400 || /\s/.test(key)) throw new HttpError(400, 'Eso no parece una clave API de Upstash Box.');
       const api = this.deps.boxes(key);
       try {
         await api.list();
@@ -224,11 +224,11 @@ export class Cloud {
   /** PUT /api/cloud/token: a GitHub token, an Anthropic or an OpenAI API key for cloud agents ('' removes it). */
   async setToken(kind: CloudTokenKind, raw: string): Promise<CloudView> {
     const value = raw.trim();
-    if (value.length > 400 || /\s/.test(value)) throw new HttpError(400, "That doesn't look like a token or an API key.");
+    if (value.length > 400 || /\s/.test(value)) throw new HttpError(400, 'Eso no parece un token ni una clave API.');
     if (kind === 'anthropic' && value.startsWith('sk-ant-oat')) {
-      throw new HttpError(400, `That's a claude setup-token token: it goes in your environment as ${CLAUDE_TOKEN_ENV} (see the steps above), not in the office.`);
+      throw new HttpError(400, `Eso es un token de claude setup-token: va en tu entorno como ${CLAUDE_TOKEN_ENV} (mira los pasos de arriba), no en la oficina.`);
     }
-    if (kind === 'anthropic' && value && !value.startsWith('sk-ant-')) throw new HttpError(400, 'Anthropic API keys start with sk-ant-.');
+    if (kind === 'anthropic' && value && !value.startsWith('sk-ant-')) throw new HttpError(400, 'Las claves API de Anthropic empiezan por sk-ant-.');
     const field = TOKEN_FIELD[kind];
     this.secrets[field] = value || undefined;
     await mergeSecrets(this.deps.secretsFile, { [field]: value || undefined });
@@ -239,7 +239,7 @@ export class Cloud {
   /** POST /api/cloud/test: check the key and count the Boxes again. */
   async test(): Promise<CloudView> {
     await this.refreshGh(true);
-    if (!this.api) throw new HttpError(400, 'Save your Upstash Box API key first.');
+    if (!this.api) throw new HttpError(400, 'Guarda primero tu clave API de Upstash Box.');
     await this.count(true);
     if (this.keyError) throw new HttpError(502, this.keyError);
     return this.view();
@@ -275,7 +275,7 @@ export class Cloud {
 
   /** POST /api/cloud/orphans: delete this office's Boxes whose agent is gone. */
   async deleteOrphans(): Promise<{ deleted: number }> {
-    if (!this.api) throw new HttpError(400, 'Save your Upstash Box API key first.');
+    if (!this.api) throw new HttpError(400, 'Guarda primero tu clave API de Upstash Box.');
     const office = this.deps.office();
     const machines = this.deps.machines();
     const doomed = (await this.count()).filter((b) => b.labels.includes(`cf:${office}`) && !machines.has(machineOfBox(b, office) ?? ''));

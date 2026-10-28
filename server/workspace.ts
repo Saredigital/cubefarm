@@ -48,7 +48,7 @@ async function addLocalExcludes(main: string) {
   const missing = LOCAL_EXCLUDES.filter((l) => !current.split(/\r?\n/).includes(l));
   if (missing.length === 0) return;
   await fs.mkdir(path.dirname(file), { recursive: true });
-  await fs.appendFile(file, `${current && !current.endsWith('\n') ? '\n' : ''}# added by cubefarm\n${missing.join('\n')}\n`);
+  await fs.appendFile(file, `${current && !current.endsWith('\n') ? '\n' : ''}# added by sareoffice\n${missing.join('\n')}\n`);
 }
 
 /** Make sure the floor's worktrees keep LOCAL_EXCLUDES out of git status. */
@@ -203,7 +203,7 @@ function githubFromConfig(config: string): string | null {
 export async function inspectFolder(dir: string): Promise<LocalFolder> {
   const full = path.resolve(dir);
   const stat = await fs.stat(full).catch(() => null);
-  if (!stat?.isDirectory()) throw new Error(`${full} is not a folder`);
+  if (!stat?.isDirectory()) throw new Error(`${full} no es una carpeta`);
   const dotGit = path.join(full, '.git');
   const gitStat = await fs.stat(dotGit).catch(() => null);
   let config = '';
@@ -222,7 +222,7 @@ export async function inspectFolder(dir: string): Promise<LocalFolder> {
 /** The folders directly inside the projects folder, most recently changed first. */
 export async function scanProjects(root: string): Promise<LocalFolder[]> {
   const entries = await fs.readdir(root, { withFileTypes: true }).catch(() => {
-    throw new Error(`Can't read the projects folder ${root}`);
+    throw new Error(`No se puede leer la carpeta de proyectos ${root}`);
   });
   const dirs = entries.filter((e) => e.isDirectory() && !e.name.startsWith('.') && e.name !== 'node_modules');
   const folders = await Promise.all(dirs.map((e) => inspectFolder(path.join(root, e.name)).catch(() => null)));
@@ -259,12 +259,12 @@ export async function publishFolder(dir: string, opts: { name: string; visibilit
   if (!hasCommit) {
     const files = (await fs.readdir(full)).filter((f) => f !== '.git' && f !== 'README.md');
     if (files.length) {
-      throw new Error(`${info.name} has files but no commits yet. Commit what you want on GitHub first (git add, git commit), then publish it.`);
+      throw new Error(`${info.name} tiene ficheros pero aún no tiene commits. Haz primero commit de lo que quieras en GitHub (git add, git commit) y luego publícalo.`);
     }
     await commitReadme(full, opts.name, opts.description ?? '');
   }
   const origin = await git(['remote', 'get-url', 'origin'], { cwd: full }).catch(() => '');
-  if (origin) throw new Error(`${info.name}'s origin (${origin}) isn't on GitHub. cubefarm needs GitHub for issues and pull requests.`);
+  if (origin) throw new Error(`El origin de ${info.name} (${origin}) no está en GitHub. sareoffice necesita GitHub para los issues y las pull requests.`);
   const target = opts.owner ? `${opts.owner}/${opts.name}` : opts.name;
   const args = ['repo', 'create', target, `--${opts.visibility}`, '--source', full, '--remote', 'origin', '--push'];
   if (opts.description) args.push('--description', opts.description);
@@ -277,7 +277,7 @@ export async function createProject(root: string, name: string, opts: { visibili
   const dir = path.join(root, name);
   if (await exists(dir)) {
     const inside = await fs.readdir(dir).catch(() => ['?']);
-    if (inside.length) throw new Error(`${dir} already exists. Pick another name, or connect that folder instead.`);
+    if (inside.length) throw new Error(`${dir} ya existe. Elige otro nombre o conecta esa carpeta.`);
   }
   await fs.mkdir(dir, { recursive: true });
   await git(['init', '-b', 'main'], { cwd: dir });
@@ -328,7 +328,7 @@ async function clearDeskFolder(wt: string) {
     const left = await fs.readdir(wt).catch(() => null);
     if (left?.length !== 0) {
       throw new Error(
-        `Could not clear the desk folder ${wt}: ${(err as Error).message}. A program started by the previous task is probably still running there. Close it and try again.`,
+        `No se ha podido vaciar la carpeta del puesto ${wt}: ${(err as Error).message}. Seguramente un programa lanzado por la tarea anterior sigue ejecutándose ahí. Ciérralo y vuelve a intentarlo.`,
       );
     }
   }
@@ -356,8 +356,8 @@ async function setUpWorktree(main: string, wt: string, fullName: string, base: D
   } catch {
     throw new Error(
       base.pr
-        ? `Could not fetch pull request #${base.pr} of ${fullName}.`
-        : `${fullName} has no ${base.defaultBranch} branch yet. Push an initial commit (or create the repo with a README) before assigning work.`,
+        ? `No se ha podido traer la pull request #${base.pr} de ${fullName}.`
+        : `${fullName} aún no tiene la rama ${base.defaultBranch}. Sube un commit inicial (o crea el repo con un README) antes de asignar trabajo.`,
     );
   }
 
@@ -370,7 +370,7 @@ async function setUpWorktree(main: string, wt: string, fullName: string, base: D
   const worktrees = await Promise.all(parseWorktrees(await git(['worktree', 'list', '--porcelain'], { cwd: main })).map(async (w) => ({ ...w, path: await real(w.path) })));
   const holder = branchHolder(worktrees, branch, await real(wt));
   const local = holder ? null : branch;
-  if (holder) note?.(`${branch} is checked out at ${holder}, so this desk works on it as a detached HEAD at ${ref}; push with git push origin HEAD:${branch}.`);
+  if (holder) note?.(`${branch} está en uso en ${holder}, así que este puesto trabaja en ella como HEAD separado en ${ref}; haz push con git push origin HEAD:${branch}.`);
 
   // Reuse the desk's worktree in place. Deleting it fails on Windows while any process (a dev server
   // the agent left running, a browser) still has its working directory inside, and reuse keeps
@@ -384,13 +384,13 @@ async function setUpWorktree(main: string, wt: string, fullName: string, base: D
         const lock = /index\.lock/.test((err as Error).message) ? await staleIndexLock(wt) : null;
         if (!lock) throw err;
         await fs.rm(lock, { force: true, maxRetries: 3 });
-        note?.(`Removed a stale git lock (${lock}) left in the desk.`);
+        note?.(`Eliminado un bloqueo de git abandonado (${lock}) en el puesto.`);
         await reuseDesk(wt, local, ref);
       }
       return wt;
     } catch (err) {
       // Rebuild the worktree from scratch, but say why: the rebuild can fail in its own way.
-      const why = `Couldn't reuse the desk in place, so it's rebuilt: ${(err as Error).message}`;
+      const why = `No se ha podido reutilizar el puesto tal cual, así que se reconstruye: ${(err as Error).message}`;
       console.warn(`${wt}: ${why}`);
       note?.(why);
     }
@@ -424,7 +424,7 @@ export function removeDesk(fullName: string, agentSlug: string, main = mainDir(f
 
 // ---------- desk sweep ----------
 
-// Homes the office lived in before (Office Swarm became cubefarm): desks there can still be registered in a checkout.
+// Homes the office lived in before (Office Swarm became sareoffice): desks there can still be registered in a checkout.
 const OLD_HOMES = ['.office-swarm'];
 const OFFICE_BRANCH = /^(swarm\/issue-|qa\/pr-)/;
 

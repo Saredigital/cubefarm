@@ -54,7 +54,7 @@ export function fixOutcome(rec: FixRecord, head: string | null, minutes: number,
     // A re-run of a red check: QA re-tests the same commit, which costs neither a QA round nor a failed session.
     return {
       set: { status: 'queued', round: rec.round + 1, retests: rec.retests + 1, sessionFailures: 0 },
-      log: { kind: 'done', text: `✔ PR #${pr}'s failed checks were re-run in ${minutes}m. Back to QA.` },
+      log: { kind: 'done', text: `✔ Checks fallidos de la PR #${pr} repetidos en ${minutes} min. Vuelve a QA.` },
       pushed: true,
     };
   }
@@ -63,9 +63,9 @@ export function fixOutcome(rec: FixRecord, head: string | null, minutes: number,
     const needsHuman = sessionFailures >= MAX_FIX_FAILURES;
     return {
       set: needsHuman
-        ? { status: 'needs-human', sessionFailures, mergeNote: rec.fixReason === 'conflict' ? 'the conflict was never resolved' : 'the fix was never pushed' }
+        ? { status: 'needs-human', sessionFailures, mergeNote: rec.fixReason === 'conflict' ? 'no se resolvió el conflicto' : 'no se subió la corrección' }
         : { status: 'failed', sessionFailures },
-      log: { kind: 'error', text: `✗ No new commits were pushed for PR #${pr}` },
+      log: { kind: 'error', text: `✗ No se han subido commits nuevos para la PR #${pr}` },
       pushed: false,
     };
   }
@@ -73,14 +73,14 @@ export function fixOutcome(rec: FixRecord, head: string | null, minutes: number,
     // QA hadn't tested it yet: it gets the test it was queued for, on the merged head. Not one of QA's rounds.
     return {
       set: { status: 'queued', round: rec.round + 1, retests: rec.retests + 1, sessionFailures: 0, fixReason: rec.preQa.fixReason, preQa: null },
-      log: { kind: 'done', text: `✔ PR #${pr} brought up to date in ${minutes}m. Back to QA.` },
+      log: { kind: 'done', text: `✔ PR #${pr} actualizada en ${minutes} min. Vuelve a QA.` },
       pushed: true,
     };
   }
   // A conflict fix for a PR QA failed on its last round (passedSha null) also fixed QA's findings: QA re-tests it.
   if (rec.fixReason === 'checks' || (rec.fixReason === 'conflict' && rec.passedSha)) {
     // Back in line to merge: new commits go through QA again first, a re-run of flaky checks doesn't.
-    return { set: { status: 'passed', sessionFailures: 0, mergeNote: 'waiting for fresh checks' }, log: { kind: 'done', text: `✔ PR #${pr} fixed in ${minutes}m. Back in line to merge.` }, pushed: true };
+    return { set: { status: 'passed', sessionFailures: 0, mergeNote: 'esperando nuevos checks' }, log: { kind: 'done', text: `✔ PR #${pr} corregida en ${minutes} min. Vuelve a la cola de merge.` }, pushed: true };
   }
-  return { set: { status: 'queued', round: rec.round + 1, sessionFailures: 0 }, log: { kind: 'done', text: `✔ Fix pushed for PR #${pr} in ${minutes}m. Back to QA.` }, pushed: true };
+  return { set: { status: 'queued', round: rec.round + 1, sessionFailures: 0 }, log: { kind: 'done', text: `✔ Corrección subida para la PR #${pr} en ${minutes} min. Vuelve a QA.` }, pushed: true };
 }

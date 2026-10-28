@@ -1,13 +1,14 @@
 :root {
-  --ink: #1f1d2b;
+  --ink: #0d0d1a;
   --paper: #fffdf6;
-  --muted: #62667b; /* 4.5:1 or better on every panel, card and code background */
+  --muted: #3c4654; /* 4.5:1 or better on every panel, card and code background */
   --good: #2dc653;
   --bad: #ef476f;
-  --warn: #ffb703;
-  --accent: #ff8a5b;
-  --font: Fredoka, 'Segoe UI', system-ui, sans-serif;
-  --mono: 'JetBrains Mono', Consolas, monospace;
+  --warn: #ffc107;
+  --accent: #ffc107;
+  --on-accent: #0d0d1a; /* text on an accent fill: the amber needs dark ink */
+  --font: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', Consolas, monospace;
   color-scheme: light;
 }
 
@@ -129,8 +130,7 @@ code {
   padding: 14px 32px;
   border-radius: 18px;
   background: var(--accent);
-  color: #fff;
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+  color: var(--on-accent);
   box-shadow: 0 5px 0 var(--ink);
 }
 a.btn {
@@ -352,8 +352,7 @@ input.inline:focus {
   border: 3px solid var(--ink);
   font-weight: 700;
   font-size: 1.5rem;
-  color: #fff;
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+  color: var(--on-accent);
   flex: none;
 }
 .floor-name {
@@ -411,7 +410,7 @@ input.inline:focus {
   transform: translateY(-1px);
 }
 .office-chip:focus-visible {
-  outline: 3px solid var(--accent, #ff8a5b);
+  outline: 3px solid var(--accent, #ffc107);
   outline-offset: 2px;
 }
 .crosshair {
@@ -610,7 +609,7 @@ input.inline:focus {
   transform-origin: left;
 }
 .charge-full .charge-fill {
-  background: #ff8a5b;
+  background: #ffc107;
 }
 /* Ping-pong: the score at the top of the screen while you play, and what just happened under it. */
 .hud-pong {
@@ -1072,10 +1071,8 @@ input.inline:focus {
   overflow: auto;
 }
 .start-logo {
-  font-size: 4rem;
-  line-height: 1;
-  color: var(--accent);
-  animation: spin 12s linear infinite;
+  width: 96px;
+  height: 96px;
   display: inline-block;
 }
 @keyframes spin {
@@ -1209,7 +1206,7 @@ input.inline:focus {
 .mouse-sens input[type='range'] {
   flex: 1;
   max-width: 260px;
-  accent-color: var(--accent, #ff8a5b);
+  accent-color: var(--accent, #ffc107);
 }
 .mouse-sens b {
   min-width: 3.4em;
@@ -1228,7 +1225,7 @@ input.inline:focus {
   font-size: 0.92rem;
 }
 .day-settings input[type='radio'] {
-  accent-color: var(--accent, #ff8a5b);
+  accent-color: var(--accent, #ffc107);
 }
 
 /* Help → Controls (ControlsSettings.tsx) */
@@ -1388,10 +1385,9 @@ input.inline:focus {
   border-radius: 50%;
   border: 3px solid var(--ink);
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-weight: 700;
   font-size: 1.5rem;
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
 }
 .floor-btn-name {
   font-weight: 700;
@@ -2355,10 +2351,9 @@ input.inline:focus {
   border-radius: 10px;
   background: var(--accent);
   border: 2.5px solid var(--ink);
-  color: #fff;
+  color: var(--on-accent);
   font-weight: 700;
   flex: none;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
 }
 .office-card {
   border-left: 12px solid var(--ink);
@@ -3877,10 +3872,9 @@ input.inline:focus {
   border-bottom: 3px solid var(--ink);
 }
 .pk-logo {
-  font-size: 1.5rem;
-  line-height: 1;
-  color: #fff;
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+  width: 28px;
+  height: 28px;
+  flex: none;
 }
 .pk-title {
   min-width: 0;

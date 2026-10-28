@@ -58,13 +58,13 @@ describe('VAPID', () => {
   it('signs an ES256 JWT for the push service origin that verifies with the public key', () => {
     const keys = generateVapidKeys();
     const now = Date.UTC(2026, 9, 4, 12);
-    const auth = vapidAuthorization('https://fcm.googleapis.com/fcm/send/abc', keys, 'https://github.com/leonvanzyl/cubefarm', now);
+    const auth = vapidAuthorization('https://fcm.googleapis.com/fcm/send/abc', keys, 'https://github.com/Saredigital/cubefarm', now);
     const m = auth.match(/^vapid t=([\w-]+)\.([\w-]+)\.([\w-]+), k=([\w-]+)$/);
     expect(m).not.toBeNull();
     const [, header, claims, sig, k] = m!;
     expect(k).toBe(keys.publicKey);
     expect(JSON.parse(Buffer.from(header, 'base64url').toString())).toEqual({ typ: 'JWT', alg: 'ES256' });
-    expect(JSON.parse(Buffer.from(claims, 'base64url').toString())).toEqual({ aud: 'https://fcm.googleapis.com', exp: now / 1000 + 12 * 3600, sub: 'https://github.com/leonvanzyl/cubefarm' });
+    expect(JSON.parse(Buffer.from(claims, 'base64url').toString())).toEqual({ aud: 'https://fcm.googleapis.com', exp: now / 1000 + 12 * 3600, sub: 'https://github.com/Saredigital/cubefarm' });
     const pub = Buffer.from(keys.publicKey, 'base64url');
     const key = crypto.createPublicKey({ format: 'jwk', key: { kty: 'EC', crv: 'P-256', x: pub.subarray(1, 33).toString('base64url'), y: pub.subarray(33).toString('base64url') } });
     expect(crypto.verify('sha256', Buffer.from(`${header}.${claims}`), { key, dsaEncoding: 'ieee-p1363' }, Buffer.from(sig, 'base64url'))).toBe(true);
@@ -79,7 +79,7 @@ describe('VAPID', () => {
   });
 
   it('builds the request a push service expects', () => {
-    const req = pushRequest(rfcSub, '{"title":"hi"}', generateVapidKeys(), 'https://github.com/leonvanzyl/cubefarm');
+    const req = pushRequest(rfcSub, '{"title":"hi"}', generateVapidKeys(), 'https://github.com/Saredigital/cubefarm');
     expect(req.url).toBe(rfcSub.endpoint);
     expect(req.headers).toMatchObject({ 'Content-Encoding': 'aes128gcm', TTL: '86400', Urgency: 'high' });
     expect(req.headers.Authorization).toMatch(/^vapid t=/);
