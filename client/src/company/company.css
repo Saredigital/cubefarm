@@ -1,25 +1,6 @@
 .company-workspace { color: #eef0f8; font-family: inherit; line-height: 1.5; max-width: 1360px; margin: auto; }
 .company-standalone { position: fixed; inset: 0; overflow: auto; background: #171824; padding: 24px; box-sizing: border-box; }
-.co-public-office { position: fixed; inset: 0; }
-.co-office-hud { position: absolute; inset: 0; pointer-events: none; }
-.co-office-prompt { position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%); max-width: calc(100% - 40px); padding: 12px 16px; border-radius: 10px; background: #171824ed; color: #fff; text-align: center; }
-.co-office-legend { position: absolute; left: 20px; right: 190px; bottom: 15px; padding: 12px 16px; border-radius: 10px; background: #171824ed; color: #eee; font-size: 12px; line-height: 1.8; }
-.co-office-legend small { display: block; color: #c8cbd8; }
-.co-office-hud kbd, .co-office-help kbd { display: inline-block; padding: 0 5px; border: 1px solid #838598; border-radius: 4px; background: #343646; color: #fff; font: inherit; }
-.co-office-phone { position: absolute; right: 20px; bottom: 20px; min-height: 58px; pointer-events: auto; }
-.co-panel.co-phone { width: min(560px, 96vw); }
-.co-phone .panel-body { padding: 16px; }
-.co-phone .co-heading > div p { display: none; }
-.co-phone .co-work-layout, .co-phone .co-mail-grid, .co-phone .co-calendar { grid-template-columns: minmax(0, 1fr); }
 .co-coordinator h3 { margin-top: 24px; }
-.co-office-help p { margin: 15px 0; }
-@media (max-width: 700px) { .co-office-legend { left: 12px; right: 12px; bottom: 86px; font-size: 11px; }.co-office-phone { right: 12px; bottom: 16px; min-height: 48px; }.co-office-prompt { bottom: 210px; font-size: 12px; } }
-.co-public-empty { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); width: min(450px, calc(100% - 40px)); padding: 24px; border-radius: 12px; background: #171824ed; color: #eef0f8; }
-.co-public-hud { position: absolute; top: 15px; left: 15px; right: 15px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; color: #eef0f8; background: #171824ed; border: 1px solid #686575; border-radius: 12px; padding: 12px 16px; }
-.co-public-hud label { display: flex; align-items: center; gap: 8px; }
-.co-public-hud select { font: inherit; padding: 7px; border-radius: 6px; max-width: 220px; }
-.co-public-hud a { color: #ffe192; }
-.co-public-help, .co-public-loading { position: absolute; left: 20px; right: 20px; bottom: 15px; background: #171824ed; color: #eee; border-radius: 8px; padding: 10px; font-size: 12px; pointer-events: none; }
 .co-panel { width: min(1240px, 96vw); max-width: 96vw; }
 .co-panel .company-workspace { width: 100%; min-width: 0; }
 .co-panel .co-heading { flex-wrap: wrap; }
@@ -95,8 +76,7 @@
 .co-mail-grid { display: grid; grid-template-columns: minmax(180px, .6fr) minmax(0, 1.4fr); gap: 20px; }
 .co-mail-list { display: grid; gap: 10px; align-content: start; }
 .co-private { font-size: 12px; color: #b4dcf0; }
-.company-launch { position: absolute; right: 24px; bottom: 88px; pointer-events: auto; z-index: 12; }
 .pk-main .company-workspace { padding: 18px 15px 30px; }
 .co-deliverable { margin: 18px 0; padding-top: 10px; border-top: 1px solid #4b4d63; }
 .co-social-media { display: block; max-width: 100%; width: 420px; max-height: 340px; object-fit: contain; background: #10111b; margin: 12px 0; border-radius: 8px; }
-@media (max-width: 700px) { .co-heading { flex-direction: column; gap: 10px; }.co-panel .panel-body { padding: 15px; }.co-work-layout, .co-mail-grid, .co-calendar { grid-template-columns: minmax(0, 1fr); }.co-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }.co-metrics > div { padding: 10px; }.co-metrics b { font-size: 22px; }.co-card { padding: 15px; }.co-tabs { position: sticky; top: -1px; background: #171824; z-index: 2; padding-top: 8px; }.co-form .btn { min-height: 44px; }.co-task { min-height: 80px; }.company-launch { right: 12px; bottom: 85px; } }
+@media (max-width: 700px) { .co-heading { flex-direction: column; gap: 10px; }.co-panel .panel-body { padding: 15px; }.co-work-layout, .co-mail-grid, .co-calendar { grid-template-columns: minmax(0, 1fr); }.co-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }.co-metrics > div { padding: 10px; }.co-metrics b { font-size: 22px; }.co-card { padding: 15px; }.co-tabs { position: sticky; top: -1px; background: #171824; z-index: 2; padding-top: 8px; }.co-form .btn { min-height: 44px; }.co-task { min-height: 80px; } }

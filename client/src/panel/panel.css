@@ -937,3 +937,101 @@
   flex-wrap: wrap;
   gap: 6px;
 }
+
+/* the company workspace (company.css is dark, for pocket mode and /?company=1) in the panel's light look */
+.cp .company-workspace {
+  color: var(--cp-ink);
+  max-width: none;
+}
+.cp .company-workspace :is(.muted, .co-heading p, .co-session, .co-metrics span, .co-card dt, .co-task > span:last-child, .co-comment small, .co-empty) {
+  color: var(--cp-muted);
+}
+.cp .company-workspace a {
+  color: var(--cp-accent);
+}
+.cp :is(.co-heading, .co-tabs) {
+  border-color: var(--cp-border);
+}
+.cp .co-eyebrow,
+.cp .co-department-link > span:last-child {
+  color: var(--cp-accent);
+}
+.cp .co-mode {
+  border-color: #c7d5fb;
+  color: var(--cp-accent-ink);
+  background: var(--cp-accent-soft);
+}
+.cp .co-tabs button {
+  color: var(--cp-muted);
+}
+.cp .co-tabs button[aria-current] {
+  color: var(--cp-accent-ink);
+  background: var(--cp-accent-soft);
+  border-color: #c7d5fb;
+}
+.cp :is(.co-card, .co-metrics > div, .co-task) {
+  background: var(--cp-surface);
+  border-color: var(--cp-border);
+  color: var(--cp-ink);
+}
+.cp .co-metrics b,
+.cp .co-create > summary {
+  color: var(--cp-accent-ink);
+}
+.cp .co-floor {
+  background: var(--cp-accent);
+  color: #fff;
+}
+.cp .co-field > span {
+  color: var(--cp-ink);
+}
+.cp .co-field :is(input, textarea, select) {
+  background: #fff;
+  color: var(--cp-ink);
+  border-color: #d5d8df;
+}
+.cp :is(.co-form fieldset, .co-create, .co-calendar-entry, .co-deliverable, .co-empty) {
+  border-color: var(--cp-border);
+}
+.cp .company-workspace pre {
+  background: var(--cp-bg);
+  border-color: var(--cp-border);
+  color: var(--cp-ink);
+}
+.cp .co-selected {
+  border-color: var(--cp-accent);
+  background: #f5f8ff;
+}
+.cp .co-notice {
+  background: #e6f4ec;
+  color: #1e5c3a;
+  border-color: #9fd3b4;
+}
+.cp .co-error {
+  background: #fdecea;
+  color: #8c1d13;
+  border-color: #f2b8b5;
+}
+.cp .co-status {
+  background: #eef0f3;
+  border-color: #d5d8df;
+  color: #3d4350;
+}
+.cp .co-status-completed {
+  background: #e6f4ec;
+  border-color: #9fd3b4;
+  color: #1e7a46;
+}
+.cp .co-status-blocked {
+  background: #fdecea;
+  border-color: #f2b8b5;
+  color: #b42318;
+}
+.cp .co-status-in_review {
+  background: #fff4e0;
+  border-color: #f5c77a;
+  color: #8a4b00;
+}
+.cp .company-workspace :is(button, summary, input, select, textarea):focus-visible {
+  outline-color: var(--cp-accent);
+}
