@@ -2,7 +2,7 @@ import { createSdkMcpServer, tool, type McpSdkServerConfigWithInstance } from '@
 import { z } from 'zod';
 import { blockers, holdUps, setDependsOn } from '../shared/issues.ts';
 import { PREVIEW_ENV_MAX_CHARS } from '../shared/previewEnv.ts';
-import { FLOOR_SEATS, type AgentCli, type CeoJobKind, type QaStatus } from '../shared/types.ts';
+import { FLOOR_SEATS, type AgentCli, type CeoJobKind, type EffortLevel, type QaStatus } from '../shared/types.ts';
 import { HttpError } from './httpError.ts';
 import { LANGUAGE, ONE_TURN } from './prompts.ts';
 import { MAX_TRIAGES, type TriagePr } from './triage.ts';
@@ -27,13 +27,20 @@ export interface CeoJob {
 /** Jobs the manager started by asking for work: a plan from their brief, or their message. Only these may file issues. */
 export const askedFor = (job: Pick<CeoJob, 'kind'>) => job.kind === 'plan' || job.kind === 'chat';
 
+const EFFORT_ORDER: EffortLevel[] = ['low', 'medium', 'high', 'xhigh', 'max'];
+
+/** A chat waits on the manager, so it thinks at medium at most; reviews and plans keep the CEO's own effort. */
+export const ceoJobEffort = (job: Pick<CeoJob, 'kind'>, effort: EffortLevel): EffortLevel =>
+  job.kind === 'chat' && EFFORT_ORDER.indexOf(effort) > EFFORT_ORDER.indexOf('medium') ? 'medium' : effort;
+
 export interface OfficeHandlers {
   companyStatus(): string;
   agentDetail(a: { agent_id: string }): string;
   setFloorProfile(a: { floor: number; summary?: string; qa_brief?: string; preview_command?: string; preview_env?: Record<string, string> }): string;
   scaleTeam(a: { floor: number; size: number; reason: string; cli?: AgentCli; model?: string; effort?: string }): string;
   configureAgent(a: { agent_id: string; cli?: AgentCli | ''; model?: string; effort?: string }): string;
-  fileIssue(a: { floor: number; title: string; body: string }): Promise<string>;
+  fileIssue(a: { floor: number; title: string; body: string; analysis?: boolean }): Promise<string>;
+  readReport(a: { floor: number; number: number }): string;
   setDependencies(a: { floor: number; number: number; depends_on: number[] }): Promise<string>;
   closeIssue(a: { floor: number; number: number; reason: string }): Promise<string>;
   retryQa(a: { floor: number; pr: number }): Promise<string>;
@@ -41,6 +48,8 @@ export interface OfficeHandlers {
   rerunChecks(a: { floor: number; pr: number }): Promise<string>;
   closePull(a: { floor: number; pr: number; comment: string }): Promise<string>;
   escalate(a: { floor: number; pr: number; reason: string }): Promise<string>;
+  /** A tool is about to run: the office sees it even when the CLI doesn't report its steps (Codex without hooks). */
+  called?(name: string, args: Record<string, unknown>): void;
 }
 
 export interface OfficeTools {
@@ -130,9 +139,16 @@ export function createOfficeTools(h: OfficeHandlers): OfficeTools {
       {
         floor: z.number().int(),
         title: z.string().max(120),
-        body: z.string().max(6000).describe('Contexto, qué construir, criterios de aceptación'),
+        body: z.string().max(6000).describe('Contexto, qué construir, criterios de aceptación; en un análisis, qué hay que averiguar'),
+        analysis: z.boolean().optional().describe('true para un análisis: el agente investiga y escribe un informe, sin tocar código ni abrir una PR. Úsalo cuando el responsable pide estudiar, analizar o valorar algo antes de construirlo'),
       },
       (a) => run(() => h.fileIssue(a)),
+    ),
+    tool(
+      'read_report',
+      'Lee el informe de un análisis terminado (company_status lista los recientes de cada planta). Úsalo antes de convertir sus conclusiones en issues.',
+      { floor: z.number().int(), number: z.number().int().positive().describe('El número del issue del análisis') },
+      (a) => run(() => h.readReport(a)),
     ),
     tool(
       'set_dependencies',
@@ -184,7 +200,13 @@ export function createOfficeTools(h: OfficeHandlers): OfficeTools {
       { floor: z.number().int(), pr: z.number().int().positive(), reason: z.string().min(1).max(300).describe('Una línea: qué falla y qué tiene que decidir el responsable') },
       (a) => run(() => h.escalate(a)),
     ),
-  ];
+  ].map((d) => ({
+    ...d,
+    handler: (args: Record<string, unknown>, extra: unknown) => {
+      h.called?.(d.name, args ?? {});
+      return (d.handler as (a: unknown, e: unknown) => ReturnType<typeof d.handler>)(args, extra);
+    },
+  }));
   const server = createSdkMcpServer({ name: 'office', version: '1.0.0', tools: defs });
   return {
     server,

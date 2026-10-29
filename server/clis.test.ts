@@ -57,6 +57,10 @@ describe('trustKey', () => {
 });
 
 describe('hookReviewKey', () => {
+  it('skips the current Codex review screen without trusting hooks', () => {
+    expect(hookReviewKey('Hooks need review\n› 1. Review hooks\n  2. Trust all and continue\n  3. Continue without trusting (hooks won’t run)\n enter confirm · esc skip')).toBe('escape');
+    expect(hookReviewKey('Working\nesc to interrupt')).toBeNull();
+  });
   const review = (selected: 1 | 3) =>
     ['  Hooks need review', '  5 hooks are new or changed.', `${selected === 1 ? '›' : ' '} 1. Review hooks`, '  2. Trust all and continue', `${selected === 3 ? '›' : ' '} 3. Continue without trusting (hooks won't run)`].join('\n');
 

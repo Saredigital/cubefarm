@@ -151,7 +151,7 @@ export function ModelInput({ agent, id, className = 'inline', style }: FieldProp
 export function EffortSelect({ agent, id, style }: FieldProps) {
   const defaultEffort = useStore((s) => s.settings.defaultEffort);
   return (
-    <select id={id} value={agent.effort} title={agent.role === 'ceo' ? 'El esfuerzo del CEO' : 'Su esfuerzo'} aria-label={id ? undefined : 'Esfuerzo'} style={style} onChange={(e) => void save(agent.id, { effort: e.target.value as EffortLevel | '' })}>
+    <select id={id} value={agent.effort} title={agent.role === 'ceo' ? 'El esfuerzo del CEO en revisiones y planes; en el chat piensa como mucho en medium para contestar antes' : 'Su esfuerzo'} aria-label={id ? undefined : 'Esfuerzo'} style={style} onChange={(e) => void save(agent.id, { effort: e.target.value as EffortLevel | '' })}>
       {(agent.role !== 'ceo' || !agent.effort) && <option value="">predeterminado ({defaultEffort})</option>}
       {EFFORTS.map((x) => (
         <option key={x} value={x}>

@@ -3,7 +3,7 @@
 import type { Agent } from '../store';
 
 export type PanelPage = 'overview' | 'project' | 'agents' | 'approvals' | 'ceo' | 'company' | 'settings';
-export type ProjectTab = 'board' | 'agents' | 'settings';
+export type ProjectTab = 'board' | 'agents' | 'reports' | 'settings';
 
 export interface PanelRoute {
   page: PanelPage;
@@ -12,7 +12,7 @@ export interface PanelRoute {
 }
 
 const PAGES: PanelPage[] = ['overview', 'project', 'agents', 'approvals', 'ceo', 'company', 'settings'];
-const TABS: ProjectTab[] = ['board', 'agents', 'settings'];
+const TABS: ProjectTab[] = ['board', 'agents', 'reports', 'settings'];
 
 /** The route in a location hash: #/project/<owner/name>/<tab>, #/agents … (anything else: the overview). */
 export function parseRoute(hash: string): PanelRoute {
@@ -71,9 +71,11 @@ export function taskIssue(text: string): { title: string; body: string } {
   return { title, body };
 }
 
-/** What the CEO is asked when a task is handed to them to plan. */
-export function ceoTask(project: string, text: string): string {
-  return `Nueva tarea para el proyecto ${project}. Planifícala: divídela en issues con sus dependencias (Depends on #N) y repártelas.\n\n${text.trim()}`;
+/** What the CEO is asked when a task is handed to them to plan (analysis: to open as analyses, reported without code). */
+export function ceoTask(project: string, text: string, analysis = false): string {
+  return analysis
+    ? `Nuevo análisis para el proyecto ${project}. Ábrelo con file_issue y analysis: true (varios si son preguntas independientes); el agente escribirá un informe sin tocar código.\n\n${text.trim()}`
+    : `Nueva tarea para el proyecto ${project}. Planifícala: divídela en issues con sus dependencias (Depends on #N) y repártelas.\n\n${text.trim()}`;
 }
 
 /** Relative time in Spanish, short: "ahora", "hace 5 min", "hace 2 h", "hace 3 d". */

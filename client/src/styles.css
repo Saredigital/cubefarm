@@ -3068,6 +3068,12 @@ input.inline:focus {
   color: #d9480f;
   font-weight: 600;
 }
+.ceo-step {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
 .chat-log {
   flex: 1;
   overflow: auto;

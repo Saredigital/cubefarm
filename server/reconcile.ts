@@ -4,6 +4,8 @@
 // in line without a strike. A session started in a desk folder that's gone dies at once (Windows exit 267, "the
 // directory name is invalid"), so no session ever starts without its desk (sessionStart).
 
+import type { AgentTask } from '../shared/types.ts';
+
 export type WorkState = 'open' | 'closed' | 'merged' | 'unknown';
 
 /** The work's state from GitHub's answers (null: not asked, or no answer). A merged PR wins; a closed issue or PR ends it. */
@@ -18,7 +20,7 @@ export interface ReconcileAgent {
   role: string;
   /** Their status when the office stopped. */
   status: string;
-  task: 'issue' | 'qa' | 'fix' | null;
+  task: AgentTask | null;
   work: WorkState;
   deskExists: boolean;
   /** A CLI the terminal keeper kept working on this task (restartRecovery.ts followKeptCli). */

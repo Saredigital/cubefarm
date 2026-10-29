@@ -104,6 +104,38 @@ export function devSystemPrompt({ agent: a, repo, port, cwd, branch, linked, fix
     .join('\n');
 }
 
+export interface AnalysisPromptInput {
+  agent: PromptAgent;
+  repo: PromptFloor;
+  cwd: string;
+  linked: { fullName: string; dir: string }[];
+}
+
+/** An issue labelled swarm:analysis: investigate and report, in the final message, without changing anything. */
+export function analysisSystemPrompt({ agent: a, repo, cwd, linked }: AnalysisPromptInput) {
+  const links = linked.map((r) => `- ${r.fullName}: clon de referencia de solo lectura en ${r.dir}`);
+  return [
+    `Eres ${a.name} y trabajas en un equipo autónomo de agentes ("sareoffice"). En esta tarea haces un análisis: investigas una funcionalidad, un problema o una decisión y escribes un informe para el responsable. Nadie está mirando en directo: decide tú y deja tus suposiciones en el informe.`,
+    '',
+    `Repositorio: ${repo.fullName} (rama por defecto: ${repo.defaultBranch})`,
+    repo.summary ? `Proyecto: ${repo.summary}` : '',
+    repo.mission ? `Lo que construye el equipo (encargo del responsable): ${repo.mission}` : '',
+    `Tu worktree: ${cwd}`,
+    links.length ? `Repositorios relacionados que puedes leer como contexto:\n${links.join('\n')}` : '',
+    '',
+    'Cómo trabajar:',
+    '1. Lee el issue y explora el código, la documentación y el historial de git que hagan falta.',
+    '2. Puedes ejecutar comandos para entender el comportamiento, pero no instales dependencias salvo que la pregunta lo exija.',
+    '3. Tu mensaje final es el informe, en markdown: resumen en dos o tres frases; hallazgos con rutas de ficheros; opciones o propuesta con sus riesgos y esfuerzo aproximado; y, si procede, una lista de issues concretos que harían falta.',
+    '',
+    'Reglas: no modifiques ficheros del repositorio, no hagas commits ni push, no abras pull requests ni issues y no comentes en GitHub. La oficina guarda tu informe, lo publica en el issue y lo cierra.',
+    LANGUAGE,
+    ONE_TURN,
+  ]
+    .filter((l) => l !== '')
+    .join('\n');
+}
+
 export function qaSystemPrompt({ agent: a, repo, port, cwd, branch, pr, depsLine, testStep }: QaPromptInput) {
   return [
     `Eres ${a.name} y desarrollas software en un equipo autónomo de agentes ("sareoffice"). En esta tarea haces de QA: revisas y verificas de forma independiente una pull request antes de que se fusione. Tu aprobación es la revisión: ${repo.autoMerge ? 'en esta planta, una PR que apruebas se fusiona sola en cuanto los checks de GitHub están en verde, así que nadie más lee el código después de ti. ' : ''}Sé minucioso y escéptico, pero justo: suspende una PR solo por problemas reales (comportamiento roto, tests o build que fallan, requisitos del issue sin cumplir, regresiones evidentes), no por preferencias de estilo.`,
@@ -161,6 +193,7 @@ export function agentPromptPreview({ slug, linked, ...i }: PreviewInput): AgentP
       { label: 'Construir un issue', text: devSystemPrompt({ ...i, linked, cwd, branch: devBranch(PLACEHOLDERS.issue, slug) }) },
       { label: 'Probar una pull request', text: qaSystemPrompt({ ...i, cwd, branch: qaBranch(PLACEHOLDERS.pr, slug), pr }) },
       { label: 'Corregir una pull request', text: devSystemPrompt({ ...i, linked, cwd, branch: PLACEHOLDERS.branch, fixing: { pr: PLACEHOLDERS.pr, headRef: PLACEHOLDERS.branch } }) },
+      { label: 'Analizar un issue', text: analysisSystemPrompt({ agent: i.agent, repo: i.repo, cwd, linked }) },
     ],
   };
 }

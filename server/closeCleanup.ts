@@ -6,6 +6,7 @@
 // open issues (100) and open (50) and recently merged (8) PRs, so what the office still holds that the lists don't show
 // is asked about directly, and what it learns is newer than a list fetched before it.
 
+import type { AgentTask } from '../shared/types.ts';
 import { issuesResolvedBy } from './issueClaims.ts';
 
 export type PullState = 'OPEN' | 'CLOSED' | 'MERGED';
@@ -74,7 +75,7 @@ export interface Holder {
   id: string;
   role: string;
   status: string;
-  task: 'issue' | 'qa' | 'fix' | null;
+  task: AgentTask | null;
   issueNumber: number | null;
   prNumber: number | null;
   branch: string | null;

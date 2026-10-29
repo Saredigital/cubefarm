@@ -4,7 +4,7 @@
 // nobody on it goes back in its queue. At most one remedy per item per hour: anything that's still stuck after that,
 // or has no safe remedy, becomes a finding for the office doctor, with the console's own buttons to fix it.
 
-import type { DoctorFinding, DoctorFix } from '../shared/types.ts';
+import type { AgentTask, DoctorFinding, DoctorFix } from '../shared/types.ts';
 import type { WorkState } from './reconcile.ts';
 
 /** A session with no output and no tool activity for this long is quiet. */
@@ -26,7 +26,7 @@ export interface WatchAgent {
   repoId: string;
   role: string;
   status: string;
-  task: 'issue' | 'qa' | 'fix' | null;
+  task: AgentTask | null;
   issueNumber: number | null;
   prNumber: number | null;
   startedAt: number | null;
@@ -67,7 +67,7 @@ export interface Problem {
 }
 
 const BUSY = ['preparing', 'working'];
-const workKey = (a: WatchAgent) => `${a.repoId}#${a.task === 'issue' && !a.prNumber ? `i${a.issueNumber}` : `p${a.prNumber}`}`;
+const workKey = (a: WatchAgent) => `${a.repoId}#${(a.task === 'issue' || a.task === 'analysis') && !a.prNumber ? `i${a.issueNumber}` : `p${a.prNumber}`}`;
 
 /** Everything stuck right now. */
 export function diagnose(agents: readonly WatchAgent[], qa: readonly WatchQa[], unclosed: readonly Unclosed[], now: number): Problem[] {

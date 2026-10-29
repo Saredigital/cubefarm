@@ -196,6 +196,41 @@ function screenshotSvg(title: string, url: string, hue: number) {
 
 type Step = LogEntry[] | (() => void);
 
+function analysisScript(title: string): Step[] {
+  return [
+    [{ kind: 'text', text: `● Analizo "${title}": primero cómo está hecho hoy.` }],
+    [{ kind: 'tool', tool: 'Glob', text: '⏺ Glob src/**/*.{ts,tsx}' }, { kind: 'result', text: '  ⎿ 23 ficheros encontrados' }],
+    [{ kind: 'tool', tool: 'Grep', text: '⏺ Grep "useTodos"' }, { kind: 'result', text: '  ⎿ 6 coincidencias en 4 ficheros' }],
+    [{ kind: 'tool', tool: 'Read', text: '⏺ Read src/api/routes.ts' }, { kind: 'result', text: '  ⎿ 142 líneas leídas' }],
+    [{ kind: 'thinking', text: '✻ Comparo dos enfoques…' }],
+    [{ kind: 'tool', tool: 'Bash', text: '⏺ $ git log --oneline -- src/api' }, { kind: 'result', text: '  ⎿ 12 commits' }],
+    [{ kind: 'text', text: '● Tengo lo que necesito. Redacto el informe.' }],
+  ];
+}
+
+/** The demo analyst's report, in the shape the analysis prompt asks for. */
+function analysisReport(title: string) {
+  return [
+    `# ${title}`,
+    '',
+    '**Resumen.** Se puede hacer sin cambiar la API pública: el estado vive en un único hook (`useTodos`) y las rutas ya validan la entrada. La opción recomendada cuesta unos dos días.',
+    '',
+    '## Hallazgos',
+    '- `src/hooks/useTodos.ts` concentra el estado y lo usan 4 componentes.',
+    '- `src/api/routes.ts` no pagina: con más de 500 tareas la lista tarda en cargar.',
+    '- No hay tests de la API; los del cliente cubren el filtrado.',
+    '',
+    '## Opciones',
+    '1. **Ampliar el hook** (recomendada): poco riesgo, ~2 días.',
+    '2. **Mover el estado a un store global**: más flexible, pero toca todos los componentes (~5 días).',
+    '',
+    '## Issues propuestos',
+    '- Paginar `GET /api/todos`.',
+    '- Añadir tests de la API.',
+    '- Ampliar `useTodos` con la funcionalidad nueva.',
+  ].join('\n');
+}
+
 function issueScript(opts: SessionOptions, cb: SessionCallbacks, issueNumber: number, issueTitle: string): Step[] {
   const branch = path.basename(opts.cwd);
   const hue = (issueNumber * 67) % 360;
@@ -318,13 +353,14 @@ function fakeSession(opts: SessionOptions, cb: SessionCallbacks, fullName: strin
   const resumedFix = opts.resumeSessionId?.startsWith('demo-fix-') ?? false;
   // The task picks the script; a session started without one (a follow-up) is read from its prompt.
   const fixPrompt = !opts.task && /FAILED|taking over pull request|git push origin HEAD:/.test(opts.prompt);
-  const kind = opts.task === 'qa' ? 'qa' : opts.task === 'fix' || nudged || resumedFix || fixPrompt ? 'fix' : 'issue';
+  const kind = opts.task === 'qa' ? 'qa' : opts.task === 'analysis' ? 'analysis' : opts.task === 'fix' || nudged || resumedFix || fixPrompt ? 'fix' : 'issue';
   // Fix sessions can be resumed (the office's nudge), like real ones.
   if (kind === 'fix') cb.sessionId(opts.resumeSessionId ?? `demo-fix-${crypto.randomUUID()}`);
   const pull = fixPromptPull(opts.prompt);
   const issueMatch = opts.prompt.match(/#(\d+):\s*(.+)/);
-  const number = kind === 'issue' ? Number(issueMatch?.[1] ?? 0) : pull.number;
-  const title = (kind === 'issue' ? issueMatch?.[2]?.trim() : pull.title) ?? 'follow-up';
+  const fromIssue = kind === 'issue' || kind === 'analysis';
+  const number = fromIssue ? Number(issueMatch?.[1] ?? 0) : pull.number;
+  const title = (fromIssue ? issueMatch?.[2]?.trim() : pull.title) ?? 'follow-up';
   const round = Number(opts.prompt.match(/(?:QA round|[Rr]onda de QA) (\d+)/)?.[1] ?? 1);
   // Now and then a QA fix ends without pushing, so the office's nudge can be seen; half the nudged answer NO CHANGE NEEDED.
   const pushes = kind !== 'fix' || !(nudged || /FAILED|taking over pull request/.test(opts.prompt)) || Math.random() > (nudged ? 0.5 : 0.25);
@@ -334,7 +370,7 @@ function fakeSession(opts: SessionOptions, cb: SessionCallbacks, fullName: strin
     { kind: 'system', text: `  cwd ${opts.cwd}` },
   ];
   const checks = opts.prompt.match(/^(?:GitHub checks right now|Checks de GitHub ahora mismo): .*$/m)?.[0] ?? 'Checks de GitHub ahora mismo: ninguno';
-  const body = kind === 'qa' ? qaScript(cb, number, title, round, checks) : kind === 'fix' ? fixScript(number, pushes, nudged) : issueScript(opts, cb, number, title);
+  const body = kind === 'qa' ? qaScript(cb, number, title, round, checks) : kind === 'fix' ? fixScript(number, pushes, nudged) : kind === 'analysis' ? analysisScript(title) : issueScript(opts, cb, number, title);
   const script = [header, ...body];
 
   const expired = () => {
@@ -383,6 +419,12 @@ function fakeSession(opts: SessionOptions, cb: SessionCallbacks, fullName: strin
           fixInstructions: pass ? undefined : 'Haz que la barra de herramientas salte de línea (flex-wrap: wrap) por debajo de 480px para que todos los botones sigan visibles.',
         },
       });
+      return;
+    }
+    if (kind === 'analysis') {
+      const text = analysisReport(title);
+      cb.log([{ kind: 'text', text: '● Informe listo.' }]);
+      cb.finished({ ok: true, text, costUsd, turns, errors: [] });
       return;
     }
     if (kind === 'fix') {

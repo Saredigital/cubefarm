@@ -27,6 +27,19 @@ export function latestListed(lines: readonly LogLine[], lookBack = lines.length)
   return null;
 }
 
+const STEPS: LogLine['kind'][] = ['tool', 'thinking', 'text'];
+
+/** The latest step of a session that began at `since` (its first line), for the CEO's chat; null before its first. */
+export function currentStep(lines: readonly LogLine[], since: number | null): string | null {
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const l = lines[i];
+    if (since !== null && l.t < since) return null;
+    const text = l.text.trim();
+    if (STEPS.includes(l.kind) && text) return text.split('\n')[0];
+  }
+  return null;
+}
+
 /** Whether a tab gets every line of an agent on floor `agentFloor` (null: on no floor). */
 export function seesAll(w: Watch, agentId: string, agentFloor: number | null): boolean {
   return w.agents.includes(agentId) || (agentFloor !== null && agentFloor === w.floor);

@@ -3,7 +3,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { describe, expect, it } from 'vitest';
 import type { QaStatus } from '../shared/types.ts';
 import type { HttpError } from './httpError.ts';
-import { ceoJobPrompt, ceoSystemPrompt, checkCloseIssue, createOfficeTools, floorCapacity, IssueCap, jobLabel, planDependencies, plannedSize, scalePlan, type CeoJob, type DependsRequest, type TeamNow } from './ceo.ts';
+import { ceoJobEffort, ceoJobPrompt, ceoSystemPrompt, checkCloseIssue, createOfficeTools, floorCapacity, IssueCap, jobLabel, planDependencies, plannedSize, scalePlan, type CeoJob, type DependsRequest, type TeamNow } from './ceo.ts';
 
 describe('scalePlan (scale_team)', () => {
   // Desks 0-3: Ada and Linus are free, Grace and Alan busy; one new agent waits in the lobby.
@@ -82,12 +82,24 @@ describe('jobLabel', () => {
   });
 });
 
+describe('ceoJobEffort', () => {
+  it('caps a chat at medium and leaves every other job alone', () => {
+    expect(ceoJobEffort({ kind: 'chat' }, 'xhigh')).toBe('medium');
+    expect(ceoJobEffort({ kind: 'chat' }, 'max')).toBe('medium');
+    expect(ceoJobEffort({ kind: 'chat' }, 'low')).toBe('low');
+    expect(ceoJobEffort({ kind: 'review' }, 'xhigh')).toBe('xhigh');
+    expect(ceoJobEffort({ kind: 'plan' }, 'max')).toBe('max');
+  });
+});
+
 // The CEO only sees the office tools if the whole list converts to JSON Schema: one schema the SDK can't handle
 // (z.record did this) empties tools/list, and the CEO silently loses every tool.
 describe('office tools', () => {
   const connect = async () => {
     const floors: unknown[] = [];
+    const calls: [string, unknown][] = [];
     const office = createOfficeTools({
+      called: (name, args) => calls.push([name, args]),
       companyStatus: () => '{}',
       agentDetail: () => '{}',
       setFloorProfile: (a) => (floors.push(a), 'saved'),
@@ -101,13 +113,20 @@ describe('office tools', () => {
       rerunChecks: async () => '',
       closePull: async () => '',
       escalate: async () => '',
+      readReport: () => '',
     });
     const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
     await office.server.instance.connect(serverSide);
     const client = new Client({ name: 'test', version: '1.0.0' });
     await client.connect(clientSide);
-    return { client, floors };
+    return { client, floors, calls };
   };
+
+  it('tells the office about each call, so it shows even when the CLI reports no steps', async () => {
+    const { client, calls } = await connect();
+    await client.callTool({ name: 'company_status', arguments: {} });
+    expect(calls).toEqual([['company_status', {}]]);
+  });
 
   it('lists every tool the CEO relies on', async () => {
     const { client } = await connect();
@@ -120,6 +139,7 @@ describe('office tools', () => {
       'configure_agent',
       'escalate',
       'file_issue',
+      'read_report',
       'rerun_checks',
       'retry_qa',
       'scale_team',

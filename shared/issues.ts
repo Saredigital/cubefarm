@@ -1,5 +1,9 @@
 // Issue conventions shared by the server's scheduler and the client's whiteboard.
 
+/** An issue with this label is an analysis: an agent investigates and reports in the panel, without code or a PR. */
+export const ANALYSIS_LABEL = 'swarm:analysis';
+export const isAnalysis = (labels: readonly string[]) => labels.some((l) => l.toLowerCase() === ANALYSIS_LABEL);
+
 /** Open issues this issue waits for, from "Depends on #3" / "Blocked by #4, #5" in its body. */
 export function blockers(body: string, open: Set<number>) {
   const out = new Set<number>();

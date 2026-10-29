@@ -137,9 +137,12 @@ app.post('/api/repos/:repo/sync-folder', route((req) => swarm.syncFolderNow(repo
 app.post(
   '/api/repos/:repo/issues',
   route(async (req) => ({
-    number: await swarm.createIssue(repoId(req), str(req.body.title), str(req.body.body), str(req.body.assignTo) || undefined),
+    number: await swarm.createIssue(repoId(req), str(req.body.title), str(req.body.body), str(req.body.assignTo) || undefined, req.body.analysis === true),
   })),
 );
+// Finished analyses: the whole report, and handing it to the CEO
+app.get('/api/repos/:repo/reports/:n', route((req) => swarm.report(repoId(req), num(req.params.n))));
+app.post('/api/repos/:repo/reports/:n/ceo', route((req) => swarm.reportToCeo(repoId(req), num(req.params.n), str(req.body?.note))));
 app.post('/api/repos/:repo/issues/:n/close', route((req) => swarm.closeIssueByManager(repoId(req), num(req.params.n))));
 app.post('/api/repos/:repo/plan', route((req) => swarm.planFloor(repoId(req), typeof req.body?.mission === 'string' ? req.body.mission : undefined)));
 app.post('/api/repos/:repo/onboard', route((req) => swarm.onboardFloor(repoId(req))));

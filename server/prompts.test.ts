@@ -184,7 +184,7 @@ describe('prompt previews', () => {
 
   it('show one prompt per kind of task', () => {
     expect(preview().kind).toBe('agent');
-    expect(preview().parts.map((p) => p.label)).toEqual(['Construir un issue', 'Probar una pull request', 'Corregir una pull request']);
+    expect(preview().parts.map((p) => p.label)).toEqual(['Construir un issue', 'Probar una pull request', 'Corregir una pull request', 'Analizar un issue']);
   });
 
   it("match an agent's real prompts apart from the placeholders", () => {

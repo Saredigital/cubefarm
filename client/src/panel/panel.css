@@ -1035,3 +1035,25 @@
 .cp .company-workspace :is(button, summary, input, select, textarea):focus-visible {
   outline-color: var(--cp-accent);
 }
+
+/* Analysis reports (Reports.tsx) */
+.cp .cp-report {
+  margin-bottom: 10px;
+}
+.cp .cp-report > summary {
+  cursor: pointer;
+}
+.cp .cp-report-excerpt {
+  margin-top: 4px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.cp .cp-report[open] .cp-report-excerpt {
+  display: none;
+}
+.cp .cp-report-text {
+  margin-top: 12px;
+  overflow-wrap: anywhere;
+}

@@ -333,8 +333,10 @@ export function trustKey(screen: string): 'enter' | 'down' | null {
  * Codex asks to review new hooks before it starts. They only show the office Codex's steps, so trusting them is the
  * manager's call (once, in /hooks): the office moves to "Continue without trusting" (Down) and takes it (Enter).
  */
-export function hookReviewKey(screen: string): 'enter' | 'down' | null {
+export function hookReviewKey(screen: string): 'enter' | 'down' | 'escape' | null {
   if (!/Hooks need review/i.test(screen)) return null;
+  // Recent Codex versions offer an explicit skip action; it avoids cursor/render races.
+  if (/esc\s+skip/i.test(screen) && /Continue without trusting/i.test(screen)) return 'escape';
   const selected = screen.match(/^\s*[❯›]\s*(?:\d+\.\s*)?(.+)$/m)?.[1] ?? '';
   return /^continue without trusting/i.test(selected.trim()) ? 'enter' : 'down';
 }

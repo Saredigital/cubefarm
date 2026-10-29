@@ -3,7 +3,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import type { WebSocket } from 'ws';
 import type { Backend } from './backend.ts';
-import type { LogEntry, SessionHandle, SessionResult } from './agentRunner.ts';
+import { describeOfficeTool, type LogEntry, type SessionHandle, type SessionResult } from './agentRunner.ts';
 import { BoxMachines } from './boxMachines.ts';
 import type { BoxCliRecord, BoxTarget } from './boxCli.ts';
 import type { BoxSignIn, ReconnectedCli } from './cliRunner.ts';
@@ -12,7 +12,7 @@ import { CloudError } from './box.ts';
 import { Cloud, officeId, redact } from './cloud.ts';
 import type { PrDetails } from './github.ts';
 import { defaultProjectsDir, DESK_SWEEP_INTERVAL_MS, HOME_DIR, LOG_BUFFER, SCHEDULER_INTERVAL_MS, STATE_FILE, SYNC_INTERVAL_MS, VERSION } from './config.ts';
-import { askedFor, ceoJobPrompt, ceoSystemPrompt, checkCloseIssue, createOfficeTools, floorCapacity, IssueCap, jobLabel, NOT_ASKED, planDependencies, plannedSize, scalePlan, type CeoJob, type OfficeTools, type TeamNow } from './ceo.ts';
+import { askedFor, ceoJobEffort, ceoJobPrompt, ceoSystemPrompt, checkCloseIssue, createOfficeTools, floorCapacity, IssueCap, jobLabel, NOT_ASKED, planDependencies, plannedSize, scalePlan, type CeoJob, type OfficeTools, type TeamNow } from './ceo.ts';
 import { afterClose, ASK_AGAIN_MS, closedWhy, closuresHeld, forgettable, issueOpen, nameList, pullNow, stillOpen, stoppedMessage, toAsk, toHold, type Closure, type FloorState, type KnownPull, type LearnedPull } from './closeCleanup.ts';
 import { depsPromptLine, type DepsOutcome } from './deps.ts';
 import { setUpDesk } from './deskSetup.ts';
@@ -34,7 +34,7 @@ import { checkTriageTarget, triageStep, type TriagePr } from './triage.ts';
 import { DEFAULT_PREVIEW, Previews, parsePreviewPatch } from './previews.ts';
 import { PREVIEW_SLUG } from './previewRunner.ts';
 import { pruneQaShots, qaShotsDir, readQaShot, removeQaShots, saveQaShots } from './qaShots.ts';
-import { agentPromptPreview, ceoPromptPreview, devBranch, devSystemPrompt, failedLogLines, noPushNudge, ownPrLine, qaBranch, qaSystemPrompt } from './prompts.ts';
+import { agentPromptPreview, analysisSystemPrompt, ceoPromptPreview, devBranch, devSystemPrompt, failedLogLines, noPushNudge, ownPrLine, qaBranch, qaSystemPrompt } from './prompts.ts';
 import { QA_RESUME_PROMPT, qaRetry } from './qaRetry.ts';
 import { drainDecision, lastUpdateMessage, POSTPONE_MS, type DrainInput, type LastUpdate } from './officeUpdate.ts';
 import { clampPacingSessions, DEFAULT_PACING_SESSIONS, mayStart, PACING_MS, pacingMessage, resumeRefusal, usageLabel, usageView, waived, warningView, type UsageWarning, type Waiver, type WorkKind } from './pacing.ts';
@@ -54,7 +54,8 @@ import { clip, plainText, stuckAgents } from './notify.ts';
 import { DEFAULT_NOTIFY, notifySettings, officeUrl } from '../shared/notify.ts';
 import { cloudSettings, DEFAULT_CLOUD } from '../shared/cloud.ts';
 import { agentActivity, lineActivity, sameActivity, type SeenActivity } from '../shared/activity.ts';
-import { blockers, holdUps, waitsMessage } from '../shared/issues.ts';
+import { ANALYSIS_LABEL, blockers, holdUps, isAnalysis, waitsMessage } from '../shared/issues.ts';
+import { addReport, cleanReport, loadReports, reportComment, reportId, reportView, type Report } from './reports.ts';
 import { cleanStyle, HAIR_COLORS, SKIN_TONES, type AgentStyle } from '../shared/looks.ts';
 import { achievementDef, type ProgressView } from '../shared/progress.ts';
 import { ceoCli, ceoModel, effectiveModel, type CeoCli } from '../shared/models.ts';
@@ -210,6 +211,7 @@ interface Persisted {
   repos: PersistedRepo[];
   agents: PersistedAgent[];
   qa: QaRecord[];
+  reports: Report[]; // finished analyses, newest first (reports.ts)
   requests: HireRequestView[];
   ceo: CeoState;
   messages: PhoneMessage[];
@@ -516,6 +518,7 @@ export class Swarm {
     prLimits: PR_LIMITS_VERSION,
     ops: emptyHistory(),
     held: [],
+    reports: [],
     progress: emptyLedger(),
     officeId: officeId(),
   };
@@ -538,7 +541,20 @@ export class Swarm {
       rerunChecks: (a) => this.triageRerunChecks(a),
       closePull: (a) => this.triageClosePull(a),
       escalate: (a) => this.triageEscalate(a),
+      readReport: (a) => this.readReport(a),
+      called: (name, args) => this.ceoToolCalled(name, args),
     });
+  }
+
+  /** An office tool the CEO called, in its log: Codex doesn't report its steps unless the manager trusts its hooks. */
+  private ceoToolCalled(name: string, args: Record<string, unknown>) {
+    const a = this.ceo();
+    const rt = this.agentRt.get(a.id);
+    if (!rt?.session) return;
+    const text = describeOfficeTool(name, args);
+    // Claude Code (and Codex with trusted hooks) may have reported it already.
+    if (rt.log.slice(-4).some((l) => l.kind === 'tool' && l.text === text)) return;
+    this.appendLog(a, [{ kind: 'tool', text, tool: `mcp__office__${name}` }]);
   }
   private ceoIssues = new IssueCap(MAX_ISSUES_PER_JOB); // issues filed during the current CEO job
   private ceoAsked = false; // the manager asked for work in the current CEO job (a plan, or a message): only then are issues filed
@@ -707,6 +723,7 @@ export class Swarm {
         prLimits: loaded.prLimits ?? 1,
         ops: loadHistory(loaded.ops, Date.now()),
         held: loaded.held ?? [],
+        reports: loadReports(loaded.reports),
         progress: loadLedger(loaded.progress),
         officeId: typeof loaded.officeId === 'string' && /^[a-z0-9]{6}$/.test(loaded.officeId) ? loaded.officeId : this.state.officeId,
       };
@@ -1099,6 +1116,7 @@ export class Swarm {
       // no terminal lines: each tab asks for the ones it shows (shared/watch.ts)
       agents: this.state.agents.map((a) => this.agentView(a, false)),
       qa: this.state.qa.map((q) => this.qaView(q)),
+      reports: this.state.reports.map(reportView),
       prPreviews: this.previews.prViews(),
       requests: this.state.requests,
       ceo: this.ceoInfo(),
@@ -1856,12 +1874,13 @@ export class Swarm {
     this.save();
   }
 
-  async createIssue(repoId: string, title: string, body: string, assignTo?: string) {
+  /** analysis: labelled swarm:analysis, so its agent investigates and reports instead of opening a PR. */
+  async createIssue(repoId: string, title: string, body: string, assignTo?: string, analysis = false) {
     const repo = this.repo(repoId);
     if (!title.trim()) throw new HttpError(400, 'Un issue necesita un título');
-    const number = await this.backend.createIssue(repo.fullName, title.trim(), body);
+    const number = await this.backend.createIssue(repo.fullName, title.trim(), body, analysis ? [ANALYSIS_LABEL] : []);
     await this.syncRepo(repo.id);
-    this.toast('success', `Issue #${number} abierto en ${repo.fullName}`);
+    this.toast('success', `${analysis ? 'Análisis' : 'Issue'} #${number} abierto en ${repo.fullName}`);
     if (assignTo) await this.assign(assignTo, number);
     else setTimeout(() => this.schedule(), 200);
     return number;
@@ -2489,6 +2508,8 @@ export class Swarm {
     if (patch.style !== undefined) a.style = cleanStyle(patch.style); // null: back to the seeded look
     if (patch.model !== undefined) a.model = String(patch.model).trim();
     if (patch.effort !== undefined) a.effort = EFFORTS.includes(patch.effort as EffortLevel) ? (patch.effort as EffortLevel) : '';
+    // The CEO's CLI kept between chats was started with its old setup: the next chat starts it again.
+    if (a.role === 'ceo' && (patch.cli !== undefined || patch.model !== undefined || patch.effort !== undefined)) void this.agentRt.get(a.id)?.terminal?.releaseIdle?.();
     this.save();
     this.emitAgent(a);
   }
@@ -2851,10 +2872,11 @@ export class Swarm {
 
   private async runTask(a: PersistedAgent, repo: PersistedRepo, issue: IssueInfo, note?: string) {
     const branch = devBranch(issue.number, slugify(a.name));
+    const analysis = isAnalysis(issue.labels);
     this.beginTask(
       a,
-      { task: 'issue', issueNumber: issue.number, issueTitle: issue.title, branch, prNumber: null, prUrl: null, sessionId: null },
-      `Issue #${issue.number}: ${issue.title}`,
+      { task: analysis ? 'analysis' : 'issue', issueNumber: issue.number, issueTitle: issue.title, branch, prNumber: null, prUrl: null, sessionId: null },
+      `${analysis ? 'Análisis' : 'Issue'} #${issue.number}: ${issue.title}`,
       `Preparando el worktree en ${branch}…`,
     );
     // GitHub's word, not the last sync's: an issue closed since then isn't started.
@@ -2872,7 +2894,7 @@ export class Swarm {
     const { cwd } = desk;
 
     const prompt = [
-      `Resuelve el issue de GitHub #${issue.number}: ${issue.title}`,
+      `${analysis ? 'Analiza' : 'Resuelve'} el issue de GitHub #${issue.number}: ${issue.title}`,
       `URL: ${issue.url}`,
       issue.labels.length ? `Etiquetas: ${issue.labels.join(', ')}` : '',
       '',
@@ -2882,7 +2904,10 @@ export class Swarm {
       .filter(Boolean)
       .join('\n');
 
-    this.startAgentSession(a, repo, cwd, prompt, this.buildSystemAppend(a, repo, cwd, branch, undefined, desk.deps));
+    const system = analysis
+      ? analysisSystemPrompt({ agent: a, repo, cwd, linked: this.linkedDirs(repo, a) })
+      : this.buildSystemAppend(a, repo, cwd, branch, undefined, desk.deps);
+    this.startAgentSession(a, repo, cwd, prompt, system);
   }
 
   private startAgentSession(
@@ -3052,6 +3077,7 @@ export class Swarm {
     if (this.dropping.has(a.id)) this.dropTask(a, '↺ Puesto despejado. Listo para trabajo nuevo.'); // stopped: its issue or PR closed
     else if (a.task === 'qa') await this.onQaFinished(a, repo, result);
     else if (a.task === 'fix') await this.onFixFinished(a, repo, result);
+    else if (a.task === 'analysis') await this.onAnalysisFinished(a, repo, result);
     else await this.onIssueFinished(a, repo, result);
 
     this.emitAgent(a);
@@ -3122,6 +3148,33 @@ export class Swarm {
       a.id,
       `Has terminado sin abrir una pull request para #${a.issueNumber}. Completa ahora los pasos que faltan: haz commit, sube tu rama y abre la PR con "Closes #${a.issueNumber}" (tal cual, en inglés) en el cuerpo. Si el issue no se puede hacer, abre una PR en borrador que explique por qué.`,
     ).catch(() => this.releaseIssue(a, repo));
+  }
+
+  /** An analysis ended: its report is kept for the panel, posted on its issue, and the issue closes. */
+  private async onAnalysisFinished(a: PersistedAgent, repo: PersistedRepo, result: SessionResult) {
+    if (a.status === 'stopped') return; // the manager already logged the stop
+    const n = a.issueNumber!;
+    const text = cleanReport(result.text);
+    if (!result.ok || !text) {
+      this.issueFailed(repo, n);
+      return this.fail(a, result.ok ? { ...result, errors: ['Ha terminado sin escribir el informe.'] } : result, `el análisis #${n}`);
+    }
+    this.issueFailures.delete(`${repo.id}#${n}`);
+    const r: Report = { id: reportId(repo.id, n), repoId: repo.id, issue: n, title: a.issueTitle ?? '', agentName: a.name, at: Date.now(), text };
+    this.state.reports = addReport(this.state.reports, r);
+    this.broadcast({ type: 'report', report: reportView(r) });
+    a.status = 'done';
+    this.appendLog(a, [{ kind: 'done', text: `✔ Análisis terminado en ${this.minutes(a)} min · ${a.turns} turnos · informe en el panel del proyecto` }]);
+    // A follow-up that redoes it only updates the report: the issue closed the first time.
+    if (this.repoRt.get(repo.id)?.issues.some((i) => i.number === n)) {
+      try {
+        await this.backend.closeIssue(repo.fullName, n, reportComment(r), 'completed');
+        this.learnIssueClosed(repo, n);
+      } catch (err) {
+        this.appendLog(a, [{ kind: 'error', text: `⚠ No se ha podido cerrar #${n} en GitHub con el informe: ${redact(oneLine(err), this.secrets())}` }]);
+      }
+    }
+    this.postMessage('office', `📄 ${a.name} ha terminado el análisis #${n} (${r.title}) de ${repo.fullName}. Léelo en Informes, en la página del proyecto.`);
   }
 
   private releaseIssue(a: PersistedAgent, repo: PersistedRepo) {
@@ -4316,7 +4369,9 @@ export class Swarm {
         prompt: ceoJobPrompt(job, floor, triage),
         systemAppend: ceoSystemPrompt(this.ceoPromptInput(a)),
         model: ceoModel(a.model, cli),
-        effort: a.effort || CEO_EFFORT,
+        effort: ceoJobEffort(job, a.effort || CEO_EFFORT),
+        // A chat's CLI waits at its prompt, so the next message continues in it instead of starting the CLI again.
+        keepAlive: job.kind === 'chat',
         browserTesting: false,
         additionalDirectories: this.state.repos.filter((r) => this.repoRt.get(r.id)?.cloneStatus === 'ready').map((r) => this.backend.mainDir(r.fullName)),
         role: 'ceo',
@@ -5313,6 +5368,8 @@ export class Swarm {
               return { number: p.number, title: p.title, qa: q ? `${q.status}${q.round > 1 ? ` (ronda ${q.round})` : ''}` : 'sin probar', merge: q?.mergeNote ?? null, checks: p.checks };
             }),
           mergedRecently: rt.pulls.filter((p) => p.state === 'MERGED').map((p) => `#${p.number} ${p.title}`),
+          // Finished analyses (read_report has the text).
+          reports: this.state.reports.filter((x) => x.repoId === r.id).slice(0, 5).map((x) => `#${x.issue} ${x.title}`),
         };
       });
     const req = (r: HireRequestView) => ({
@@ -5386,16 +5443,39 @@ export class Swarm {
     return `${a.name} usará ${setup} desde su próxima tarea.`;
   }
 
-  private async fileIssue(x: { floor: number; title: string; body: string }) {
+  private async fileIssue(x: { floor: number; title: string; body: string; analysis?: boolean }) {
     const repo = this.floorRepo(x.floor);
     if (!this.ceoAsked) throw new Error(NOT_ASKED);
     this.ceoIssues.check();
     const title = String(x.title ?? '').trim().slice(0, 120);
     if (!title) throw new Error('Un issue necesita un título.');
     const body = `${String(x.body ?? '').trim()}\n\n---\n_Abierto por ${this.ceo().name}, CEO de sareoffice._`;
-    const n = await this.backend.createIssue(repo.fullName, title, body);
+    const n = await this.backend.createIssue(repo.fullName, title, body, x.analysis ? [ANALYSIS_LABEL] : []);
     this.ceoIssues.record(repo.id);
-    return `Filed #${n} on floor ${repo.floor}: ${title}.`;
+    return x.analysis ? `Filed analysis #${n} on floor ${repo.floor}: ${title}. Read its report with read_report once it's done.` : `Filed #${n} on floor ${repo.floor}: ${title}.`;
+  }
+
+  /** A finished analysis's whole report, for the panel. */
+  report(repoId: string, issue: number): { text: string } {
+    const r = this.state.reports.find((x) => x.id === reportId(this.repo(repoId).id, issue));
+    if (!r) throw new HttpError(404, `No hay ningún informe del análisis #${issue}`);
+    return { text: r.text };
+  }
+
+  /** The manager hands a report to the CEO: a chat asking it to turn the conclusions into work. */
+  async reportToCeo(repoId: string, issue: number, note: string) {
+    const repo = this.repo(repoId);
+    if (!this.state.reports.some((x) => x.id === reportId(repo.id, issue))) throw new HttpError(404, `No hay ningún informe del análisis #${issue}`);
+    const ask = note.trim() || 'Propón el trabajo que sale de sus conclusiones y abre los issues que tengan sentido.';
+    await this.messageCeo(`Lee con read_report el informe del análisis #${issue} de la planta ${repo.floor} (${repo.fullName}). ${ask}`);
+  }
+
+  /** A finished analysis's report, for the CEO. */
+  private readReport(x: { floor: number; number: number }) {
+    const repo = this.floorRepo(x.floor);
+    const r = this.state.reports.find((x2) => x2.id === reportId(repo.id, Number(x.number)));
+    if (!r) throw new Error(`No hay ningún informe del análisis #${x.number} en la planta ${repo.floor}.`);
+    return `Análisis #${r.issue} "${r.title}", por ${r.agentName}:\n\n${r.text}`;
   }
 
   /** Rewrite an open issue's "Depends on #N" line (see planDependencies for what is refused). */

@@ -2,9 +2,11 @@
 // hadn't started that task's session yet, so the session it remembers, or a CLI still busy in its terminal, belongs to
 // an earlier task: resuming it would do that task again (a QA verdict posted twice) and pass the result off as this one.
 
+import type { AgentTask } from '../shared/types.ts';
+
 export interface RestartAgent {
   status: string;
-  task: 'issue' | 'qa' | 'fix' | null;
+  task: AgentTask | null;
   sessionId: string | null;
   branch: string | null;
   issueNumber: number | null;
@@ -49,6 +51,9 @@ export function resumeNote(a: RestartAgent, fix?: { round: number; fixReason: 'q
       ? `sube con: git push origin ${a.branch} para actualizar la PR #${a.prNumber}`
       : `sube con: git push -u origin ${a.branch}, y abre la pull request con "Closes #${a.issueNumber}" (o actualízala si ya está abierta)`;
     return `El servidor de la oficina se ha reiniciado mientras trabajabas en el issue #${a.issueNumber}${a.issueTitle ? ` (${a.issueTitle})` : ''} en la rama ${a.branch}. Termínalo, haz commit y ${pr}. ${yours}`;
+  }
+  if (a.task === 'analysis' && a.issueNumber) {
+    return `El servidor de la oficina se ha reiniciado mientras analizabas el issue #${a.issueNumber}${a.issueTitle ? ` (${a.issueTitle})` : ''}. Termina el análisis sin tocar el repositorio y escribe el informe completo como mensaje final, en español.`;
   }
   return 'El servidor de la oficina se ha reiniciado mientras trabajabas. Comprueba el estado de tu worktree y continúa donde lo dejaste. Escribe en español.';
 }

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { CEO_ID, DEFAULT_DOG_NAME, DEFAULT_MAX_AGENTS, type AgentView, type CeoInfo, type CliView, type CloudView, type DoctorFinding, type HireRequestView, type LogLine, type NotifyChannelsView, type OfficeUpdateView, type OpsView, type PhoneMessage, type PrPreviewView, type QaView, type RepoView, type ServerEvent, type SwarmSettings, type TickerItem, type UsageView, type VoiceCacheView, type WorldSnapshot } from '../../shared/types';
+import { CEO_ID, DEFAULT_DOG_NAME, DEFAULT_MAX_AGENTS, type AgentView, type CeoInfo, type CliView, type CloudView, type DoctorFinding, type HireRequestView, type LogLine, type NotifyChannelsView, type OfficeUpdateView, type OpsView, type PhoneMessage, type PrPreviewView, type QaView, type ReportView, type RepoView, type ServerEvent, type SwarmSettings, type TickerItem, type UsageView, type VoiceCacheView, type WorldSnapshot } from '../../shared/types';
 import { blockers } from '../../shared/issues';
 import { latestListed } from '../../shared/watch';
 import { DEFAULT_NOTIFY } from '../../shared/notify';
@@ -54,6 +54,7 @@ interface State {
   workersOpen: boolean; // the workers list is showing (WorkersPanel.tsx), so the office sends everyone's latest line
   screens: Record<string, number>; // agentId -> screenshot timestamp (cache buster)
   qa: Record<string, QaView>; // `${repoId}#${prNumber}`
+  reports: ReportView[]; // finished analyses, newest first
   prPreviews: Record<string, PrPreviewView>; // the PR theatre's previews, `${repoId}#${pr}`
   requests: HireRequestView[];
   ceo: CeoInfo;
@@ -135,6 +136,7 @@ export const useStore = create<State>((set, get) => ({
   workersOpen: false,
   screens: {},
   qa: {},
+  reports: [],
   prPreviews: {},
   requests: [],
   ceo: { queue: [], job: null, lastReviewAt: null, nextReviewAt: null },
@@ -193,6 +195,7 @@ export const useStore = create<State>((set, get) => ({
           latest: {},
           screens,
           qa,
+          reports: d.reports ?? [],
           prPreviews,
           requests: d.requests,
           ceo: d.ceo,
@@ -301,6 +304,9 @@ export const useStore = create<State>((set, get) => ({
         set({ qa: { ...get().qa, [qaKey(ev.qa.repoId, ev.qa.prNumber)]: ev.qa } });
         break;
       }
+      case 'report':
+        set({ reports: [ev.report, ...get().reports.filter((r) => r.id !== ev.report.id)] });
+        break;
       case 'qaRemoved': {
         const { [qaKey(ev.repoId, ev.prNumber)]: _gone, ...qa } = get().qa;
         set({ qa });

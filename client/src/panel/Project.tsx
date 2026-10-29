@@ -1,5 +1,5 @@
-// One project in the control panel: its header and actions (sync, preview, plan with the CEO, launch a task) and three
-// tabs: the board (the office's Kanban), its agents and its settings.
+// One project in the control panel: its header and actions (sync, preview, plan with the CEO, launch a task) and four
+// tabs: the board (the office's Kanban), its agents, its analysis reports and its settings.
 import { useEffect, useMemo, useState } from 'react';
 import type { RepoView } from '../../../shared/types';
 import { api } from '../api';
@@ -9,12 +9,14 @@ import { confirmDialog } from '../ui/Confirm';
 import { KanbanView } from '../ui/KanbanView';
 import { AgentGrid, HireButton } from './Agents';
 import { PipelineChips, PreviewChip } from './Overview';
+import { Reports } from './Reports';
 import { shortName, type ProjectTab } from './panelData';
 import type { Go } from './ControlPanel';
 
 const TABS: [ProjectTab, string][] = [
   ['board', 'Tablero'],
   ['agents', 'Agentes'],
+  ['reports', 'Informes'],
   ['settings', 'Ajustes'],
 ];
 
@@ -97,6 +99,7 @@ export function ProjectPage({ repoId, tab, go, launch }: { repoId: string; tab: 
   const repo = useStore((s) => s.repos.find((r) => r.id === repoId));
   const agents = useStore((s) => s.agents);
   const qa = useStore((s) => s.qa);
+  const reportCount = useStore((s) => s.reports.filter((r) => r.repoId === repoId).length);
   const [busy, run] = useRun();
   const team = useMemo(() => agentsOnRepo(agents, repoId).filter((a) => a.role !== 'ceo'), [agents, repoId]);
   const p = useMemo(() => (repo ? pipelineOf(kanbanFor(repo, team, qa)) : null), [repo, team, qa]);
@@ -165,7 +168,7 @@ export function ProjectPage({ repoId, tab, go, launch }: { repoId: string; tab: 
         {TABS.map(([k, label]) => (
           <button key={k} role="tab" aria-selected={tab === k} onClick={() => go({ page: 'project', repoId: repo.id, tab: k })}>
             {label}
-            {k === 'agents' ? ` · ${team.length}` : ''}
+            {k === 'agents' ? ` · ${team.length}` : k === 'reports' && reportCount ? ` · ${reportCount}` : ''}
           </button>
         ))}
       </div>
@@ -186,6 +189,7 @@ export function ProjectPage({ repoId, tab, go, launch }: { repoId: string; tab: 
           <AgentGrid agents={team} />
         </section>
       )}
+      {tab === 'reports' && <Reports repo={repo} />}
       {tab === 'settings' && <Settings repo={repo} go={go} />}
     </>
   );

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LogLine } from './types.ts';
-import { catchUp, FLOOR_TAIL, latestListed, NO_WATCH, PANEL_TAIL, parseWatch, sameWatch, seesAll, type Watch } from './watch.ts';
+import { catchUp, currentStep, FLOOR_TAIL, latestListed, NO_WATCH, PANEL_TAIL, parseWatch, sameWatch, seesAll, type Watch } from './watch.ts';
 
 const line = (id: number, kind: LogLine['kind'], text = `line ${id}`): LogLine => ({ id, t: id * 1000, kind, text });
 const watch = (floor: number, agents: string[] = [], workers = false): Watch => ({ floor, agents, workers });
@@ -20,6 +20,14 @@ describe("a tab's watch", () => {
     expect(latestListed(lines)?.id).toBe(2);
     expect(latestListed(lines, 3)).toBeNull();
     expect(latestListed([])).toBeNull();
+  });
+
+  it("shows the CEO's latest step of the current session only", () => {
+    const lines = [line(1, 'tool', 'old'), line(5, 'system'), line(6, 'tool', '🏢 company_status'), line(7, 'result')];
+    expect(currentStep(lines, 5000)).toBe('🏢 company_status');
+    expect(currentStep([line(8, 'thinking', 'Reviso la planta 1\nmás detalle')], 8000)).toBe('Reviso la planta 1');
+    expect(currentStep(lines.slice(0, 2), 5000)).toBeNull();
+    expect(currentStep(lines.slice(0, 2), null)).toBe('old');
   });
 
   it('only takes well-formed watch messages', () => {

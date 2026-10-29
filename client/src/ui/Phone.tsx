@@ -8,6 +8,7 @@ import { MicButton } from './MicButton';
 import { handsFreeProblem, setHandsFree } from './mic';
 import { replayKind } from './voiceQueue';
 import { CLAUDE_MODELS, effectiveModel, modelSuggestions } from '../../../shared/models';
+import { currentStep } from '../../../shared/watch';
 
 // The CEO's chat and the cards for team changes (a new agent, or one leaving), shared by the control panel and
 // pocket mode.
@@ -294,6 +295,11 @@ export function Chat({ autoFocus = true }: { autoFocus?: boolean }) {
   const info = useStore((s) => s.ceo);
   const settings = useStore((s) => s.settings);
   const running = useStore((s) => Object.values(s.agents).filter(isBusy).length);
+  // What the CEO is doing right now, from its log (the chat watches it): a tool call, a thought or a reply.
+  const step = useStore((s) => {
+    const c = s.agents[CEO_ID];
+    return c?.status === 'working' ? currentStep(s.logs[CEO_ID] ?? [], c.startedAt) : null;
+  });
   const [text, setText] = useState('');
   const scroller = useRef<HTMLDivElement>(null);
 
@@ -336,6 +342,11 @@ export function Chat({ autoFocus = true }: { autoFocus?: boolean }) {
         <div className="grow">
           <b>{ceo.name}</b> <span className="muted small">CEO</span>
           <div className={`small ${ceo.status === 'working' ? 'presence-busy' : 'muted'}`}>{presence}</div>
+          {step && (
+            <div className="small muted ceo-step" title={step}>
+              {step}
+            </div>
+          )}
         </div>
         <HandsFreeToggle ceoName={ceo.name} />
       </div>

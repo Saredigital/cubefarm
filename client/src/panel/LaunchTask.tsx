@@ -1,5 +1,5 @@
 // Launch a task from anywhere in the control panel (Ctrl K): written in plain words, it becomes an issue for the next
-// free agent or for one picked here, or goes to the CEO to plan into issues.
+// free agent or for one picked here, or goes to the CEO to plan into issues. An analysis is reported on, not built.
 import { useMemo, useState } from 'react';
 import { api } from '../api';
 import { agentsOnRepo, isBusy, useStore } from '../store';
@@ -12,6 +12,7 @@ export function LaunchTask({ repoId: initial, onClose, onCeo }: { repoId?: strin
   const [text, setText] = useState('');
   const [repoId, setRepoId] = useState(initial ?? repos[0]?.id ?? '');
   const [mode, setMode] = useState<LaunchMode>('backlog');
+  const [analysis, setAnalysis] = useState(false);
   const [agentId, setAgentId] = useState('');
   const [busy, setBusy] = useState(false);
   const repo = repos.find((r) => r.id === repoId);
@@ -24,15 +25,15 @@ export function LaunchTask({ repoId: initial, onClose, onCeo }: { repoId?: strin
     const toast = useStore.getState().pushToast;
     try {
       if (mode === 'ceo') {
-        await api.messageCeo(ceoTask(shortName(repo.fullName), text));
-        toast('success', 'Tarea enviada al CEO para que la planifique');
+        await api.messageCeo(ceoTask(shortName(repo.fullName), text, analysis));
+        toast('success', analysis ? 'Análisis enviado al CEO para que lo reparta' : 'Tarea enviada al CEO para que la planifique');
         onClose();
         onCeo();
         return;
       }
       const { title, body } = taskIssue(text);
       // The office toasts the new issue itself.
-      await api.createIssue(repo.id, title, body, mode === 'agent' ? agentId : undefined);
+      await api.createIssue(repo.id, title, body, mode === 'agent' ? agentId : undefined, analysis);
       onClose();
     } catch {
       // toasted
@@ -95,6 +96,29 @@ export function LaunchTask({ repoId: initial, onClose, onCeo }: { repoId?: strin
         </div>
         <fieldset className="cp-form" style={{ border: 0, margin: 0, padding: 0, gap: 10 }}>
           <legend className="cp-label" style={{ marginBottom: 8 }}>
+            ¿Qué tipo de tarea?
+          </legend>
+          <label className="cp-opt">
+            <input type="radio" name="cp-kind" checked={!analysis} onChange={() => setAnalysis(false)} />
+            <span>
+              <span style={{ fontWeight: 500 }}>Construir</span>
+              <span className="cp-hint" style={{ display: 'block' }}>
+                El agente cambia el código y abre una PR que pasa por QA.
+              </span>
+            </span>
+          </label>
+          <label className="cp-opt">
+            <input type="radio" name="cp-kind" checked={analysis} onChange={() => setAnalysis(true)} />
+            <span>
+              <span style={{ fontWeight: 500 }}>Analizar</span>
+              <span className="cp-hint" style={{ display: 'block' }}>
+                El agente investiga sin tocar el código y escribe un informe que lees en Informes, en la página del proyecto.
+              </span>
+            </span>
+          </label>
+        </fieldset>
+        <fieldset className="cp-form" style={{ border: 0, margin: 0, padding: 0, gap: 10 }}>
+          <legend className="cp-label" style={{ marginBottom: 8 }}>
             ¿Quién se encarga?
           </legend>
           <label className="cp-opt">
@@ -104,7 +128,9 @@ export function LaunchTask({ repoId: initial, onClose, onCeo }: { repoId?: strin
               <span className="cp-hint" style={{ display: 'block' }}>
                 {repo?.autoAssign === false
                   ? 'Se queda en el backlog: este proyecto tiene la asignación automática desactivada.'
-                  : 'Crea la issue y la coge el siguiente agente libre, que la construye, la pasa a QA y la deja lista para fusionar.'}
+                  : analysis
+                    ? 'Crea la issue y la coge el siguiente agente libre, que la analiza y deja su informe.'
+                    : 'Crea la issue y la coge el siguiente agente libre, que la construye, la pasa a QA y la deja lista para fusionar.'}
               </span>
             </span>
           </label>
@@ -132,7 +158,9 @@ export function LaunchTask({ repoId: initial, onClose, onCeo }: { repoId?: strin
             <span>
               <span style={{ fontWeight: 500 }}>Que el CEO lo planifique</span>
               <span className="cp-hint" style={{ display: 'block' }}>
-                El CEO la divide en issues con sus dependencias y las reparte. Sigue la conversación en su chat.
+                {analysis
+                  ? 'El CEO decide qué hay que analizar y abre los análisis. Sigue la conversación en su chat.'
+                  : 'El CEO la divide en issues con sus dependencias y las reparte. Sigue la conversación en su chat.'}
               </span>
             </span>
           </label>

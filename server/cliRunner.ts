@@ -914,11 +914,19 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
   // so when a CLI is waiting on something only the manager can do (signing in).
   const watchBoot = (pty: Pty) => {
     screenTimer = setInterval(() => {
-      if (done || Date.now() - started > BOOT_MS * 2) return clearInterval(screenTimer);
+      if (done) return clearInterval(screenTimer);
       const screen = term.screen();
       const review = hookReviewKey(screen);
-      const key = trustKeys < 12 && Date.now() - trustedAt > 3000 ? (trustKey(screen) ?? review) : null;
-      if (key === 'down') {
+      const booting = Date.now() - started <= BOOT_MS * 2;
+      const key = Date.now() - trustedAt > 3000 ? (review ?? (booting && trustKeys < 12 ? trustKey(screen) : null)) : null;
+      if (key === 'escape') {
+        trustedAt = Date.now();
+        quietly(() => pty.write('\x1b'));
+        if (!hooksHinted) {
+          hooksHinted = true;
+          log([{ kind: 'system', text: 'Aviso de hooks omitido; Codex continúa sin concederles confianza.' }]);
+        }
+      } else if (key === 'down') {
         trustedAt = Date.now(); // Wait for the selection to render before sending another key.
         trustKeys += 1;
         quietly(() => pty.write(term.appCursor ? '\x1bOB' : '\x1b[B'));
@@ -932,6 +940,7 @@ export function startCliSession(opts: SessionOptions, callbacks: SessionCallback
         }
         quietly(() => pty.write('\r'));
       }
+      if (!booting) return;
       if (!nudged.has('login') && /Not logged in|run \/login|Select login method|Sign in with ChatGPT|Please login|Invalid API key/i.test(screen)) {
         nudged.add('login');
         // A cloud agent's CLI is signed in through the office's own sign-in, which then starts the task again.

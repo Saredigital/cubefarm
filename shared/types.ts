@@ -164,7 +164,20 @@ export const INSTALL_STEP = 'Installing dependencies';
 export type AgentLook = 'feminine' | 'masculine';
 
 /** What an agent is currently doing: implementing an issue, testing a PR, or fixing a PR after QA. */
-export type AgentTask = 'issue' | 'qa' | 'fix';
+/** analysis: an issue labelled swarm:analysis, investigated and reported on without changing code (shared/issues.ts). */
+export type AgentTask = 'issue' | 'qa' | 'fix' | 'analysis';
+
+/** An analysis an agent finished: its report is read in the panel (GET /api/reports/:id) and handed to the CEO from there. */
+export interface ReportView {
+  id: string;
+  repoId: string;
+  issue: number;
+  title: string;
+  agentName: string;
+  at: number;
+  /** The report's opening, for the list; the whole text is fetched when it's opened. */
+  excerpt: string;
+}
 
 /**
  * How agents run. terminal: each agent is the real coding-agent CLI in its own terminal, shown live in the office.
@@ -590,6 +603,7 @@ export interface WorldSnapshot {
   repos: RepoView[];
   agents: AgentView[];
   qa: QaView[];
+  reports: ReportView[]; // finished analyses, newest first
   prPreviews: PrPreviewView[];
   requests: HireRequestView[];
   ceo: CeoInfo;
@@ -633,6 +647,7 @@ export type ServerEvent =
   | { type: 'screen'; agentId: string; url: string | null; at: number }
   | { type: 'qa'; qa: QaView }
   | { type: 'qaRemoved'; repoId: string; prNumber: number }
+  | { type: 'report'; report: ReportView }
   | { type: 'prPreview'; preview: PrPreviewView }
   | { type: 'prPreviewRemoved'; repoId: string; pr: number }
   | { type: 'settings'; settings: SwarmSettings }
